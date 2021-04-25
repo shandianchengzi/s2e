@@ -48,10 +48,11 @@ private:
                         uint32_t tmp = std::stoull(equ.bits, NULL, 10);
                         a1 = peripheral_regs_value_map[equ.phaddr].cur>>tmp&1;
                     }
-                    if (equ.type_a2 == "T") 
+                    if (equ.type_a2 == "T") {
                         a2 = peripheral_regs_value_map[data_register].t_size;
-                    else (equ.type_a2 == "R")
+                    } else if(equ.type_a2 == "R") {
                         a2 = peripheral_regs_value_map[data_register].r_size;
+                    }
                     else a2 = equ.value;
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                 }
@@ -79,7 +80,7 @@ private:
                 uint32_t a2;
                 if (equ.type_a2 == "T") 
                     a2 = peripheral_regs_value_map[data_register].t_size;
-                else (equ.type_a2 == "R")
+                else if (equ.type_a2 == "R")
                     a2 = peripheral_regs_value_map[data_register].r_size;
                 else a2 = equ.value;
                 if (equ.type == "R") {
