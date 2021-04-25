@@ -96,17 +96,17 @@ private:
 
     bool compare(uint32_t a1, std::string sym, uint32_t a2) {
         //1:= ; 2:>; 3: <; 4: >=; 5: <=
-        if sym == "*":
+        if (sym == "*")
             return false;
-        if sym == "=":
+        if (sym == "=")
             return a1 == a2;
-        if sym ==  ">":
+        if (sym ==  ">")
             return a1 > a2;
-        if sym ==  "<":
+        if (sym ==  "<")
             return a1 < a2;
-        if sym ==  ">=":
+        if (sym ==  ">=")
             return a1 >= a2;
-        if sym ==  "<=":
+        if (sym ==  "<=")
             return a1 <= a2;
         return false;
     }
@@ -148,7 +148,7 @@ public:
         if (data_register == phaddr){
             //getWarningsStream() << "read from receive buffer"
             //                    << "\n";
-            peripheral_regs_value_map[phaddr].r_value;                    
+            return peripheral_regs_value_map[phaddr].r_value;                    
         }
         UpdateGraph(1, phaddr);
         return  peripheral_regs_value_map[phaddr].cur;
@@ -190,7 +190,7 @@ bool NLPPeripheralModel::ReadMemofromFile(std::string fileName) {
     std::string peripheralcache;
     while (getline(fPHKB, peripheralcache)) {
         PeripheralReg reg;
-        if (getMemo(peripheralcache, &reg)) {
+        if (getMemo(peripheralcache, reg)) {
             peripheral_regs_value_map[reg.phaddr] = reg;
             if (reg.type == data_register_type)
                 data_register = reg.phaddr;
@@ -213,7 +213,7 @@ bool NLPPeripheralModel::ReadTAfromFile(std::string fileName) {
     while (getline(fPHKB, peripheralcache)) {
         std::vector<Equation> trigger;
         std::vector<Equation> action;
-        if (getTApairs(peripheralcache, &trigger, &action)) {
+        if (getTApairs(peripheralcache, trigger, action)) {
             allTAs.push_back(make_pair(trigger, action));
         }
     }
@@ -250,11 +250,11 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     }
 
     std::vector<std::string> v;
-    SplitString(what, v, "_");
+    SplitString(what[0], v, "_");
     reg.type = v[0];
     reg.phaddr = std::stoull(v[1].c_str(), NULL, 10);
     reg.reset = std::stoull(v[2].c_str(), NULL, 10);
-    reg.cur = reg.rest;
+    reg.cur = reg.reset;
     reg.t_size = 0;
     reg.r_size = 0;
     reg.t_value = 0;
