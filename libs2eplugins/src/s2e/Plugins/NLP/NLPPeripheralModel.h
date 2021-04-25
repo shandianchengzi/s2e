@@ -38,10 +38,12 @@ public:
     uint32_t t_value;
     uint32_t r_value;
 };
+
 std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-std::vector<pari<std::vector<Equation>, std::vector<Equation>>> allTAs;
+std::vector<pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
 uint32_t data_register;
-std::string data_register_type = 'R';
+std::string data_register_type = "R";
+
 class NLPPeripheralModel : public Plugin {
     S2E_PLUGIN
 public:

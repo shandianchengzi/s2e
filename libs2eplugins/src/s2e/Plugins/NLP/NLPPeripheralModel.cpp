@@ -11,6 +11,7 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 #include <sys/shm.h>
+#include <boost/regex.hpp>
 
 #include "NLPPeripheralModel.h"
 
@@ -26,7 +27,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 class NLPPeripheralModelState : public PluginState {
 private:
     //std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-    //std::vector<pari<std::vector<Equation>, std::vector<Equation>>> allTAs;
+    //std::vector<pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
     //uint32_t data_register;
     //std::string data_register_type = 'R';
     //std::map<std::string, uint32_t> symbol_list = {
@@ -122,7 +123,7 @@ public:
     virtual ~NLPPeripheralModelState() {
     }
     /*
-    void initialize_graph(std::map<uint32_t, PeripheralReg>& m, std::vector<pari<std::vector<Equation>, std::vector<Equation>>> &ta, uint32_t dr) {
+    void initialize_graph(std::map<uint32_t, PeripheralReg>& m, std::vector<pair<std::vector<Equation>, std::vector<Equation>>> &ta, uint32_t dr) {
         peripheral_regs_value_map = m;
         allTAs = ta;
         data_register = dr;
