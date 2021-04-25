@@ -11,16 +11,12 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 #include <sys/shm.h>
-#include <boost/regex.hpp>
 
 #include "NLPPeripheralModel.h"
 
 namespace s2e {
 namespace plugins {
 
-//type address reset
-static const boost::regex MemoRegEx("(.+)_(.+)_(.+)", boost::regex::perl);
-static const boost::regex TARegEx("([TRO\*]),([\*\d])+,([\*\d])+,([=><\*]{0,2})+,([TRO\d\*])+", boost::regex::perl);
 S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralModel");
 
 

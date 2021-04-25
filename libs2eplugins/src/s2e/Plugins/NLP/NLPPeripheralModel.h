@@ -13,9 +13,16 @@
 #include <s2e/Plugins/NLP/SymbolicPeripherals.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
+#include <utility>
+#include <boost/regex.hpp>
 
 namespace s2e {
+//type address reset
+static const boost::regex MemoRegEx("(.+)_(.+)_(.+)", boost::regex::perl);
+static const boost::regex TARegEx("([TRO\*]),([\*\d])+,([\*\d])+,([=><\*]{0,2})+,([TRO\d\*])+", boost::regex::perl);
+
 namespace plugins {
+
 class Equation {
 public:
     std::string type;
