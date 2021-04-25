@@ -77,7 +77,7 @@ private:
             for (auto equ: action) {
                 uint32_t a2;
                 if (equ.linkaddr != NULL) a2 = *equ.linkaddr;
-                else a2 = value;
+                else a2 = equ.value;
                 if (equ.type == "R") {
                     peripheral_regs_value_map[equ.phaddr].r_size = a2;
                 } else if (equ.type == "T") {
@@ -96,20 +96,18 @@ private:
 
     bool compare(uint32_t a1, std::string sym, uint32_t a2) {
         //1:= ; 2:>; 3: <; 4: >=; 5: <=
-        switch(sym){
-            case "*":
-                return false;
-            case "=":
-                return a1 == a2;
-            case ">":
-                return a1 > a2;
-            case "<":
-                return a1 < a2;
-            case ">=":
-                return a1 >= a2;
-            case "<=":
-                return a1 <= a2;
-        }
+        if sym == "*":
+            return false;
+        if sym == "=":
+            return a1 == a2;
+        if sym ==  ">":
+            return a1 > a2;
+        if sym ==  "<":
+            return a1 < a2;
+        if sym ==  ">=":
+            return a1 >= a2;
+        if sym ==  "<=":
+            return a1 <= a2;
         return false;
     }
 
@@ -136,8 +134,8 @@ public:
 
     void write_ph_value(uint32_t phaddr, uint32_t value) {
         if (data_register == phaddr){
-            getWarningsStream() << "write to transmit buffer"
-                                << "\n";
+            //getWarningsStream() << "write to transmit buffer"
+            //                    << "\n";
             peripheral_regs_value_map[phaddr].t_value = value;
             peripheral_regs_value_map[phaddr].t_size = 1;
             return;                    
@@ -148,9 +146,9 @@ public:
 
     uint32_t get_ph_value(uint32_t phaddr) {
         if (data_register == phaddr){
-            getWarningsStream() << "read from receive buffer"
-                                << "\n";
-            return peripheral_regs_value_map[phaddr].r_value;                    
+            //getWarningsStream() << "read from receive buffer"
+            //                    << "\n";
+            peripheral_regs_value_map[phaddr].r_value;                    
         }
         UpdateGraph(1, phaddr);
         return  peripheral_regs_value_map[phaddr].cur;
@@ -159,13 +157,13 @@ public:
     void hardware_write_to_receive_buffer(uint32_t value) {
         peripheral_regs_value_map[data_register].r_size = 1;
         peripheral_regs_value_map[data_register].r_value = 1;
-        UpdateGraph(0, phaddr);
+        UpdateGraph(0, data_register);
     }
 };
 
 void NLPPeripheralModel::initialize() {
-    ReadMemofromFile('memory.txt');
-    ReadTAfromFile('register.txt');
+    ReadMemofromFile("memory.txt");
+    ReadTAfromFile("register.txt");
 
     // bool ok;
     // ConfigFile *cfg = s2e()->getConfig();

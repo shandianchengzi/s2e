@@ -47,7 +47,7 @@ public:
 };
 
 std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-std::vector<pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
+std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
 uint32_t data_register;
 std::string data_register_type = "R";
 
