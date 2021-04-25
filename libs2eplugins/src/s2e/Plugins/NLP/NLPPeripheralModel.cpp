@@ -198,7 +198,6 @@ bool NLPPeripheralModel::ReadKBfromFile(std::string fileName) {
         }
     }
 
-    std::string peripheralcache;
     while (getline(fPHKB, peripheralcache)) {
         std::vector<Equation> trigger;
         std::vector<Equation> action;
