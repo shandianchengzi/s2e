@@ -22,35 +22,13 @@ static const boost::regex MemoRegEx("(.+)_(.+)_(.+)", boost::regex::perl);
 static const boost::regex TARegEx("([TRO\*]),([\*\d])+,([\*\d])+,([=><\*]{0,2})+,([TRO\d\*])+", boost::regex::perl);
 S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralModel");
 
-class Equation {
-public:
-    std::string type;
-    uint32_t phaddr;
-    uint32_t bits;
-    std::string eq;//0:= ; 1:>; 2: <; 3: >=; 4: <=
-    uint32_t* linkaddr;
-    uint32_t value;
-    bool rel;
-};
-
-class PeripheralReg{
-public:
-    std::string type;
-    uint32_t phaddr;
-    uint32_t reset;
-    uint32_t cur;
-    uint32_t t_size;
-    uint32_t r_size;
-    uint32_t t_value;
-    uint32_t r_value;
-};
 
 class NLPPeripheralModelState : public PluginState {
 private:
-    std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-    std::vector<pari<std::vector<Equation>, std::vector<Equation>>> allTAs;
-    uint32_t data_register;
-    std::string data_register_type = 'R';
+    //std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
+    //std::vector<pari<std::vector<Equation>, std::vector<Equation>>> allTAs;
+    //uint32_t data_register;
+    //std::string data_register_type = 'R';
     //std::map<std::string, uint32_t> symbol_list = {
     //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
     //};
@@ -143,12 +121,12 @@ public:
 
     virtual ~NLPPeripheralModelState() {
     }
-
+    /*
     void initialize_graph(std::map<uint32_t, PeripheralReg>& m, std::vector<pari<std::vector<Equation>, std::vector<Equation>>> &ta, uint32_t dr) {
         peripheral_regs_value_map = m;
         allTAs = ta;
         data_register = dr;
-    }
+    }*/
 
     static PluginState *factory(Plugin *, S2EExecutionState *) {
         return new NLPPeripheralModelState();
@@ -199,8 +177,8 @@ void NLPPeripheralModel::initialize() {
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
 
 
-    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
+    //DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    //plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
 }
 
 bool NLPPeripheralModel::ReadMemofromFile(std::string fileName) {
