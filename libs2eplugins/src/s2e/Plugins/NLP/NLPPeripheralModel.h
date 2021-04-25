@@ -27,7 +27,7 @@ class Equation {
 public:
     std::string type;
     uint32_t phaddr;
-    uint32_t bits;
+    std::string bits;
     std::string eq;//0:= ; 1:>; 2: <; 3: >=; 4: <=
     uint32_t* linkaddr;
     uint32_t value;

@@ -35,7 +35,7 @@ private:
         for (auto ta: allTAs) {
             std::vector<Equation> trigger = ta.first;
             bool rel = true;
-            vector<bool> trigger_res;
+            std::vector<bool> trigger_res;
             for (auto equ: trigger) {
                 if (equ.type == "R") {
                     if (type == 1 && phaddr == data_register)
@@ -45,13 +45,13 @@ private:
                 } else {
                     uint32_t a1, a2;
                     if (equ.bits == "*") {
-                        a1 = equ.cur;
+                        a1 = peripheral_regs_value_map[equ.phaddr].cur;
                     } else {
                         uint32_t tmp = std::stoull(equ.bits, NULL, 10);
-                        a1 = equ.cur>>tmp&1;
+                        a1 = peripheral_regs_value_map[equ.phaddr].cur>>tmp&1;
                     }
                     if (equ.linkaddr != NULL) a2 = *equ.linkaddr;
-                    else a2 = value;
+                    else a2 = equ.value;
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                 }
             }
@@ -75,25 +75,26 @@ private:
 
             std::vector<Equation> action = ta.second;
             for (auto equ: action) {
+                uint32_t a2;
                 if (equ.linkaddr != NULL) a2 = *equ.linkaddr;
                 else a2 = value;
                 if (equ.type == "R") {
-                    equ.r_size = a2;
+                    peripheral_regs_value_map[equ.phaddr].r_size = a2;
                 } else if (equ.type == "T") {
-                    equ.t_size = a2;
+                    peripheral_regs_value_map[equ.phaddr].t_size = a2;
                 } else {
                     uint32_t tmp = std::stoull(equ.bits, NULL, 10);
                     if (a2 == 1)
-                        equ.cur |= (1<<tmp);
+                        peripheral_regs_value_map[equ.phaddr].cur |= (1<<tmp);
                     else
-                        equ.cur &= ~(1<<tmp);
+                        peripheral_regs_value_map[equ.phaddr].cur &= ~(1<<tmp);
                 }
             }
         }
     }
 
 
-    bool compare(uint32_t a1, uint32_t sym, uint32_t a2) {
+    bool compare(uint32_t a1, std::string sym, uint32_t a2) {
         //1:= ; 2:>; 3: <; 4: >=; 5: <=
         switch(sym){
             case "*":
