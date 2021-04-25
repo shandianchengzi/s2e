@@ -118,6 +118,7 @@ klee::ref<klee::Expr> SymbolicPeripherals::createExpression(S2EExecutionState *s
     }
 
     ss << hexval(address) << "@" << hexval(state->regs()->getPc());
+    ss << "_" << hexval(size);
 
     uint32_t NLP_value = concreteValue;
     onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
