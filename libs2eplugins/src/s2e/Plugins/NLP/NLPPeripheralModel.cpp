@@ -162,8 +162,9 @@ public:
 };
 
 void NLPPeripheralModel::initialize() {
-    ReadMemofromFile("memory.txt");
-    ReadTAfromFile("register.txt");
+    ReadKBfromFile("all.txt");
+    //ReadMemofromFile("memory.txt");
+    //ReadTAfromFile("register.txt");
 
     // bool ok;
     // ConfigFile *cfg = s2e()->getConfig();
@@ -176,8 +177,7 @@ void NLPPeripheralModel::initialize() {
     //DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     //plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
 }
-
-bool NLPPeripheralModel::ReadMemofromFile(std::string fileName) {
+bool NLPPeripheralModel::ReadKBfromFile(std::string fileName) {
     std::ifstream fPHKB;
     std::string line;
     fPHKB.open(fileName, std::ios::in);
@@ -189,24 +189,13 @@ bool NLPPeripheralModel::ReadMemofromFile(std::string fileName) {
 
     std::string peripheralcache;
     while (getline(fPHKB, peripheralcache)) {
+        if (peripheralcache == "==") break;
         PeripheralReg reg;
         if (getMemo(peripheralcache, reg)) {
             peripheral_regs_value_map[reg.phaddr] = reg;
             if (reg.type == data_register_type)
                 data_register = reg.phaddr;
         }
-    }
-    return true;
-}
-
-bool NLPPeripheralModel::ReadTAfromFile(std::string fileName) {
-    std::ifstream fPHKB;
-    std::string line;
-    fPHKB.open(fileName, std::ios::in);
-    if (!fPHKB) {
-        getWarningsStream() << "Could not open cache peripheral knowledge base file: " 
-                            << fileName << " \n";
-        return false;
     }
 
     std::string peripheralcache;

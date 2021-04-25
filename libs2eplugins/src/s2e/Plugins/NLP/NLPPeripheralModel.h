@@ -61,8 +61,9 @@ public:
 
 private:
     
-    bool ReadMemofromFile(std::string fileName);
-    bool ReadTAfromFile(std::string fileName);
+    bool ReadKBfromFile(std::string fileName);
+    //bool ReadMemofromFile(std::string fileName);
+    //bool ReadTAfromFile(std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action);
