@@ -262,27 +262,24 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     return true;
 }
 
-void NLPPeripheralModel::getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action) {
+bool NLPPeripheralModel::getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action) {
     std::vector<std::string> v;
     SplitString(peripheralcache, v, ":");
-    std::string trigger = v[0];
-    std::string action = v[1];
+    std::string trigger_str = v[0];
+    std::string action_str = v[1];
     bool trigger_rel = true, action_rel = true;
-    if (trigger.find('|', 0) != string::npos) {
+    if (trigger_str.find('|', 0) != std::string::npos) {
         trigger_rel = false;
     }
 
-    if (action.find('|', 0) != string::npos) {
+    if (action_str.find('|', 0) != std::string::npos) {
         action_rel = false;
     }
-
-    extractEqu(v[0], trigger, trigger_rel);
-    extractEqu(v[1], action, action_rel);
     
-    return true;
+    return extractEqu(trigger_str, trigger, trigger_rel)) && extractEqu(action_str, action, action_rel);
 }
 
-void NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel){
+bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel){
     boost::smatch what;
     if (!boost::regex_match(peripheralcache, what, TARegEx)) {
         getWarningsStream() << "match false"
@@ -323,6 +320,7 @@ void NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equ
         }
         vec.push_back(equ);
     }
+    return true;
 }
 
 void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type,

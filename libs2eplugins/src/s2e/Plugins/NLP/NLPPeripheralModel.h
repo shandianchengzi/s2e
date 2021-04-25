@@ -65,8 +65,8 @@ private:
     bool ReadTAfromFile(std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
-    void getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action);
-    void extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel);
+    bool getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action);
+    bool extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel);
 
 
     sigc::connection symbolicPeripheralConnection;
