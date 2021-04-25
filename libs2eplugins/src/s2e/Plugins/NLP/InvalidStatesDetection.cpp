@@ -335,11 +335,14 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     // learning mode termination and switch to cache mode
     if (plgState->getnewtbnum() > 200 && plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
-        getWarningsStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
-        plgState->reset_allcache();
+        getWarningsStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
         invalidPCAccessConnection.disconnect();
         blockStartConnection.disconnect();
-        return true;
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
+        exit(0);
     }
     return false;
 }
