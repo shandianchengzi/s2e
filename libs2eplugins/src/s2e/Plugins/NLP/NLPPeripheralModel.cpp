@@ -276,7 +276,7 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, std::vector<Equ
         action_rel = false;
     }
     
-    return extractEqu(trigger_str, trigger, trigger_rel)) && extractEqu(action_str, action, action_rel);
+    return extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
 }
 
 bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel){
@@ -293,9 +293,9 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equ
         exit(0);
         return false;
     }
-    for (auto equ: what) {
+    for (auto equ_str: what) {
         std::vector<std::string> v;
-        SplitString(what, v, ",");
+        SplitString(equ_str, v, ",");
         Equation equ;
         equ.rel = rel;
         if (v[0] == "*") {
@@ -310,7 +310,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equ
                 equ.linkaddr = NULL;
                 equ.value = std::stoull(v[4].c_str(), NULL, 10);
             } else {
-                equ.value = NULL;
+                equ.value = 0;
                 //std::stoull(v[4].substr(2, v[4].length()-2).c_str(), NULL, 10)
                 if (v[4][1] == 'T')
                     equ.linkaddr = &peripheral_regs_value_map[data_register].t_size;
