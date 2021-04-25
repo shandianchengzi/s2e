@@ -23,9 +23,9 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 class NLPPeripheralModelState : public PluginState {
 private:
     std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-    std::vector<pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
+    std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
     uint32_t data_register;
-    std::string data_register_type = 'R';
+    std::string data_register_type = "R";
     //std::map<std::string, uint32_t> symbol_list = {
     //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
     //};
@@ -118,7 +118,7 @@ public:
     virtual ~NLPPeripheralModelState() {
     }
     
-    void initialize_graph(std::map<uint32_t, PeripheralReg>& m, std::vector<pair<std::vector<Equation>, std::vector<Equation>>> &ta, uint32_t dr) {
+    void initialize_graph(std::map<uint32_t, PeripheralReg>& m, std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> &ta, uint32_t dr) {
         peripheral_regs_value_map = m;
         allTAs = ta;
         data_register = dr;
@@ -162,22 +162,18 @@ public:
 };
 
 void NLPPeripheralModel::initialize() {
-    ReadKBfromFile("all.txt");
+    ReadKBfromFile(g_s2e_state, "all.txt");
     //ReadMemofromFile("memory.txt");
     //ReadTAfromFile("register.txt");
 
     // bool ok;
     // ConfigFile *cfg = s2e()->getConfig();
-        
     hw::SymbolicPeripherals *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
     symbolicPeripheralConnection->onSymbolicNLPRegisterReadEvent.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
 
-
-    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
 }
-bool NLPPeripheralModel::ReadKBfromFile(std::string fileName) {
+bool NLPPeripheralModel::ReadKBfromFile(S2EExecutionState *state, std::string fileName) {
     std::ifstream fPHKB;
     std::string line;
     fPHKB.open(fileName, std::ios::in);
@@ -205,6 +201,8 @@ bool NLPPeripheralModel::ReadKBfromFile(std::string fileName) {
             allTAs.push_back(make_pair(trigger, action));
         }
     }
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
     return true;
 }
 

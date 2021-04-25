@@ -62,7 +62,7 @@ private:
     uint32_t data_register;
     std::string data_register_type = "R";
     
-    bool ReadKBfromFile(std::string fileName);
+    bool ReadKBfromFile(S2EExecutionState *state, std::string fileName);
     //bool ReadMemofromFile(std::string fileName);
     //bool ReadTAfromFile(std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
