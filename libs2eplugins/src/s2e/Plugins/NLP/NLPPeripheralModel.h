@@ -23,9 +23,6 @@ static const boost::regex TARegEx("([TRO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[
 
 namespace plugins {
 
-typedef std::map<uint32_t, PeripheralReg> RegMap;
-typedef std::vector<Equation> EquList;
-typedef std::vector<std::pair<EquList, EquList>> TAMap;
 
 class Equation {
     // a1 = a2
@@ -53,6 +50,10 @@ public:
     uint32_t t_value;
     uint32_t r_value;
 };
+
+typedef std::map<uint32_t, PeripheralReg> RegMap;
+typedef std::vector<Equation> EquList;
+typedef std::vector<std::pair<EquList, EquList>> TAMap;
 
 uint32_t data_register;
 std::string data_register_type = "R";
