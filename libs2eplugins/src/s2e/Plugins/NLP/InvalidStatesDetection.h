@@ -53,7 +53,6 @@ private:
     std::vector<uint32_t> kill_points;
     std::vector<uint32_t> alive_points;
     TBCounts all_tb_map;
-    uint64_t unique_tb_num; // new tb number
     bool alive_point_flag;
     bool kill_point_flag;
 
@@ -71,8 +70,6 @@ private:
     void onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type, std::string reason_str);
 
     bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
-
-    void recordTBMap(S2EExecutionState *state);
 };
 
 } // namespace plugins

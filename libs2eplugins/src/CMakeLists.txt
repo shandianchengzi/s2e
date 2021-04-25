@@ -158,10 +158,16 @@ add_library(
     s2e/Plugins/Core/Vmi.cpp
 
     # uEmu specific plugins
-    s2e/Plugins/uEmu/PeripheralModelLearning.cpp
-    s2e/Plugins/uEmu/ExternalInterrupt.cpp
-    s2e/Plugins/uEmu/ARMFunctionMonitor.cpp
-    s2e/Plugins/uEmu/InvalidStatesDetection.cpp
+    # s2e/Plugins/uEmu/PeripheralModelLearning.cpp
+    # s2e/Plugins/uEmu/ExternalInterrupt.cpp
+    # s2e/Plugins/uEmu/ARMFunctionMonitor.cpp
+    # s2e/Plugins/uEmu/InvalidStatesDetection.cpp
+
+    # NLP specific plugins
+    s2e/Plugins/NLP/FailureAnalysis.cpp
+    s2e/Plugins/NLP/InvalidStatesDetection.cpp
+    s2e/Plugins/NLP/SymbolicPeripherals.cpp
+    s2e/Plugins/NLP/NLPPeripheralModel.cpp
 
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp
@@ -244,7 +250,7 @@ add_library(
     s2e/Plugins/ExecutionMonitors/LibraryCallMonitor.cpp
 
     # Fuzzer
-    s2e/Plugins/Fuzzer/AFLFuzzer.cpp
+    # s2e/Plugins/Fuzzer/AFLFuzzer.cpp
 
     ${PROTO_SRCS} ${PROTO_HDRS}
 
