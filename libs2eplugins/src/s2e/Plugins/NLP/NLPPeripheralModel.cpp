@@ -23,6 +23,7 @@ static const boost::regex TARegEx("([TRO\*]),([\*\d])+,([\*\d])+,([=><\*]{0,2})+
 S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralModel");
 
 class Equation {
+public:
     std::string type;
     uint32_t phaddr;
     uint32_t bits;
@@ -33,6 +34,7 @@ class Equation {
 };
 
 class PeripheralReg{
+public:
     std::string type;
     uint32_t phaddr;
     uint32_t reset;
@@ -49,9 +51,9 @@ private:
     std::vector<pari<std::vector<Equation>, std::vector<Equation>>> allTAs;
     uint32_t data_register;
     std::string data_register_type = 'R';
-    std::map<std::string, uint32_t> symbol_list = {
-        {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
-    };
+    //std::map<std::string, uint32_t> symbol_list = {
+    //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
+    //};
     //0:= ; 1:>; 2: <; 3: >=; 4: <=
 
     bool ReadMemofromFile(std::string fileName) {
@@ -185,7 +187,7 @@ private:
                 equ.type = v[0];
                 equ.phaddr = std::stoull(v[1].c_str(), NULL, 10);
                 equ.bits = v[2];
-                equ.eq = symbol_list(v[3]);
+                equ.eq = v[3];
                 if (v[4][0] != '*') {
                     equ.linkaddr = NULL;
                     equ.value = std::stoull(v[4].c_str(), NULL, 10);
@@ -267,17 +269,17 @@ private:
     bool compare(uint32_t a1, uint32_t sym, uint32_t a2) {
         //1:= ; 2:>; 3: <; 4: >=; 5: <=
         switch(sym){
-            case 0:
+            case "*":
                 return false;
-            case 1:
+            case "=":
                 return a1 == a2;
-            case 2:
+            case ">":
                 return a1 > a2;
-            case 3:
+            case "<":
                 return a1 < a2;
-            case 4:
+            case ">=":
                 return a1 >= a2;
-            case 5:
+            case "<=":
                 return a1 <= a2;
         }
         return false;
