@@ -46,10 +46,6 @@ public:
     uint32_t r_value;
 };
 
-std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
-uint32_t data_register;
-std::string data_register_type = "R";
 
 class NLPPeripheralModel : public Plugin {
     S2E_PLUGIN
@@ -60,6 +56,11 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
 
 private:
+    
+    std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
+    std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
+    uint32_t data_register;
+    std::string data_register_type = "R";
     
     bool ReadKBfromFile(std::string fileName);
     //bool ReadMemofromFile(std::string fileName);
