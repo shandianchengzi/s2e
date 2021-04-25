@@ -18,25 +18,33 @@
 
 namespace s2e {
 //type address reset
-static const boost::regex MemoRegEx("(.+)_(.+)_(.+)", boost::regex::perl);
-static const boost::regex TARegEx("([TRO\\*]),([\\*\\d])+,([\\*\\d])+,([=><\\*]{0,2})+,([TRO\\d\\*])+", boost::regex::perl);
+static const boost::regex MemoRegEx("(.+_.+_.+)", boost::regex::perl);
+static const boost::regex TARegEx("([TRO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[TRO\\d\\*]+)", boost::regex::perl);
 
 namespace plugins {
 
+typedef std::map<uint32_t, PeripheralReg> RegMap;
+typedef std::vector<Equation> EquList;
+typedef std::vector<std::pair<EquList, EquList>> TAMap;
+
 class Equation {
+    // a1 = a2
+    // R  > T
+    // Reg bit = 1
 public:
-    std::string type;
+    std::string type; //R: receive; T: transmit; O: other
     uint32_t phaddr;
     std::string bits;
-    std::string eq;//0:= ; 1:>; 2: <; 3: >=; 4: <=
-    uint32_t* linkaddr;
+    std::string eq;//= ; >;  <;  >=; <=
+    //uint32_t* linkaddr;
+    std::string type_a2;//V:value; R: receive; T: transmit
     uint32_t value;
     bool rel;
 };
 
 class PeripheralReg{
 public:
-    std::string type;
+    std::string type;//R: receive; T: transmit; O: other
     uint32_t phaddr;
     uint32_t reset;
     uint32_t cur;
@@ -46,6 +54,8 @@ public:
     uint32_t r_value;
 };
 
+uint32_t data_register;
+std::string data_register_type = "R";
 
 class NLPPeripheralModel : public Plugin {
     S2E_PLUGIN
@@ -57,18 +67,14 @@ public:
 
 private:
     
-    std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-    std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
-    uint32_t data_register;
-    std::string data_register_type = "R";
-    
     bool ReadKBfromFile(S2EExecutionState *state, std::string fileName);
     //bool ReadMemofromFile(std::string fileName);
     //bool ReadTAfromFile(std::string fileName);
+    
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
-    bool getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action);
-    bool extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel);
+    bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
+    bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
 
 
     sigc::connection symbolicPeripheralConnection;

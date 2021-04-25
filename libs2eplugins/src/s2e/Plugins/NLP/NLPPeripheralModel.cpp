@@ -22,10 +22,8 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 
 class NLPPeripheralModelState : public PluginState {
 private:
-    std::map<uint32_t, PeripheralReg> peripheral_regs_value_map;
-    std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> allTAs;
-    uint32_t data_register;
-    std::string data_register_type = "R";
+    RegMap peripheral_regs_value_map;
+    TAMap allTAs;
     //std::map<std::string, uint32_t> symbol_list = {
     //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
     //};
@@ -33,7 +31,7 @@ private:
 
     void UpdateGraph(uint32_t type, uint32_t phaddr) {
         for (auto ta: allTAs) {
-            std::vector<Equation> trigger = ta.first;
+            EquList trigger = ta.first;
             bool rel = true;
             std::vector<bool> trigger_res;
             for (auto equ: trigger) {
@@ -50,7 +48,10 @@ private:
                         uint32_t tmp = std::stoull(equ.bits, NULL, 10);
                         a1 = peripheral_regs_value_map[equ.phaddr].cur>>tmp&1;
                     }
-                    if (equ.linkaddr != NULL) a2 = *equ.linkaddr;
+                    if (equ.type_a2 == "T") 
+                        a2 = peripheral_regs_value_map[data_register].t_size;
+                    else (equ.type_a2 == "R")
+                        a2 = peripheral_regs_value_map[data_register].r_size;
                     else a2 = equ.value;
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                 }
@@ -73,10 +74,13 @@ private:
             }
             if (!check) continue;
 
-            std::vector<Equation> action = ta.second;
+            EquList action = ta.second;
             for (auto equ: action) {
                 uint32_t a2;
-                if (equ.linkaddr != NULL) a2 = *equ.linkaddr;
+                if (equ.type_a2 == "T") 
+                    a2 = peripheral_regs_value_map[data_register].t_size;
+                else (equ.type_a2 == "R")
+                    a2 = peripheral_regs_value_map[data_register].r_size;
                 else a2 = equ.value;
                 if (equ.type == "R") {
                     peripheral_regs_value_map[equ.phaddr].r_size = a2;
@@ -118,7 +122,7 @@ public:
     virtual ~NLPPeripheralModelState() {
     }
     
-    void initialize_graph(std::map<uint32_t, PeripheralReg>& m, std::vector<std::pair<std::vector<Equation>, std::vector<Equation>>> &ta, uint32_t dr) {
+    void initialize_graph(RegMap& m, TAMap &ta, uint32_t dr) {
         peripheral_regs_value_map = m;
         allTAs = ta;
         data_register = dr;
@@ -182,6 +186,9 @@ bool NLPPeripheralModel::ReadKBfromFile(S2EExecutionState *state, std::string fi
                             << fileName << " \n";
         return false;
     }
+    
+    RegMap peripheral_regs_value_map;
+    TAMap allTAs;
 
     std::string peripheralcache;
     while (getline(fPHKB, peripheralcache)) {
@@ -195,8 +202,8 @@ bool NLPPeripheralModel::ReadKBfromFile(S2EExecutionState *state, std::string fi
     }
 
     while (getline(fPHKB, peripheralcache)) {
-        std::vector<Equation> trigger;
-        std::vector<Equation> action;
+        EquList trigger;
+        EquList action;
         if (getTApairs(peripheralcache, trigger, action)) {
             allTAs.push_back(make_pair(trigger, action));
         }
@@ -229,14 +236,14 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
         return false;
     }
 
-    if (what.size() != 1) {
+    if (what.size() != 2) {
         getWarningsStream() << "wrong size = " << what.size() << "\n";
         exit(0);
         return false;
     }
 
     std::vector<std::string> v;
-    SplitString(what[0], v, "_");
+    SplitString(what[1], v, "_");
     reg.type = v[0];
     reg.phaddr = std::stoull(v[1].c_str(), NULL, 10);
     reg.reset = std::stoull(v[2].c_str(), NULL, 10);
@@ -248,7 +255,7 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     return true;
 }
 
-bool NLPPeripheralModel::getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action) {
+bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigger, EquList &action) {
     std::vector<std::string> v;
     SplitString(peripheralcache, v, ":");
     std::string trigger_str = v[0];
@@ -265,7 +272,7 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, std::vector<Equ
     return extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
 }
 
-bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel){
+bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, bool rel){
     boost::smatch what;
     if (!boost::regex_match(peripheralcache, what, TARegEx)) {
         getWarningsStream() << "match false"
@@ -274,12 +281,13 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equ
         return false;
     }
 
-    if (what.size() == 0) {
+    if (what.size() < 2) {
         getWarningsStream() << "wrong size = " << what.size() << "\n";
         exit(0);
         return false;
     }
-    for (auto equ_str: what) {
+    for (int i = 1; i < what.size(); ++i) {
+        std::string equ_str = what[i];
         std::vector<std::string> v;
         SplitString(equ_str, v, ",");
         Equation equ;
@@ -293,15 +301,11 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, std::vector<Equ
             equ.bits = v[2];
             equ.eq = v[3];
             if (v[4][0] != '*') {
-                equ.linkaddr = NULL;
+                equ.type_a2 = "V"
                 equ.value = std::stoull(v[4].c_str(), NULL, 10);
             } else {
                 equ.value = 0;
-                //std::stoull(v[4].substr(2, v[4].length()-2).c_str(), NULL, 10)
-                if (v[4][1] == 'T')
-                    equ.linkaddr = &peripheral_regs_value_map[data_register].t_size;
-                else if (v[4][1] == 'R')
-                    equ.linkaddr = &peripheral_regs_value_map[data_register].r_size;
+                equ.type_a2 = v[4][1];
             }
         }
         vec.push_back(equ);
