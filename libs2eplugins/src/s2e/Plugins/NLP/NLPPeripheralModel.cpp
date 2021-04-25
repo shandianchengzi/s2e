@@ -49,7 +49,9 @@ private:
     std::vector<pari<std::vector<Equation>, std::vector<Equation>>> allTAs;
     uint32_t data_register;
     std::string data_register_type = 'R';
-    std::map<std::string, uint32_t> symbol_list = {{"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}};
+    std::map<std::string, uint32_t> symbol_list = {
+        {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
+    };
     //0:= ; 1:>; 2: <; 3: >=; 4: <=
 
     bool ReadMemofromFile(std::string fileName) {
@@ -57,7 +59,8 @@ private:
         std::string line;
         fPHKB.open(fileName, std::ios::in);
         if (!fPHKB) {
-            getWarningsStream() << "Could not open cache peripheral knowledge base file: " << fileName << " \n";
+            getWarningsStream() << "Could not open cache peripheral knowledge base file: " 
+                                << fileName << " \n";
             return false;
         }
 
@@ -78,7 +81,8 @@ private:
         std::string line;
         fPHKB.open(fileName, std::ios::in);
         if (!fPHKB) {
-            getWarningsStream() << "Could not open cache peripheral knowledge base file: " << fileName << " \n";
+            getWarningsStream() << "Could not open cache peripheral knowledge base file: " 
+                                << fileName << " \n";
             return false;
         }
 
@@ -107,7 +111,7 @@ private:
             v.push_back(s.substr(pos1));
     }
 
-    bool getMemo(std::string peripheralcache, PeripheralReg reg) {
+    bool getMemo(std::string peripheralcache, PeripheralReg &reg) {
         boost::smatch what;
         if (!boost::regex_match(peripheralcache, what, MemoRegEx)) {
             getWarningsStream() << "match false"
@@ -135,7 +139,7 @@ private:
         return true;
     }
 
-    void getTApairs(std::string peripheralcache, std::vector<Equation> trigger, std::vector<Equation> action) {
+    void getTApairs(std::string peripheralcache, std::vector<Equation> &trigger, std::vector<Equation> &action) {
         std::vector<std::string> v;
         SplitString(peripheralcache, v, ":");
         std::string trigger = v[0];
@@ -155,7 +159,7 @@ private:
         return true;
     }
 
-    void extractEqu(std::string peripheralcache, std::vector<Equation> vec, bool rel){
+    void extractEqu(std::string peripheralcache, std::vector<Equation> &vec, bool rel){
         boost::smatch what;
         if (!boost::regex_match(peripheralcache, what, TARegEx)) {
             getWarningsStream() << "match false"
