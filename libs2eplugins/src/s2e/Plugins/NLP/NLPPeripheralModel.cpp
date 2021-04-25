@@ -41,7 +41,7 @@ class PeripheralReg{
     uint32_t r_size;
     uint32_t t_value;
     uint32_t r_value;
-}
+};
 
 class NLPPeripheralModelState : public PluginState {
 private:
