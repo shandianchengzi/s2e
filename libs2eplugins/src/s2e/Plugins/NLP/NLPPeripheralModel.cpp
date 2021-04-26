@@ -33,9 +33,10 @@ private:
     void UpdateGraph(RWType type, uint32_t phaddr) {
         for (auto ta: allTAs) {
             EquList trigger = ta.first;
-            bool rel = true;
+            bool rel;
             std::vector<bool> trigger_res;
             for (auto equ: trigger) {
+                rel = equ.rel;
                 if (equ.type == "R") {
                     if (type == Read && phaddr == data_register)
                         trigger_res.push_back(true);
@@ -183,6 +184,7 @@ void NLPPeripheralModel::onTimer() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     uint32_t rand_org = rand();
     uint32_t rand_value = int(((rand_org % 0x7ffe) * 1.0 / 0x7fff) * 4294967295);
+    getDebugStream() << " input rand value = " << rand_value << "\n";
     plgState->hardware_write_to_receive_buffer(rand_value);
 }
 
@@ -239,9 +241,9 @@ void NLPPeripheralModel::SplitString(const std::string &s, std::vector<std::stri
 
 bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg) {
     boost::smatch what;
+    getDebugStream() << peripheralcache << "\n";
     if (!boost::regex_match(peripheralcache, what, MemoRegEx)) {
-        getWarningsStream() << "match false"
-                            << "\n";
+        getWarningsStream() << "getMemo match false\n";
         exit(0);
         return false;
     }
@@ -257,6 +259,7 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     reg.type = v[0];
     reg.phaddr = std::stoull(v[1].c_str(), NULL, 10);
     reg.reset = std::stoull(v[2].c_str(), NULL, 10);
+    getDebugStream() << "type = " << reg.type << " phaddr = " << reg.phaddr << " reset value = " << reg.reset << "\n";
     reg.cur_value = reg.reset;
     reg.t_size = 0;
     reg.r_size = 0;
@@ -278,14 +281,16 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     if (action_str.find('|', 0) != std::string::npos) {
         action_rel = false;
     }
+    getDebugStream() << " trigger = " << trigger_str << " action = " << action_str << "\n";
 
     return extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
 }
 
 bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, bool rel){
     boost::smatch what;
-    if (!boost::regex_match(peripheralcache, what, TARegEx)) {
-        getWarningsStream() << "match false\n";
+    getDebugStream() << peripheralcache << "\n";
+    if (!boost::regex_search(peripheralcache, what, TARegEx)) {
+        getWarningsStream() << "extractEqu match false\n";
         exit(0);
         return false;
     }
@@ -299,13 +304,14 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
     for (int i = 1; i < what.size(); ++i) {
         std::string equ_str = what[i];
         std::vector<std::string> v;
+        getDebugStream() << equ_str << "\n";
         SplitString(equ_str, v, ",");
+        getDebugStream() << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << "\n";
         Equation equ;
         equ.rel = rel;
         if (v[0] == "*") {
             equ.type = v[0];
         } else {
-            Equation equ;
             equ.type = v[0];
             equ.phaddr = std::stoull(v[1].c_str(), NULL, 10);
             equ.bits = v[2];
@@ -318,6 +324,8 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
                 equ.type_a2 = v[4][1];
             }
         }
+        getDebugStream() << "equ type = " << equ.type << " equ phaddr = " << equ.phaddr
+                        << " equ bits = " << equ.bits << " equ = " << equ.eq << " type_a2 = " << equ.type_a2 << " value = " << equ.value << "\n";
         vec.push_back(equ);
     }
     return true;

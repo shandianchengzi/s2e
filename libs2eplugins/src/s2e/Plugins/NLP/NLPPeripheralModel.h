@@ -18,7 +18,7 @@
 
 namespace s2e {
 //type address reset
-static const boost::regex MemoRegEx("(.+_.+_.+)", boost::regex::perl);
+static const boost::regex MemoRegEx("([TRO]_[\\d]+_[\\d]+)", boost::regex::perl);
 static const boost::regex TARegEx("([TRO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[TRO\\d\\*]+)", boost::regex::perl);
 
 namespace plugins {
@@ -38,7 +38,7 @@ public:
     bool rel;
 };
 
-class PeripheralReg{
+class PeripheralReg {
 public:
     std::string type;//R: receive; T: transmit; O: other
     uint32_t phaddr;
