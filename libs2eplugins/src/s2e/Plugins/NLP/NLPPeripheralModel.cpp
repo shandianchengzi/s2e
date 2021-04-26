@@ -289,20 +289,9 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
 bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, bool rel){
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
-    if (!boost::regex_search(peripheralcache, what, TARegEx)) {
-        getWarningsStream() << "extractEqu match false\n";
-        exit(0);
-        return false;
-    }
 
-    if (what.size() < 2) {
-        getWarningsStream() << "wrong size = " << what.size() << "\n";
-        exit(0);
-        return false;
-    }
-
-    for (int i = 1; i < what.size(); ++i) {
-        std::string equ_str = what[i];
+    while (boost::regex_search(peripheralcache, what, exp)) {
+        std::string equ_str = what[0];
         std::vector<std::string> v;
         getDebugStream() << equ_str << "\n";
         SplitString(equ_str, v, ",");
