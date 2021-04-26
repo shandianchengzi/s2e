@@ -33,7 +33,6 @@ public:
     uint32_t phaddr;
     std::string bits;
     std::string eq;//= ; >;  <;  >=; <=
-    //uint32_t* linkaddr;
     std::string type_a2;//V:value; R: receive; T: transmit
     uint32_t value;
     bool rel;
@@ -44,7 +43,7 @@ public:
     std::string type;//R: receive; T: transmit; O: other
     uint32_t phaddr;
     uint32_t reset;
-    uint32_t cur;
+    uint32_t cur_value;
     uint32_t t_size;
     uint32_t r_size;
     uint32_t t_value;
@@ -54,9 +53,7 @@ public:
 typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
 typedef std::vector<std::pair<EquList, EquList>> TAMap;
-
-uint32_t data_register;
-std::string data_register_type = "R";
+enum RWType { Write, Read };
 
 class NLPPeripheralModel : public Plugin {
     S2E_PLUGIN
@@ -67,21 +64,17 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
 
 private:
-    
-    bool ReadKBfromFile(S2EExecutionState *state, std::string fileName);
-    //bool ReadMemofromFile(std::string fileName);
-    //bool ReadTAfromFile(std::string fileName);
-    
+    sigc::connection symbolicPeripheralConnection;
+
+    bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
+    void onTimer();
 
-
-    sigc::connection symbolicPeripheralConnection;
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
-
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      uint32_t  writeconcretevalue);
 };

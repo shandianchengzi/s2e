@@ -24,29 +24,30 @@ class NLPPeripheralModelState : public PluginState {
 private:
     RegMap peripheral_regs_value_map;
     TAMap allTAs;
+    uint32_t data_register;
     //std::map<std::string, uint32_t> symbol_list = {
     //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
     //};
     //0:= ; 1:>; 2: <; 3: >=; 4: <=
 
-    void UpdateGraph(uint32_t type, uint32_t phaddr) {
+    void UpdateGraph(RWType type, uint32_t phaddr) {
         for (auto ta: allTAs) {
             EquList trigger = ta.first;
             bool rel = true;
             std::vector<bool> trigger_res;
             for (auto equ: trigger) {
                 if (equ.type == "R") {
-                    if (type == 1 && phaddr == data_register)
+                    if (type == Read && phaddr == data_register)
                         trigger_res.push_back(true);
                     else
                         trigger_res.push_back(false);
                 } else {
                     uint32_t a1, a2;
                     if (equ.bits == "*") {
-                        a1 = peripheral_regs_value_map[equ.phaddr].cur;
+                        a1 = peripheral_regs_value_map[equ.phaddr].cur_value;
                     } else {
                         uint32_t tmp = std::stoull(equ.bits, NULL, 10);
-                        a1 = peripheral_regs_value_map[equ.phaddr].cur>>tmp&1;
+                        a1 = peripheral_regs_value_map[equ.phaddr].cur_value >> tmp & 1;
                     }
                     if (equ.type_a2 == "T") {
                         a2 = peripheral_regs_value_map[data_register].t_size;
@@ -78,11 +79,14 @@ private:
             EquList action = ta.second;
             for (auto equ: action) {
                 uint32_t a2;
-                if (equ.type_a2 == "T") 
+                if (equ.type_a2 == "T") {
                     a2 = peripheral_regs_value_map[data_register].t_size;
-                else if (equ.type_a2 == "R")
+                } else if (equ.type_a2 == "R") {
                     a2 = peripheral_regs_value_map[data_register].r_size;
-                else a2 = equ.value;
+                } else {
+                    a2 = equ.value;
+                }
+
                 if (equ.type == "R") {
                     peripheral_regs_value_map[equ.phaddr].r_size = a2;
                 } else if (equ.type == "T") {
@@ -90,9 +94,9 @@ private:
                 } else {
                     uint32_t tmp = std::stoull(equ.bits, NULL, 10);
                     if (a2 == 1)
-                        peripheral_regs_value_map[equ.phaddr].cur |= (1<<tmp);
+                        peripheral_regs_value_map[equ.phaddr].cur_value |= (1 << tmp);
                     else
-                        peripheral_regs_value_map[equ.phaddr].cur &= ~(1<<tmp);
+                        peripheral_regs_value_map[equ.phaddr].cur_value &= ~(1 << tmp);
                 }
             }
         }
@@ -100,7 +104,7 @@ private:
 
 
     bool compare(uint32_t a1, std::string sym, uint32_t a2) {
-        //1:= ; 2:>; 3: <; 4: >=; 5: <=
+        //1:= ; 2:>; 3:<; 4:>=; 5:<=
         if (sym == "*")
             return false;
         if (sym == "=")
@@ -122,7 +126,7 @@ public:
 
     virtual ~NLPPeripheralModelState() {
     }
-    
+
     void initialize_graph(RegMap& m, TAMap &ta, uint32_t dr) {
         peripheral_regs_value_map = m;
         allTAs = ta;
@@ -138,77 +142,83 @@ public:
     }
 
     void write_ph_value(uint32_t phaddr, uint32_t value) {
-        if (data_register == phaddr){
-            //getWarningsStream() << "write to transmit buffer"
-            //                    << "\n";
+        if (data_register == phaddr) {
             peripheral_regs_value_map[phaddr].t_value = value;
             peripheral_regs_value_map[phaddr].t_size = 1;
-            return;                    
+            return;
         }
-        peripheral_regs_value_map[phaddr].cur = value;
-        UpdateGraph(0, phaddr);//0,
+        peripheral_regs_value_map[phaddr].cur_value = value;
+        UpdateGraph(Write, phaddr);
     }
 
     uint32_t get_ph_value(uint32_t phaddr) {
-        if (data_register == phaddr){
-            //getWarningsStream() << "read from receive buffer"
-            //                    << "\n";
-            return peripheral_regs_value_map[phaddr].r_value;                    
+        if (data_register == phaddr) {
+            return peripheral_regs_value_map[phaddr].r_value;
         }
-        UpdateGraph(1, phaddr);
-        return  peripheral_regs_value_map[phaddr].cur;
+        UpdateGraph(Read, phaddr);
+        return  peripheral_regs_value_map[phaddr].cur_value;
     }
 
     void hardware_write_to_receive_buffer(uint32_t value) {
         peripheral_regs_value_map[data_register].r_size = 1;
-        peripheral_regs_value_map[data_register].r_value = 1;
-        UpdateGraph(0, data_register);
+        peripheral_regs_value_map[data_register].r_value = value;
+        UpdateGraph(Write, data_register);
     }
 };
 
 void NLPPeripheralModel::initialize() {
-    ReadKBfromFile(g_s2e_state, "all.txt");
-    //ReadMemofromFile("memory.txt");
-    //ReadTAfromFile("register.txt");
-
-    // bool ok;
-    // ConfigFile *cfg = s2e()->getConfig();
+    std::string NLPfileName = s2e()->getConfig()->getString(getConfigKey() + ".NLPfileName", "all.txt");
+    getDebugStream() << "NLP firmware name is " << NLPfileName << "\n";
+    readNLPModelfromFile(g_s2e_state, NLPfileName);
     hw::SymbolicPeripherals *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
-    symbolicPeripheralConnection->onSymbolicNLPRegisterReadEvent.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));
-    symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
-
+    symbolicPeripheralConnection->onSymbolicNLPRegisterReadEvent.connect(
+                            sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));
+    symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
+                            sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
+    srand(0);
 }
-bool NLPPeripheralModel::ReadKBfromFile(S2EExecutionState *state, std::string fileName) {
-    std::ifstream fPHKB;
+
+void NLPPeripheralModel::onTimer() {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
+    uint32_t rand_org = rand();
+    uint32_t rand_value = int(((rand_org % 0x7ffe) * 1.0 / 0x7fff) * 4294967295);
+    plgState->hardware_write_to_receive_buffer(rand_value);
+}
+
+bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::string fileName) {
+    std::ifstream fNLP;
     std::string line;
-    fPHKB.open(fileName, std::ios::in);
-    if (!fPHKB) {
-        getWarningsStream() << "Could not open cache peripheral knowledge base file: " 
-                            << fileName << " \n";
+    fNLP.open(fileName, std::ios::in);
+    if (!fNLP) {
+        getWarningsStream() << "Could not open cache nlp file: "
+                            << fileName << "\n";
         return false;
     }
-    
+
     RegMap peripheral_regs_value_map;
     TAMap allTAs;
+    uint32_t data_register;
 
     std::string peripheralcache;
-    while (getline(fPHKB, peripheralcache)) {
+    while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==") break;
         PeripheralReg reg;
         if (getMemo(peripheralcache, reg)) {
             peripheral_regs_value_map[reg.phaddr] = reg;
-            if (reg.type == data_register_type)
+            if (reg.type == "R")
                 data_register = reg.phaddr;
         }
     }
 
-    while (getline(fPHKB, peripheralcache)) {
+    while (getline(fNLP, peripheralcache)) {
         EquList trigger;
         EquList action;
         if (getTApairs(peripheralcache, trigger, action)) {
             allTAs.push_back(make_pair(trigger, action));
         }
     }
+
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
     return true;
@@ -220,7 +230,6 @@ void NLPPeripheralModel::SplitString(const std::string &s, std::vector<std::stri
     pos1 = 0;
     while (std::string::npos != pos2) {
         v.push_back(s.substr(pos1, pos2 - pos1));
-
         pos1 = pos2 + c.size();
         pos2 = s.find(c, pos1);
     }
@@ -248,7 +257,7 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     reg.type = v[0];
     reg.phaddr = std::stoull(v[1].c_str(), NULL, 10);
     reg.reset = std::stoull(v[2].c_str(), NULL, 10);
-    reg.cur = reg.reset;
+    reg.cur_value = reg.reset;
     reg.t_size = 0;
     reg.r_size = 0;
     reg.t_value = 0;
@@ -269,15 +278,14 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     if (action_str.find('|', 0) != std::string::npos) {
         action_rel = false;
     }
-    
+
     return extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
 }
 
 bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, bool rel){
     boost::smatch what;
     if (!boost::regex_match(peripheralcache, what, TARegEx)) {
-        getWarningsStream() << "match false"
-                            << "\n";
+        getWarningsStream() << "match false\n";
         exit(0);
         return false;
     }
@@ -287,6 +295,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         exit(0);
         return false;
     }
+
     for (int i = 1; i < what.size(); ++i) {
         std::string equ_str = what[i];
         std::vector<std::string> v;
