@@ -316,6 +316,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         getDebugStream() << "equ type = " << equ.type << " equ phaddr = " << equ.phaddr
                         << " equ bits = " << equ.bits << " equ = " << equ.eq << " type_a2 = " << equ.type_a2 << " value = " << equ.value << "\n";
         vec.push_back(equ);
+	peripheralcache = what.suffix();
     }
     return true;
 }
