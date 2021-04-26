@@ -290,7 +290,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
 
-    while (boost::regex_search(peripheralcache, what, exp)) {
+    while (boost::regex_search(peripheralcache, what, TARegEx)) {
         std::string equ_str = what[0];
         std::vector<std::string> v;
         getDebugStream() << equ_str << "\n";
