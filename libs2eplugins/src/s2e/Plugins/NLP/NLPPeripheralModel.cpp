@@ -22,7 +22,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 
 class NLPPeripheralModelState : public PluginState {
 private:
-    RegMap peripheral_regs_value_map;
+    RegMap state_map;
     TAMap allTAs;
     uint32_t data_register;
     //std::map<std::string, uint32_t> symbol_list = {
@@ -45,15 +45,15 @@ private:
                 } else {
                     uint32_t a1, a2;
                     if (equ.bits == "*") {
-                        a1 = peripheral_regs_value_map[equ.phaddr].cur_value;
+                        a1 = state_map[equ.phaddr].cur_value;
                     } else {
                         uint32_t tmp = std::stoull(equ.bits, NULL, 10);
-                        a1 = peripheral_regs_value_map[equ.phaddr].cur_value >> tmp & 1;
+                        a1 = state_map[equ.phaddr].cur_value >> tmp & 1;
                     }
                     if (equ.type_a2 == "T") {
-                        a2 = peripheral_regs_value_map[data_register].t_size;
+                        a2 = state_map[data_register].t_size;
                     } else if(equ.type_a2 == "R") {
-                        a2 = peripheral_regs_value_map[data_register].r_size;
+                        a2 = state_map[data_register].r_size;
                     }
                     else a2 = equ.value;
                     trigger_res.push_back(compare(a1, equ.eq, a2));
@@ -81,23 +81,23 @@ private:
             for (auto equ: action) {
                 uint32_t a2;
                 if (equ.type_a2 == "T") {
-                    a2 = peripheral_regs_value_map[data_register].t_size;
+                    a2 = state_map[data_register].t_size;
                 } else if (equ.type_a2 == "R") {
-                    a2 = peripheral_regs_value_map[data_register].r_size;
+                    a2 = state_map[data_register].r_size;
                 } else {
                     a2 = equ.value;
                 }
 
                 if (equ.type == "R") {
-                    peripheral_regs_value_map[equ.phaddr].r_size = a2;
+                    state_map[equ.phaddr].r_size = a2;
                 } else if (equ.type == "T") {
-                    peripheral_regs_value_map[equ.phaddr].t_size = a2;
+                    state_map[equ.phaddr].t_size = a2;
                 } else {
                     uint32_t tmp = std::stoull(equ.bits, NULL, 10);
                     if (a2 == 1)
-                        peripheral_regs_value_map[equ.phaddr].cur_value |= (1 << tmp);
+                        state_map[equ.phaddr].cur_value |= (1 << tmp);
                     else
-                        peripheral_regs_value_map[equ.phaddr].cur_value &= ~(1 << tmp);
+                        state_map[equ.phaddr].cur_value &= ~(1 << tmp);
                 }
             }
         }
@@ -130,7 +130,7 @@ public:
 
     void initialize_graph(RegMap m, TAMap ta, uint32_t dr) {
 	printf("address %u regs length %lu ta length %lu\n",dr, m.size(), ta.size());
-        //peripheral_regs_value_map = m;
+        //state_map = m;
 	printf("ori map:\n");
 	for (auto iter: m) {
                 printf("address: %u,  reg cur_value: %u\n",iter.first,  iter.second.cur_value);
@@ -140,12 +140,12 @@ public:
 		reg.reset = iter.second.reset;
 		reg.cur_value = iter.second.cur_value;
 		printf("new reg phaddr%u, value %u\n", reg.phaddr, reg.cur_value);
-		peripheral_regs_value_map[reg.phaddr] = reg;
+		state_map[reg.phaddr] = reg;
         }
-	//std::copy(m.begin(),m.end(),std::inserter(peripheral_regs_value_map,peripheral_regs_value_map.begin()));
-	//peripheral_regs_value_map.insert(m.begin(), m.end());
+	//std::copy(m.begin(),m.end(),std::inserter(state_map,state_map.begin()));
+	//state_map.insert(m.begin(), m.end());
 	printf("test copy RegMap: \n");
-	for (auto iter: peripheral_regs_value_map) {
+	for (auto iter: state_map) {
 		printf("address: %u,  reg phaddr: %u\n",iter.first,  iter.second.phaddr);
 	}
 	printf("test copy TAMap: \n");
@@ -167,25 +167,25 @@ public:
 
     void write_ph_value(uint32_t phaddr, uint32_t value) {
         if (data_register == phaddr) {
-            peripheral_regs_value_map[phaddr].t_value = value;
-            peripheral_regs_value_map[phaddr].t_size = 1;
+            state_map[phaddr].t_value = value;
+            state_map[phaddr].t_size = 1;
             return;
         }
-        peripheral_regs_value_map[phaddr].cur_value = value;
+        state_map[phaddr].cur_value = value;
         UpdateGraph(Write, phaddr);
     }
 
     uint32_t get_ph_value(uint32_t phaddr) {
         if (data_register == phaddr) {
-            return peripheral_regs_value_map[phaddr].r_value;
+            return state_map[phaddr].r_value;
         }
         UpdateGraph(Read, phaddr);
-        return  peripheral_regs_value_map[phaddr].cur_value;
+        return  state_map[phaddr].cur_value;
     }
 
     void hardware_write_to_receive_buffer(uint32_t value) {
-        peripheral_regs_value_map[data_register].r_size = 1;
-        peripheral_regs_value_map[data_register].r_value = value;
+        state_map[data_register].r_size = 1;
+        state_map[data_register].r_value = value;
         UpdateGraph(Write, data_register);
     }
 };
