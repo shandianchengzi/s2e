@@ -128,9 +128,32 @@ public:
     virtual ~NLPPeripheralModelState() {
     }
 
-    void initialize_graph(RegMap& m, TAMap &ta, uint32_t dr) {
-        peripheral_regs_value_map = m;
-        allTAs = ta;
+    void initialize_graph(RegMap m, TAMap ta, uint32_t dr) {
+	printf("address %u regs length %lu ta length %lu\n",dr, m.size(), ta.size());
+        //peripheral_regs_value_map = m;
+	printf("ori map:\n");
+	for (auto iter: m) {
+                printf("address: %u,  reg cur_value: %u\n",iter.first,  iter.second.cur_value);
+		PeripheralReg reg;
+		reg.type = iter.second.type;
+		reg.phaddr  = iter.second.phaddr;
+		reg.reset = iter.second.reset;
+		reg.cur_value = iter.second.cur_value;
+		printf("new reg phaddr%u, value %u\n", reg.phaddr, reg.cur_value);
+		peripheral_regs_value_map[reg.phaddr] = reg;
+        }
+	//std::copy(m.begin(),m.end(),std::inserter(peripheral_regs_value_map,peripheral_regs_value_map.begin()));
+	//peripheral_regs_value_map.insert(m.begin(), m.end());
+	printf("test copy RegMap: \n");
+	for (auto iter: peripheral_regs_value_map) {
+		printf("address: %u,  reg phaddr: %u\n",iter.first,  iter.second.phaddr);
+	}
+	printf("test copy TAMap: \n");
+	std::copy(ta.begin(),ta.end(),std::inserter(allTAs, allTAs.begin()));
+        //allTAs = ta;
+	for (auto iter: allTAs) {
+		printf("first trigger type: %u, first action type: %u\n", iter.first[0].phaddr, iter.second[0].phaddr);
+	}
         data_register = dr;
     }
 
@@ -222,7 +245,9 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     }
 
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    getDebugStream() << "start to initialize graph\n";
     plgState->initialize_graph(peripheral_regs_value_map, allTAs, data_register);
+    getDebugStream() << "end initialize graph\n";
     return true;
 }
 

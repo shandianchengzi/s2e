@@ -24,11 +24,7 @@ static const boost::regex TARegEx("([TRO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[
 namespace plugins {
 
 
-class Equation {
-    // a1 = a2
-    // R  > T
-    // Reg bit = 1
-public:
+typedef struct equation {
     std::string type; //R: receive; T: transmit; O: other
     uint32_t phaddr;
     std::string bits;
@@ -36,10 +32,9 @@ public:
     std::string type_a2;//V:value; R: receive; T: transmit
     uint32_t value;
     bool rel;
-};
+} Equation;
 
-class PeripheralReg {
-public:
+typedef struct peripheralReg {
     std::string type;//R: receive; T: transmit; O: other
     uint32_t phaddr;
     uint32_t reset;
@@ -48,7 +43,7 @@ public:
     uint32_t r_size;
     uint32_t t_value;
     uint32_t r_value;
-};
+} PeripheralReg;
 
 typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
