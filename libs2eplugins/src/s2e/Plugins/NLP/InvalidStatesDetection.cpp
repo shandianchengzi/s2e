@@ -235,7 +235,7 @@ void InvalidStatesDetection::initialize() {
     cache_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv1", 20, &ok);
     max_loop_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv2", 2000, &ok);
     terminate_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_terminate", 30000, &ok);
-    tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
+    // tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
 
     if (!ok || cache_tb_num <= 0 || terminate_tb_num <= 0) {
         getWarningsStream() << "Could not set correct cache and max repeat tb number, \n";
