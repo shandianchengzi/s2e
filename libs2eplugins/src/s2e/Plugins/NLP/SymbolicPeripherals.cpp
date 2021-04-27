@@ -30,7 +30,7 @@
 #include "SymbolicPeripherals.h"
 
 namespace {
-llvm::cl::opt<bool> DebugSymbHw("debug-symbolic-hardware", llvm::cl::init(false));
+llvm::cl::opt<bool> DebugSymbHw("debug-symbolic-hardware", llvm::cl::init(true));
 }
 
 namespace s2e {
