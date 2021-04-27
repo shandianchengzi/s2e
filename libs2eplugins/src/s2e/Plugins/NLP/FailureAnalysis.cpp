@@ -277,6 +277,24 @@ void FailureAnalysis::onStateKill(S2EExecutionState *state) {
     false_type_phs_fork_states.clear();
 }
 
+std::vector<uint32_t> identify_setbit_loc(uint32_t value) {
+    std::vector<uint32_t> setbit_loc_vec;
+    std::vector<bool> bin_vec;
+    for (int j = value; j; j = j/2) {
+		bin_vec.push_back(j%2 ? 1: 0);
+	}
+
+    for (int k = 0;k < bin_vec.size(); k++)
+    {
+        if (bin_vec[k] == 1) {
+            setbit_loc_vec.push_back(k);
+        }
+    }
+
+    return setbit_loc_vec;
+
+}
+
 void FailureAnalysis::onStateSwitch(S2EExecutionState *currentState, S2EExecutionState *nextState) {
 
     getDebugStream() << "next irq flag = " << nextState->regs()->getInterruptFlag()
@@ -294,12 +312,20 @@ void FailureAnalysis::onStateSwitch(S2EExecutionState *currentState, S2EExecutio
         getWarningsStream() << "Error!!!\n";
     }
 
+    getWarningsStream() << "=========== Unit test Failed! ==========\n";
     for (auto wrong_last_fork_ph : wrong_last_fork_phs) {
-       for (auto ph : wrong_last_fork_ph.second) {
-        getWarningsStream() << "==== unit test failed! Failed Peripheral = " << hexval(wrong_last_fork_ph.first.first)
-                << " pc = " << hexval(wrong_last_fork_ph.first.second) << " wrong value = " << hexval(ph.second)
-                << " correct value = " << hexval(correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]) << " Please correct NLP Model====\n";
-       }
+        for (auto ph : wrong_last_fork_ph.second) {
+            // uint32_t correct_bits = ! (ph.second ^ correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]);
+            uint32_t wrong_bits = correct_last_fork_phs[wrong_last_fork_ph.first][ph.first] ^ ph.second;
+            getWarningsStream() << "Wrong Peripheral = " << hexval(wrong_last_fork_ph.first.first)
+                << " at pc = " << hexval(wrong_last_fork_ph.first.second) << " wrong value = " << hexval(ph.second)
+                << " correct value = " << hexval(correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]) << "\n";
+            std::string wrongbitStr= "Wrong bit:";
+            for (auto bit_loc : identify_setbit_loc(wrong_bits)) {
+                 wrongbitStr += " " + std::to_string(bit_loc);
+            }
+            getWarningsStream() << wrongbitStr << "\n";
+        }
     }
     exit(-1);
     // based on wrong state to identify
