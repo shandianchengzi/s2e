@@ -23,106 +23,6 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
-    TAMap allTAs;
-    uint32_t data_register;
-    //std::map<std::string, uint32_t> symbol_list = {
-    //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
-    //};
-    //0:= ; 1:>; 2: <; 3: >=; 4: <=
-
-    void UpdateGraph(RWType type, uint32_t phaddr) {
-        for (auto ta: allTAs) {
-            EquList trigger = ta.first;
-            bool rel;
-            std::vector<bool> trigger_res;
-            for (auto equ: trigger) {
-                rel = equ.rel;
-		if (equ.type == "*") {
-		    trigger_res.push_back(true);
-		} if (equ.type == "R") {
-                    if (type == Read && phaddr == data_register)
-                        trigger_res.push_back(true);
-                    else
-                        trigger_res.push_back(false);
-                } else {
-                    uint32_t a1, a2;
-                    if (equ.bits == "*") {
-                        a1 = state_map[equ.phaddr].cur_value;
-                    } else {
-                        uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
-                        a1 = state_map[equ.phaddr].cur_value >> tmp & 1;
-                    }
-                    if (equ.type_a2 == "T") {
-                        a2 = state_map[data_register].t_size;
-                    } else if(equ.type_a2 == "R") {
-                        a2 = state_map[data_register].r_size;
-                    }
-                    else a2 = equ.value;
-                    trigger_res.push_back(compare(a1, equ.eq, a2));
-                }
-            }
-            bool check = rel;
-            if (rel == true){
-                for (bool idx: trigger_res) {
-		    printf("trigger res: %d\n", idx);
-                    if (idx == false) {
-                        check = false;
-                        break;
-                    }
-                }
-            } else {
-                for (auto idx: trigger_res) {
-                    if (idx == true) {
-                        check = true;
-                        break;
-                    }
-                }
-            }
-            if (!check) continue;
-
-            EquList action = ta.second;
-            for (auto equ: action) {
-                uint32_t a2;
-                if (equ.type_a2 == "T") {
-                    a2 = state_map[data_register].t_size;
-                } else if (equ.type_a2 == "R") {
-                    a2 = state_map[data_register].r_size;
-                } else {
-                    a2 = equ.value;
-                }
-		printf("action a2:%u\n",a2);
-                if (equ.type == "R") {
-                    state_map[data_register].r_size = a2;
-                } else if (equ.type == "T") {
-                    state_map[data_register].t_size = a2;
-                } else {
-                    uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
-                    if (a2 == 1)
-                        state_map[equ.phaddr].cur_value |= (1 << tmp);
-                    else
-                        state_map[equ.phaddr].cur_value &= ~(1 << tmp);
-		    printf("updated bit %u,value:%u\n",tmp, state_map[equ.phaddr].cur_value);
-                }
-            }
-        }
-    }
-
-    bool compare(uint32_t a1, std::string sym, uint32_t a2) {
-        //1:= ; 2:>; 3:<; 4:>=; 5:<=
-        if (sym == "*")
-            return false;
-        if (sym == "=")
-            return a1 == a2;
-        if (sym ==  ">")
-            return a1 > a2;
-        if (sym ==  "<")
-            return a1 < a2;
-        if (sym ==  ">=")
-            return a1 >= a2;
-        if (sym ==  "<=")
-            return a1 <= a2;
-        return false;
-    }
 
 public:
     NLPPeripheralModelState() {
@@ -139,42 +39,36 @@ public:
         return new NLPPeripheralModelState(*this);
     }
 
+    RegMap get_state_map() {
+        return state_map;
+    }
     void insert_reg_map (uint32_t phaddr, PeripheralReg reg) {
-        printf("reg map:\n");
         state_map[phaddr] = reg;
     }
 
-    void insert_ta_map (std::pair<EquList, EquList> equ) {
-        printf("ta map:\n");
-        allTAs.push_back(equ);
-    }
-
-    void insert_data_register(uint32_t dr) {
-        data_register = dr;
-    }
-
     void write_ph_value(uint32_t phaddr, uint32_t value) {
-        if (data_register == phaddr) {
-            state_map[phaddr].t_value = value;
-            state_map[phaddr].t_size = 1;
-            return;
-        }
         state_map[phaddr].cur_value = value;
-        UpdateGraph(Write, phaddr);
+        // UpdateGraph(Write, phaddr);
+    }
+
+    void write_dr_value(uint32_t phaddr, uint32_t value) {
+        state_map[phaddr].t_value = value;
+        state_map[phaddr].t_size = 0; // ignore
     }
 
     uint32_t get_ph_value(uint32_t phaddr) {
-        if (data_register == phaddr) {
-            return state_map[phaddr].r_value;
-        }
-        UpdateGraph(Read, phaddr);
+        // UpdateGraph(Read, phaddr);
         return  state_map[phaddr].cur_value;
     }
 
-    void hardware_write_to_receive_buffer(uint32_t value) {
-        state_map[data_register].r_size = 1;
-        state_map[data_register].r_value = value;
-        UpdateGraph(Write, data_register);
+    uint32_t get_dr_value(uint32_t phaddr) {
+        state_map[phaddr].r_size = 0;
+        return state_map[phaddr].r_value;
+    }
+
+    void hardware_write_to_receive_buffer(uint32_t phaddr,uint32_t value) {
+        state_map[phaddr].r_size = 1;
+        state_map[phaddr].r_value = value;
     }
 };
 
@@ -187,6 +81,7 @@ void NLPPeripheralModel::initialize() {
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
+    rw_count = 0;
     srand(0);
 }
 
@@ -196,7 +91,8 @@ void NLPPeripheralModel::onTimer() {
         uint32_t rand_org = rand();
         uint32_t rand_value = int(((rand_org % 0x7ffe) * 1.0 / 0x7fff) * 4294967295);
         getDebugStream() << " input rand value = " << rand_value << "\n";
-        plgState->hardware_write_to_receive_buffer(rand_value);
+        plgState->hardware_write_to_receive_buffer(data_register, rand_value);
+        UpdateGraph(g_s2e_state, Write, data_register);
     }
 }
 
@@ -217,7 +113,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         PeripheralReg reg;
         if (getMemo(peripheralcache, reg)) {
             if (reg.type == "R") {
-                plgState->insert_data_register(reg.phaddr);
+                data_register = reg.phaddr;
             }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
@@ -229,7 +125,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         EquList trigger;
         EquList action;
         if (getTApairs(peripheralcache, trigger, action)) {
-            plgState->insert_ta_map(std::make_pair(trigger, action));
+            allTAs.push_back(std::make_pair(trigger, action));
         } else {
             return false;
         }
@@ -336,6 +232,113 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
     return true;
 }
 
+bool compare(uint32_t a1, std::string sym, uint32_t a2) {
+    //1:= ; 2:>; 3:<; 4:>=; 5:<=
+    if (sym == "*")
+        return false;
+    if (sym == "=")
+        return a1 == a2;
+    if (sym ==  ">")
+        return a1 > a2;
+    if (sym ==  "<")
+        return a1 < a2;
+    if (sym ==  ">=")
+        return a1 >= a2;
+    if (sym ==  "<=")
+        return a1 <= a2;
+    return false;
+}
+
+void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    RegMap state_map = plgState->get_state_map();
+    for (auto ta: allTAs) {
+        EquList trigger = ta.first;
+        bool rel;
+        std::vector<bool> trigger_res;
+        for (auto equ: trigger) {
+            rel = equ.rel;
+            if (equ.type == "*") {
+                trigger_res.push_back(true);
+            }
+            if (equ.type == "R") {
+                if (type == Read && phaddr == data_register)
+                    trigger_res.push_back(true);
+                else
+                    trigger_res.push_back(false);
+            } else {
+                uint32_t a1, a2;
+                if (equ.bits == "*") {
+                    a1 = state_map[equ.phaddr].cur_value;
+                } else {
+                    uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
+                    a1 = state_map[equ.phaddr].cur_value >> tmp & 1;
+                }
+                if (equ.type_a2 == "T") {
+                    a2 = state_map[data_register].t_size;
+                } else if(equ.type_a2 == "R") {
+                    a2 = state_map[data_register].r_size;
+                } else {
+                    a2 = equ.value;
+                }
+                trigger_res.push_back(compare(a1, equ.eq, a2));
+            }
+        }
+        bool check = rel;
+        if (rel == true) {
+            for (bool idx: trigger_res) {
+                if (idx == false) {
+                    check = false;
+                    break;
+                }
+            }
+        } else {
+            for (auto idx: trigger_res) {
+                if (idx == true) {
+                    check = true;
+                    break;
+                }
+            }
+        }
+        if (!check) continue;
+
+        EquList action = ta.second;
+        for (auto equ: action) {
+            uint32_t a2;
+            if (equ.type_a2 == "T") {
+                a2 = state_map[data_register].t_size;
+            } else if (equ.type_a2 == "R") {
+                a2 = state_map[data_register].r_size;
+            } else {
+                a2 = equ.value;
+            }
+
+            if (equ.type == "R") {
+                state_map[data_register].r_size = a2;
+                plgState->insert_reg_map(data_register, state_map[data_register]);
+            } else if (equ.type == "T") {
+                state_map[data_register].t_size = a2;
+                plgState->insert_reg_map(data_register, state_map[data_register]);
+            } else {
+                uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
+                if (a2 == 1) {
+                    state_map[equ.phaddr].cur_value |= (1 << tmp);
+                } else {
+                    state_map[equ.phaddr].cur_value &= ~(1 << tmp);
+                }
+                if (type == Read) {
+                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.phaddr) << " updated bit = " << tmp
+                        << " value = " << hexval(state_map[equ.phaddr].cur_value) << " a2 = " << a2 << "\n";
+                } else {
+                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.phaddr) << " updated bit = " << tmp
+                        << " value = " << hexval(state_map[equ.phaddr].cur_value) << " a2 = " << a2 << "\n";
+                }
+                plgState->insert_reg_map(equ.phaddr, state_map[equ.phaddr]);
+            }
+        }
+    }
+}
+
 void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type,
                             uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
@@ -343,7 +346,13 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
     }
-    *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
+
+    UpdateGraph(state, Read, phaddr);
+    if (phaddr == data_register) {
+        *NLPsymbolicvalue = plgState->get_dr_value(phaddr);
+    } else {
+        *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
+    }
     // onExternalInterruptEvent.emit(state, irq_no);
 }
 
@@ -354,7 +363,13 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
     }
-    plgState->write_ph_value(phaddr, writeconcretevalue);
+
+    if (phaddr == data_register) {
+        plgState->write_dr_value(phaddr, writeconcretevalue);
+    } else {
+        plgState->write_ph_value(phaddr, writeconcretevalue);
+    }
+    UpdateGraph(state, Write, phaddr);
 }
 
 

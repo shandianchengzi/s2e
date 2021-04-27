@@ -49,6 +49,10 @@ typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
 typedef std::vector<std::pair<EquList, EquList>> TAMap;
 enum RWType { Write, Read };
+//std::map<std::string, uint32_t> symbol_list = {
+//    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
+//};
+//0:= ; 1:>; 2: <; 3: >=; 4: <=
 
 class NLPPeripheralModel : public Plugin {
     S2E_PLUGIN
@@ -63,13 +67,16 @@ private:
 
     uint32_t rw_count;
     std::string NLPfileName;
+    TAMap allTAs;
+    uint32_t data_register;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
-    void onTimer();
+    void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
+    void onTimer();
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
