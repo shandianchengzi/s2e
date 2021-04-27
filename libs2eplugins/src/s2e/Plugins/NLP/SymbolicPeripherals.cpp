@@ -124,10 +124,10 @@ klee::ref<klee::Expr> SymbolicPeripherals::createExpression(S2EExecutionState *s
     onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
 
     getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size)
-                                << "NLP value =" << hexval(NLP_value) << "\n";
+                                << " NLP value = " << hexval(NLP_value) << "\n";
 
     ConcreteArray concolicValue;
-    SymbHwGetConcolicVector(concreteValue, size, concolicValue);
+    SymbHwGetConcolicVector(NLP_value, size, concolicValue);
     return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
 }
 
