@@ -61,6 +61,8 @@ public:
 private:
     sigc::connection symbolicPeripheralConnection;
 
+    uint32_t rw_count;
+    std::string NLPfileName;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
