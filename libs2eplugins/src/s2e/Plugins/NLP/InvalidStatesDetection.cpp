@@ -333,7 +333,7 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
 
     // learning mode termination and switch to cache mode
-    if (plgState->getnewtbnum() > 200 && plgState->getretbnum() > terminate_tb_num &&
+    if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
         getWarningsStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
         invalidPCAccessConnection.disconnect();
