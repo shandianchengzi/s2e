@@ -260,8 +260,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             rel = equ.rel;
             if (equ.type == "*") {
                 trigger_res.push_back(true);
-            }
-            if (equ.type == "R") {
+            } else if (equ.type == "R") {
                 if (type == Read && phaddr == data_register)
                     trigger_res.push_back(true);
                 else
@@ -281,6 +280,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 } else {
                     a2 = equ.value;
                 }
+		getDebugStream() << "a1 "<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
                 trigger_res.push_back(compare(a1, equ.eq, a2));
             }
         }
@@ -320,6 +320,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 state_map[data_register].t_size = a2;
                 plgState->insert_reg_map(data_register, state_map[data_register]);
             } else {
+		if (equ.bits == "*") {
+		    state_map[equ.phaddr].cur_value = a2;
+		    continue;
+		}
                 uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
                 if (a2 == 1) {
                     state_map[equ.phaddr].cur_value |= (1 << tmp);
