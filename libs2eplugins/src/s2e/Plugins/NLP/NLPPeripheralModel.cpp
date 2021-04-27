@@ -37,7 +37,9 @@ private:
             std::vector<bool> trigger_res;
             for (auto equ: trigger) {
                 rel = equ.rel;
-                if (equ.type == "R") {
+		if (equ.type == "*") {
+		    trigger_res.push_back(true);
+		} if (equ.type == "R") {
                     if (type == Read && phaddr == data_register)
                         trigger_res.push_back(true);
                     else
@@ -47,7 +49,7 @@ private:
                     if (equ.bits == "*") {
                         a1 = state_map[equ.phaddr].cur_value;
                     } else {
-                        uint32_t tmp = std::stoull(equ.bits, NULL, 10);
+                        uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
                         a1 = state_map[equ.phaddr].cur_value >> tmp & 1;
                     }
                     if (equ.type_a2 == "T") {
@@ -61,7 +63,8 @@ private:
             }
             bool check = rel;
             if (rel == true){
-                for (auto idx: trigger_res) {
+                for (bool idx: trigger_res) {
+		    printf("trigger res: %d\n", idx);
                     if (idx == false) {
                         check = false;
                         break;
@@ -87,17 +90,18 @@ private:
                 } else {
                     a2 = equ.value;
                 }
-
+		printf("action a2:%u\n",a2);
                 if (equ.type == "R") {
-                    state_map[equ.phaddr].r_size = a2;
+                    state_map[data_register].r_size = a2;
                 } else if (equ.type == "T") {
-                    state_map[equ.phaddr].t_size = a2;
+                    state_map[data_register].t_size = a2;
                 } else {
-                    uint32_t tmp = std::stoull(equ.bits, NULL, 10);
+                    uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
                     if (a2 == 1)
                         state_map[equ.phaddr].cur_value |= (1 << tmp);
                     else
                         state_map[equ.phaddr].cur_value &= ~(1 << tmp);
+		    printf("updated bit %u,value:%u\n",tmp, state_map[equ.phaddr].cur_value);
                 }
             }
         }
@@ -308,6 +312,9 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         equ.rel = rel;
         if (v[0] == "*") {
             equ.type = v[0];
+	    equ.bits = "*";
+	    equ.eq = "*";
+	    equ.type_a2 = "*";
         } else {
             equ.type = v[0];
             equ.phaddr = std::stoull(v[1].c_str(), NULL, 10);
