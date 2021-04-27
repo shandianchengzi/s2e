@@ -36,7 +36,7 @@ using namespace klee;
 
 namespace s2e {
 namespace plugins {
-static const boost::regex SymbolicPeripheralRegEx("v\\d+_iommuread_(.+)_(.+)", boost::regex::perl);
+static const boost::regex SymbolicPeripheralRegEx("v\\d+_iommuread_(.+)_(.+)_(.+)", boost::regex::perl);
 
 S2E_DEFINE_PLUGIN(FailureAnalysis, "Identify the failure reason of NLPModel", "");
 
@@ -112,7 +112,7 @@ bool FailureAnalysis::getPeripheralExecutionState(std::string variablePeripheral
         return false;
     }
 
-    if (what.size() != 3) {
+    if (what.size() != 4) {
         getWarningsStream() << "wrong size = " << what.size() << "\n";
         exit(0);
         return false;
@@ -293,6 +293,15 @@ void FailureAnalysis::onStateSwitch(S2EExecutionState *currentState, S2EExecutio
     } else {
         getWarningsStream() << "Error!!!\n";
     }
+
+    for (auto wrong_last_fork_ph : wrong_last_fork_phs) {
+       for (auto ph : wrong_last_fork_ph.second) {
+        getWarningsStream() << "==== unit test failed! Failed Peripheral = " << hexval(wrong_last_fork_ph.first.first)
+                << " pc = " << hexval(wrong_last_fork_ph.first.second) << " wrong value = " << hexval(ph.second)
+                << " correct value = " << hexval(correct_last_fork_phs[wrong_last_fork_ph.first][ph.first]) << " Please correct NLP Model====\n";
+       }
+    }
+    exit(-1);
     // based on wrong state to identify
 }
 
