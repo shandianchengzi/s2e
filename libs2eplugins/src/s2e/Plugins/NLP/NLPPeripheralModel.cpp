@@ -165,8 +165,8 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     std::vector<std::string> v;
     SplitString(what[1], v, "_");
     reg.type = v[0];
-    reg.phaddr = std::stoull(v[1].c_str(), NULL, 10);
-    reg.reset = std::stoull(v[2].c_str(), NULL, 10);
+    reg.phaddr = std::stoull(v[1].c_str(), NULL, 16);
+    reg.reset = std::stoull(v[2].c_str(), NULL, 16);
     reg.cur_value = reg.reset;
     reg.t_size = 0;
     reg.r_size = 0;
@@ -191,7 +191,11 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     }
     getDebugStream() << " trigger = " << trigger_str << " action = " << action_str << "\n";
 
-    return extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
+    bool res = extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
+    if (v.size() == 3) {
+        action.back().interrupt = std::stoi(v[2].c_str(), NULL, 10);
+    }
+    return res;
 }
 
 bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, bool rel){
@@ -206,26 +210,33 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         getDebugStream() << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << "\n";
         Equation equ;
         equ.rel = rel;
+        equ.interrupt = -1;
         if (v[0] == "*") {
-            equ.type = v[0];
-	    equ.bits = "*";
-	    equ.eq = "*";
-	    equ.type_a2 = "*";
+            equ.a1.type = v[0];
+            equ.a1.bits = "*";
+            equ.eq = "*";
+            equ.type_a2 = "*";
         } else {
-            equ.type = v[0];
-            equ.phaddr = std::stoull(v[1].c_str(), NULL, 10);
-            equ.bits = v[2];
+            equ.a1.type = v[0];
+            equ.a1.phaddr = std::stoull(v[1].c_str(), NULL, 16);
+            equ.a1.bits = v[2];
             equ.eq = v[3];
-            if (v[4][0] != '*') {
+            if (v[4] == "O" || v[4] == "C") {
+                equ.type_a2 = "F";
+                equ.value = 0;
+                equ.a2.type = v[4];
+                equ.a2.phaddr = std::stoull(v[5].c_str(), NULL, 16);
+                equ.a2.bits = v[6];
+            } if (v[4][0] != '*') {
                 equ.type_a2 = "V";
-                equ.value = std::stoull(v[4].c_str(), NULL, 10);
+                equ.value = std::stoull(v[4].c_str(), NULL, 2);
             } else {
                 equ.value = 0;
                 equ.type_a2 = v[4][1];
             }
         }
-        getDebugStream() << "equ type = " << equ.type << " equ phaddr = " << equ.phaddr
-                        << " equ bits = " << equ.bits << " equ = " << equ.eq << " type_a2 = " << equ.type_a2 << " value = " << equ.value << "\n";
+        getDebugStream() << "equ type = " << equ.a1.type << " equ phaddr = " << equ.a1.phaddr
+                        << " equ bits = " << equ.a1.bits << " equ = " << equ.eq << " type_a2 = " << equ.type_a2 << " value = " << equ.value << "\n";
         vec.push_back(equ);
         peripheralcache = what.suffix();
     }
@@ -249,6 +260,36 @@ bool compare(uint32_t a1, std::string sym, uint32_t a2) {
     return false;
 }
 
+uint32_t get_reg_value(RegMap state_map, Field a) {
+    uint32_t res;
+    if (a.bits == "*") {
+        res = state_map[a.phaddr].cur_value;
+    } else {
+        res = 0;
+        for (auto i: a.bits.size()) {
+            int tmp = std::stoi(a.bits[i], NULL, 10);
+            res = res*i*2 + state_map[a.phaddr].cur_value >> tmp & 1;
+        }
+    }
+    return res;  
+}
+
+void set_reg_value(RegMap state_map, Field a, uint32_t value) {
+    if (a.bits == "*") {
+        state_map[a.phaddr].cur_value = value;
+    } else {
+        for (auto i: a.bits.size()) {
+            int tmp = std::stoi(a.bits[i], NULL, 10);
+            int a2 = value >> tmp;
+            if (a2 == 1) {
+                state_map[a.phaddr].cur_value |= (1 << tmp);
+            } else {
+                state_map[a.phaddr].cur_value &= ~(1 << tmp);
+            }
+        }
+    }
+}
+
 void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
@@ -258,30 +299,29 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         std::vector<bool> trigger_res;
         for (auto equ: trigger) {
             rel = equ.rel;
-            if (equ.type == "*") {
+            if (equ.a1.type == "*") {
                 trigger_res.push_back(true);
-            } else if (equ.type == "R") {
+            } else if (equ.a1.type == "R") {
                 if (type == Read && phaddr == data_register)
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
             } else {
                 uint32_t a1, a2;
-                if (equ.bits == "*") {
-                    a1 = state_map[equ.phaddr].cur_value;
-                } else {
-                    uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
-                    a1 = state_map[equ.phaddr].cur_value >> tmp & 1;
-                }
+                a1 = get_reg_value(state_map, equ.a1);
                 if (equ.type_a2 == "T") {
                     a2 = state_map[data_register].t_size;
                 } else if(equ.type_a2 == "R") {
                     a2 = state_map[data_register].r_size;
-                } else {
+                } else if(equ.type_a2 == "F") {
+                    a2 = get_reg_value(state_map, equ.a2);
+                } else if(equ.type_a2 == "V") {
                     a2 = equ.value;
+                } else {
+                    getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
                 }
                 getDebugStream() << "a1 "<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
-                        trigger_res.push_back(compare(a1, equ.eq, a2));
+                trigger_res.push_back(compare(a1, equ.eq, a2));
             }
         }
         bool check = rel;
@@ -309,37 +349,31 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 a2 = state_map[data_register].t_size;
             } else if (equ.type_a2 == "R") {
                 a2 = state_map[data_register].r_size;
+            } else if (equ.type_a2 == "V"){
+                a2 = get_reg_value(state_map, equ.a2);
             } else {
                 a2 = equ.value;
             }
 
-            if (equ.type == "R") {
+            if (equ.a1.type == "R") {
                 state_map[data_register].r_size = a2;
                 plgState->insert_reg_map(data_register, state_map[data_register]);
-            } else if (equ.type == "T") {
+            } else if (equ.a1.type == "T") {
                 state_map[data_register].t_size = a2;
                 plgState->insert_reg_map(data_register, state_map[data_register]);
             } else {
-                if (equ.bits == "*") {
-                    state_map[equ.phaddr].cur_value = a2;
+                set_reg_value(state_map, equ.a1, a2);
+                if (type == Read) {
+                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " << tmp
+                        << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 } else {
-                    uint32_t tmp = std::stoull(equ.bits.c_str(), NULL, 10);
-                    if (a2 == 1) {
-                        state_map[equ.phaddr].cur_value |= (1 << tmp);
-                    } else {
-                        state_map[equ.phaddr].cur_value &= ~(1 << tmp);
-                    }
-                    if (type == Read) {
-                        getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.phaddr) << " updated bit = " << tmp
-                            << " value = " << hexval(state_map[equ.phaddr].cur_value) << " a2 = " << a2 << "\n";
-                    } else {
-                        getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.phaddr) << " updated bit = " << tmp
-                            << " value = " << hexval(state_map[equ.phaddr].cur_value) << " a2 = " << a2 << "\n";
-                    }
+                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " << tmp
+                        << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 }
                 // update to state
-                plgState->insert_reg_map(equ.phaddr, state_map[equ.phaddr]);
+                plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
+            //TODO equ.interrupt != -1
         }
     }
 }

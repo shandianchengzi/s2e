@@ -23,14 +23,19 @@ static const boost::regex TARegEx("([TRO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[
 
 namespace plugins {
 
-
-typedef struct equation {
+typedef struct field {
     std::string type; //R: receive; T: transmit; O: other
     uint32_t phaddr;
     std::string bits;
+} Field;
+
+typedef struct equation {
+    Field a1;
     std::string eq;//= ; >;  <;  >=; <=
-    std::string type_a2;//V:value; R: receive; T: transmit
+    std::string type_a2;//V:value; R: receive; T: transmit; F: field
     uint32_t value;
+    Field a2;
+    int interrupt;
     bool rel;
 } Equation;
 
@@ -75,6 +80,7 @@ private:
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
+    
 
     void onTimer();
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
