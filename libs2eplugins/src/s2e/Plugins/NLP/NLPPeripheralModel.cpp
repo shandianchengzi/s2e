@@ -266,9 +266,9 @@ uint32_t get_reg_value(RegMap state_map, Field a) {
         res = state_map[a.phaddr].cur_value;
     } else {
         res = 0;
-        for (auto i: a.bits.size()) {
-            int tmp = std::stoi(a.bits[i], NULL, 10);
-            res = res*i*2 + state_map[a.phaddr].cur_value >> tmp & 1;
+        for (int i = 0; i < a.bits.size(); ++i) {
+            int tmp = a.bits[i]-'0';
+            res = res*i*2 + (state_map[a.phaddr].cur_value >> tmp & 1);
         }
     }
     return res;  
@@ -278,8 +278,8 @@ void set_reg_value(RegMap state_map, Field a, uint32_t value) {
     if (a.bits == "*") {
         state_map[a.phaddr].cur_value = value;
     } else {
-        for (auto i: a.bits.size()) {
-            int tmp = std::stoi(a.bits[i], NULL, 10);
+        for (int i = 0; i < a.bits.size(); ++i) {
+            int tmp = a.bits[i]-'0';
             int a2 = value >> tmp;
             if (a2 == 1) {
                 state_map[a.phaddr].cur_value |= (1 << tmp);
@@ -318,7 +318,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 } else if(equ.type_a2 == "V") {
                     a2 = equ.value;
                 } else {
-                    getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
+			a2 = 0;
+                    getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" \n";
                 }
                 getDebugStream() << "a1 "<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
                 trigger_res.push_back(compare(a1, equ.eq, a2));
@@ -364,10 +365,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             } else {
                 set_reg_value(state_map, equ.a1, a2);
                 if (type == Read) {
-                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " << tmp
+                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " 
                         << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 } else {
-                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " << tmp
+                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " 
                         << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 }
                 // update to state

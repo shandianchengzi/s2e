@@ -18,8 +18,8 @@
 
 namespace s2e {
 //type address reset
-static const boost::regex MemoRegEx("([TRO]_[\\d]+_[\\d]+)", boost::regex::perl);
-static const boost::regex TARegEx("([TRO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[TRO\\d\\*]+)", boost::regex::perl);
+static const boost::regex MemoRegEx("([TRCO]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
+static const boost::regex TARegEx("([TRCO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[TRCO\\d\\*]+)", boost::regex::perl);
 
 namespace plugins {
 
