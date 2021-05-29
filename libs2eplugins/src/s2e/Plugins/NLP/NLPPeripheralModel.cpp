@@ -260,7 +260,7 @@ bool compare(uint32_t a1, std::string sym, uint32_t a2) {
     return false;
 }
 
-uint32_t get_reg_value(RegMap state_map, Field a) {
+uint32_t get_reg_value(RegMap &state_map, Field a) {
     uint32_t res;
     if (a.bits == "*") {
         res = state_map[a.phaddr].cur_value;
@@ -280,7 +280,7 @@ void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
     } else {
         for (int i = 0; i < a.bits.size(); ++i) {
             int tmp = a.bits[i]-'0';
-            int a2 = value >> tmp;
+            int a2 = value >> (a.bits.size()-1-i);
             if (a2 == 1) {
                 state_map[a.phaddr].cur_value |= (1 << tmp);
             } else {
@@ -342,7 +342,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         }
         if (!check) continue;
         for (auto equ: trigger) {
-            getDebugStream() << "a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
+            getDebugStream() << "a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
         }
 
         EquList action = ta.second;
@@ -352,7 +352,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 a2 = state_map[data_register].t_size;
             } else if (equ.type_a2 == "R") {
                 a2 = state_map[data_register].r_size;
-            } else if (equ.type_a2 == "V"){
+            } else if (equ.type_a2 == "F"){
                 a2 = get_reg_value(state_map, equ.a2);
             } else {
                 a2 = equ.value;
@@ -367,10 +367,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             } else {
                 set_reg_value(state_map, equ.a1, a2);
                 if (type == Read) {
-                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " 
+                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " <<equ.a1.bits
                         << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 } else {
-                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " 
+                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " <<equ.a1.bits
                         << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 }
                 // update to state
@@ -410,6 +410,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         plgState->write_dr_value(phaddr, writeconcretevalue);
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);
+	getDebugStream() << "Write to phaddr "<<hexval(phaddr)<<" value: "<<writeconcretevalue<<" \n";
     }
     UpdateGraph(state, Write, phaddr);
 }
