@@ -19,8 +19,8 @@
 namespace s2e {
 //type address reset
 static const boost::regex MemoRegEx("([TRCO]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
-static const boost::regex TARegEx("([TRCO\\*],[\\*\\d]+,[\\*\\d]+,[=><\\*]{1,2},[TRCO\\d\\*]+)", boost::regex::perl);
-
+//static const boost::regex TARegEx("([TRCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRCO\\d\\*,]+)", boost::regex::perl);
+static const boost::regex TARegEx("([a-zTRCO\\d\\*,=><]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
@@ -80,7 +80,7 @@ private:
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
-    
+
 
     void onTimer();
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,

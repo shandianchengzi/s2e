@@ -274,7 +274,7 @@ uint32_t get_reg_value(RegMap state_map, Field a) {
     return res;  
 }
 
-void set_reg_value(RegMap state_map, Field a, uint32_t value) {
+void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
     if (a.bits == "*") {
         state_map[a.phaddr].cur_value = value;
     } else {
@@ -318,10 +318,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 } else if(equ.type_a2 == "V") {
                     a2 = equ.value;
                 } else {
-			a2 = 0;
+			        a2 = 0;
                     getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" \n";
                 }
-                getDebugStream() << "a1 "<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
                 trigger_res.push_back(compare(a1, equ.eq, a2));
             }
         }
@@ -342,6 +341,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
         }
         if (!check) continue;
+        for (auto equ: trigger) {
+            getDebugStream() << "a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits<<" eq "<<equ.eq<<" a2 "<<a2<<" \n";
+        }
 
         EquList action = ta.second;
         for (auto equ: action) {
