@@ -227,7 +227,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
                 equ.a2.type = v[4];
                 equ.a2.phaddr = std::stoull(v[5].c_str(), NULL, 16);
                 equ.a2.bits = v[6];
-            } if (v[4][0] != '*') {
+            } else if (v[4][0] != '*') {
                 equ.type_a2 = "V";
                 equ.value = std::stoull(v[4].c_str(), NULL, 2);
             } else {
