@@ -22,7 +22,7 @@
 
 namespace s2e {
 namespace plugins {
-enum PeripheralRegisterType { TIRQS, TIRQC, T0, T1, PT1, T2, T3, DR }; // IRQ Type only used in KB
+enum PeripheralRegisterType { TIRQS, TIRQC, T0, T1, PT1, T2, T3 }; // IRQ Type only used in KB
 enum KBUpdateReason { Valid, Invlid };
 namespace hw {
 typedef std::vector<uint8_t> ConcreteArray;
@@ -96,8 +96,9 @@ private:
     TypeFlagPeripheralMap cache_type_flag_phs;
     UniquePeripheralSizeMap cache_dr_type_size;
     //  knowledge extraction mode
+    std::map<uint32_t /* pc */, uint32_t /* count */> alive_points_count;
     TypeFlagPeripheralMap
-        irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle
+        irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle. 1 and 3 cannot be data reg.
     AllKnowledgeBaseNoMap cache_all_cache_phs;
     IRQSRMap possible_irq_srs;
     TIRQSPeripheralMap possible_irq_values;

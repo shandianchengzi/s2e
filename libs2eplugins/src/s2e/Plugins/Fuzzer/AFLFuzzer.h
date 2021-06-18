@@ -16,6 +16,7 @@
 
 namespace s2e {
 namespace plugins {
+typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
 
 /* Map size for the traced binary (2^MAP_SIZE_POW2). Must be greater than
    2; you probably want to keep it under 18 or so for performance reasons
@@ -56,11 +57,15 @@ enum {
     /* 05 */ FAULT_NOBITS,
     /* 06 */ END_uEmu
 };
+
 class AFLFuzzer : public Plugin {
     S2E_PLUGIN
 public:
     AFLFuzzer(S2E *s2e) : Plugin(s2e) {
     }
+
+    sigc::signal<void, S2EExecutionState *, uint32_t /* Fuzzer End Tyep */> onFuzzerTerminationEvent;
+
     void initialize();
 
     struct MEM {
@@ -82,15 +87,17 @@ public:
 private:
     sigc::connection concreteDataMemoryAccessConnection;
     sigc::connection invalidPCAccessConnection;
-    sigc::connection blockStartConnection;
+    sigc::connection blockEndConnection;
     sigc::connection timerConnection;
+
+    TBCounts all_tb_map;
+    uint64_t unique_tb_num; // new tb number
     bool enable_fuzzing;
     uint32_t max_fork_count;
     uint32_t fork_count;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
-    // std::map<uint32_t /* phaddr */, PHTS /* testcase */> phstestcases;
     uint32_t cur_read;
     std::vector<uint32_t> crash_points;
     uint32_t invaild_pc;
@@ -100,8 +107,7 @@ private:
     uint64_t afl_end_code;   /* .text end pointer        */
     uint64_t hang_timeout;
     uint64_t timer_ticks;
-    std::map<uint32_t /* phaddr */, uint32_t /* testcase_loc */> ph_tc_loc;
-    std::map<uint32_t /* phaddr */, uint32_t /* last value */> ph_last_value;
+
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
     void onInvalidPHs(S2EExecutionState *state, uint64_t addr);
@@ -109,10 +115,12 @@ private:
     void onInvalidPCAccess(S2EExecutionState *state, uint64_t addr);
     void onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr, uint32_t t3_count,
                         uint32_t *size, uint32_t *value, bool *doFuzz);
-    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
-    void onBlockStart(S2EExecutionState *state, uint64_t pc);
+    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
+                             bool staticTarget, uint64_t staticTargetPc);
+    void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
     void onTimer();
+    void recordTBMap();
 };
 
 } // namespace plugins
