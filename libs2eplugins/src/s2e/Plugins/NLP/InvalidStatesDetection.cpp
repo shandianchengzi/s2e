@@ -43,7 +43,6 @@ private:
     uint64_t tb_num;     // all tb number in per state
     bool enable_kill;    // indicate all external irqs have been invoked at once;
     TBCounts new_tb_map;
-    uint32_t current_irq_num;
 
 public:
     virtual InvalidStatesDetectionState *clone() const {
@@ -215,13 +214,6 @@ public:
         return cacheconregs.at(cachePos).size();
     }
 
-    void insert_current_irq_num(uint32_t irq_num) {
-        current_irq_num = irq_num;
-    }
-
-    uint32_t get_current_irq_num() {
-        return current_irq_num;
-    }
 };
 }
 
@@ -336,13 +328,18 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
         getWarningsStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
-        invalidPCAccessConnection.disconnect();
-        blockStartConnection.disconnect();
-        g_s2e->getCorePlugin()->onEngineShutdown.emit();
-        // Flush here just in case ~S2E() is not called (e.g., if atexit()
-        // shutdown handler was not called properly).
-        g_s2e->flushOutputStreams();
-        exit(0);
+        bool actual_end = true;
+        onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
+        if (actual_end) {
+            getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
+            plgState->reset_allcache();
+            invalidPCAccessConnection.disconnect();
+            blockStartConnection.disconnect();
+            return true;
+        } else {
+            terminate_tb_num += 0.05 * terminate_tb_num;
+            return false;
+        }
     }
     return false;
 }
@@ -388,7 +385,6 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
         disable_interrupt_count = cache_tb_num;
-        plgState->insert_current_irq_num(state->regs()->getExceptionIndex());
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;
@@ -448,7 +444,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         std::vector<uint32_t> loopregs = plgState->getcurloopregs();
         int k;
         for (k = 0; k < conregs.size(); ++k) {
-            if (loopregs[k] == conregs[k]) {
+            if (loopregs[k] == conregs[k]|| k == 1) {
                 continue;
             } else {
                 break;

@@ -160,11 +160,11 @@ add_library(
     # uEmu specific plugins
     # s2e/Plugins/uEmu/PeripheralModelLearning.cpp
     # s2e/Plugins/uEmu/ExternalInterrupt.cpp
-    # s2e/Plugins/uEmu/ARMFunctionMonitor.cpp
+    s2e/Plugins/uEmu/ARMFunctionMonitor.cpp
     # s2e/Plugins/uEmu/InvalidStatesDetection.cpp
 
     # NLP specific plugins
-    s2e/Plugins/NLP/FailureAnalysis.cpp
+    # s2e/Plugins/NLP/FailureAnalysis.cpp
     s2e/Plugins/NLP/InvalidStatesDetection.cpp
     s2e/Plugins/NLP/SymbolicPeripherals.cpp
     s2e/Plugins/NLP/NLPPeripheralModel.cpp
