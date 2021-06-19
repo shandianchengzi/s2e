@@ -376,6 +376,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 // update to state
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
+            if (equ.interrupt != -1) {
+                onExternalInterruptEvent.emit(state, equ.interrupt);
+            }
             //TODO equ.interrupt != -1
         }
     }
@@ -395,7 +398,6 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
-    // onExternalInterruptEvent.emit(state, irq_no);
 }
 
 void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type,
