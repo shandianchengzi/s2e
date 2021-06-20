@@ -165,6 +165,7 @@ add_library(
 
     # NLP specific plugins
     # s2e/Plugins/NLP/FailureAnalysis.cpp
+    s2e/Plugins/NLP/ExternalInterrupt.cpp
     s2e/Plugins/NLP/InvalidStatesDetection.cpp
     s2e/Plugins/NLP/SymbolicPeripherals.cpp
     s2e/Plugins/NLP/NLPPeripheralModel.cpp
