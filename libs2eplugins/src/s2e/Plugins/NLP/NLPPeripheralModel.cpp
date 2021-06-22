@@ -85,6 +85,15 @@ void NLPPeripheralModel::initialize() {
     srand(0);
 }
 
+
+void NLPPeripheralModel::CountDown() {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
+    if (rw_count > 1) {
+        uint32_t freq = 10;
+
+    }
+}
+
 void NLPPeripheralModel::onTimer() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     if (rw_count > 1) {
