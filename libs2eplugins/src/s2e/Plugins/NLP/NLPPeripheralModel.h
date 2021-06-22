@@ -74,6 +74,7 @@ private:
     std::string NLPfileName;
     TAMap allTAs;
     uint32_t data_register;
+    vector<uint32_t> countdown_register;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
@@ -83,6 +84,7 @@ private:
 
 
     void onTimer();
+    void CountDown();
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,

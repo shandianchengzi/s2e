@@ -70,6 +70,14 @@ public:
         state_map[phaddr].r_size = 1;
         state_map[phaddr].r_value = value;
     }
+
+    void auto_countdown(vector<uint32_t> phaddr,uint32_t value) {
+        for (auto p: phaddr) {
+            state_map[p].cur_value -= value;
+            if (state_map[p].cur_value < 0) 
+                state_map[p].cur_value = 0;
+        }
+    }
 };
 
 void NLPPeripheralModel::initialize() {
@@ -81,6 +89,7 @@ void NLPPeripheralModel::initialize() {
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
+    s2e()->getCorePlugin()->CountDown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
     rw_count = 0;
     srand(0);
 }
@@ -90,7 +99,9 @@ void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     if (rw_count > 1) {
         uint32_t freq = 10;
-
+        getDebugStream(g_s2e_state) << " countdown value = " << hexval(freq) << "\n";
+        plgState->auto_countdown(data_register, rand_value);
+        UpdateGraph(g_s2e_state, Write, 0);
     }
 }
 
@@ -123,6 +134,8 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         if (getMemo(peripheralcache, reg)) {
             if (reg.type == "R") {
                 data_register = reg.phaddr;
+            } else if (reg.type == "P") {
+                countdown_register.append(reg.phaddr);
             }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
