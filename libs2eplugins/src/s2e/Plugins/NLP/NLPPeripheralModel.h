@@ -18,9 +18,9 @@
 
 namespace s2e {
 //type address reset
-static const boost::regex MemoRegEx("([TRCO]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
-//static const boost::regex TARegEx("([TRCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRCO\\d\\*,]+)", boost::regex::perl);
-static const boost::regex TARegEx("([a-zTRCO\\d\\*,=><]+)", boost::regex::perl);
+static const boost::regex MemoRegEx("([TRPCO]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
+//static const boost::regex TARegEx("([TRPCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRPCO\\d\\*,]+)", boost::regex::perl);
+static const boost::regex TARegEx("([a-zTRPCO\\d\\*,=><]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
@@ -74,7 +74,7 @@ private:
     std::string NLPfileName;
     TAMap allTAs;
     uint32_t data_register;
-    vector<uint32_t> countdown_register;
+    std::vector<uint32_t> countdown_register;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);

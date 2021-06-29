@@ -71,7 +71,7 @@ public:
         state_map[phaddr].r_value = value;
     }
 
-    void auto_countdown(vector<uint32_t> phaddr,uint32_t value) {
+    void auto_countdown(std::vector<uint32_t> phaddr,uint32_t value) {
         for (auto p: phaddr) {
             state_map[p].cur_value -= value;
             if (state_map[p].cur_value < 0) 
@@ -89,7 +89,7 @@ void NLPPeripheralModel::initialize() {
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
-    s2e()->getCorePlugin()->CountDown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
     rw_count = 0;
     srand(0);
 }
@@ -97,10 +97,17 @@ void NLPPeripheralModel::initialize() {
 
 void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
+    RegMap state_map = plgState->get_state_map();
     if (rw_count > 1) {
         uint32_t freq = 10;
         getDebugStream(g_s2e_state) << " countdown value = " << hexval(freq) << "\n";
-        plgState->auto_countdown(data_register, rand_value);
+	for (auto p: countdown_register) {
+            getDebugStream(g_s2e_state) << "Interrupt reg: "<<hexval(p)<<" cur: "<<state_map[p].cur_value<<"\n";
+        }
+        plgState->auto_countdown(countdown_register, freq);
+	for (auto p: countdown_register) {
+            getDebugStream(g_s2e_state) << "Interrup reg: "<<hexval(p)<<" cur: "<<state_map[p].cur_value<<"\n";
+        }
         UpdateGraph(g_s2e_state, Write, 0);
     }
 }
@@ -135,7 +142,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             if (reg.type == "R") {
                 data_register = reg.phaddr;
             } else if (reg.type == "P") {
-                countdown_register.append(reg.phaddr);
+                countdown_register.push_back(reg.phaddr);
             }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
@@ -216,6 +223,7 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     bool res = extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
     if (v.size() == 3) {
         action.back().interrupt = std::stoi(v[2].c_str(), NULL, 10);
+        getDebugStream() << " trigger = " << trigger_str << " action = " << action_str <<" interrupt = "<< action.back().interrupt << "\n";
     }
     return res;
 }
@@ -344,6 +352,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" \n";
                 }
                 trigger_res.push_back(compare(a1, equ.eq, a2));
+                getDebugStream() << "compare a1 " <<hexval(equ.a1.phaddr)<<" :"<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" result "<<trigger_res.back()<<" \n";
             }
         }
         bool check = rel;
@@ -364,7 +373,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         }
         if (!check) continue;
         for (auto equ: trigger) {
-            getDebugStream() << "a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
+            getDebugStream() << "trigger a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
         }
 
         EquList action = ta.second;
@@ -398,11 +407,14 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 // update to state
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
+	    getDebugStream() << "interrupt number "<<equ.interrupt<<"\n";
+	    for (auto p: countdown_register) {
+                getDebugStream(g_s2e_state) << "update graph Interrupt reg: "<<hexval(p)<<" cur: "<<state_map[p].cur_value<<"\n";
+            }
             if (equ.interrupt != -1) {
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
             }
-            //TODO equ.interrupt != -1
         }
     }
 }
