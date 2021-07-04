@@ -1702,6 +1702,13 @@ void SymbolicPeripherals::onWritePeripheral(S2EExecutionState *state, uint64_t p
         getDebugStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue)
                          << "\n";
         plgState->update_writeph((uint32_t) phaddr, writeConcreteValue);
+        // nlp regions
+        for (auto nlpph : nlp_mmio) {
+            if (phaddr >= nlpph.first && phaddr <= nlpph.second) {
+                onSymbolicNLPRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, writeConcreteValue);
+                return;
+            }
+        }
     } else {
         // evaluate symbolic regs
         klee::ref<klee::ConstantExpr> ce;
