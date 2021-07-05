@@ -73,9 +73,10 @@ public:
 
     void auto_countdown(std::vector<uint32_t> phaddr,uint32_t value) {
         for (auto p: phaddr) {
-            state_map[p].cur_value -= value;
-            if (state_map[p].cur_value < 0) 
+	    if (state_map[p].cur_value <= value) 
                 state_map[p].cur_value = 0;
+	    else
+                state_map[p].cur_value -= value;
         }
     }
 };
@@ -99,15 +100,12 @@ void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     RegMap state_map = plgState->get_state_map();
     if (rw_count > 1) {
-        uint32_t freq = 10;
+        uint32_t freq = 0x80000000;
         getDebugStream(g_s2e_state) << " countdown value = " << hexval(freq) << "\n";
 	for (auto p: countdown_register) {
             getDebugStream(g_s2e_state) << "Interrupt reg: "<<hexval(p)<<" cur: "<<state_map[p].cur_value<<"\n";
         }
         plgState->auto_countdown(countdown_register, freq);
-	for (auto p: countdown_register) {
-            getDebugStream(g_s2e_state) << "Interrup reg: "<<hexval(p)<<" cur: "<<state_map[p].cur_value<<"\n";
-        }
         UpdateGraph(g_s2e_state, Write, 0);
     }
 }
