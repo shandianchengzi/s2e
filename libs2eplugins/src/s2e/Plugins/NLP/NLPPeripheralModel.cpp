@@ -100,11 +100,15 @@ void NLPPeripheralModel::initialize() {
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
+    onInterruptExitonnection = s2e()->getCorePlugin()->onExceptionExit.connect(
+        sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
     rw_count = 0;
     srand(0);
 }
 
+void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
 
+}
 void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     RegMap state_map = plgState->get_state_map();
