@@ -84,6 +84,7 @@ private:
 
 
     void onTimer();
+    void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void CountDown();
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
