@@ -407,9 +407,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 // update to state
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
-	    getDebugStream() << "interrupt number "<<equ.interrupt<<"\n";
+	    getDebugStream() << "equ.interrupt = " <<equ.interrupt<< "\n";
 	    for (auto p: countdown_register) {
-                getDebugStream(g_s2e_state) << "update graph Interrupt reg: "<<hexval(p)<<" cur: "<<state_map[p].cur_value<<"\n";
+                getDebugStream(g_s2e_state) << "update graph Interrupt reg: "<< hexval(p) <<" cur: "<< hexval(state_map[p].cur_value) <<"\n";
             }
             if (equ.interrupt != -1) {
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
