@@ -2780,7 +2780,7 @@ bool SymbolicPeripherals::updateGeneralKB(S2EExecutionState *state, uint32_t irq
     if (irq_num == 0) {
         last_fork_phs = plgState->getlastfork_phs();
     } else {
-        last_fork_phs = plgState->irq_getlastfork_phs(state->regs()->getExceptionIndex());
+        last_fork_phs = plgState->irq_getlastfork_phs(irq_num);
     }
 
     if (reason_flag == Valid) {
@@ -2788,15 +2788,17 @@ bool SymbolicPeripherals::updateGeneralKB(S2EExecutionState *state, uint32_t irq
         for (auto &it : last_fork_phs) {
             TypeFlagPeripheralMap::iterator itf = type_flag_phs.find(it.first.first);
             if (itf == type_flag_phs.end()) {
-                getWarningsStream() << "do store nlp phs = " << hexval(it.first.first) << "\n";
+                getWarningsStream() << "do not store nlp phs = " << hexval(it.first.first) << "\n";
                 return false;
             }
             if (irq_num > 15) {
-                getWarningsStream() << "do store phs in external irqs\n";
+                getWarningsStream() << "do not store phs in external irqs\n";
                 return true;
             }
 
             for (auto &itch : it.second) {
+                getDebugStream() << " UpdateKB phs = " << hexval(it.first.first) << " pc = " << hexval(it.first.second)
+                             << " value = " << hexval(itch.second.second) << "\n";
                 if (type_flag_phs[it.first.first] == T0) {
                     if (itch.second.second == plgState->get_writeph(it.first.first)) {
                         getDebugStream() << " t0 phs = " << hexval(it.first.first) << " write = " << hexval(itch.first)
@@ -2958,7 +2960,8 @@ bool SymbolicPeripherals::updateGeneralKB(S2EExecutionState *state, uint32_t irq
                     plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
                     break;
                 } else {
-                    getWarningsStream() << "Unknown Type!!!!\n";
+                    getWarningsStream() << "do not store nlp phs = " << hexval(it.first.first) << "\n";
+                    getWarningsStream() << "phaddr = " << hexval(it.first.first) << "Unknown Type!!!! " << type_flag_phs[it.first.first] << "\n";
                 }
             }
         }
