@@ -334,6 +334,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
+            } else if (equ.a1.type == "T") {
+                if (type == Write && phaddr == data_register)
+                    trigger_res.push_back(true);
+                else
+                    trigger_res.push_back(false);
             } else {
                 uint32_t a1, a2;
                 a1 = get_reg_value(state_map, equ.a1);
@@ -349,7 +354,15 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 			        a2 = 0;
                     getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" \n";
                 }
-                trigger_res.push_back(compare(a1, equ.eq, a2));
+		if (equ.a1.type == "F") {
+                    if (type == Write && a1 == a2 && phaddr == equ.a1.phaddr) {
+			    getDebugStream() << "Write 1 to "<<hexval(equ.a1.phaddr)<<" eq "<<equ.eq<<" \n";
+			    trigger_res.push_back(true);
+		    } else
+                            trigger_res.push_back(false);
+
+		} else
+                    trigger_res.push_back(compare(a1, equ.eq, a2));
                 getDebugStream() << "compare a1 " <<hexval(equ.a1.phaddr)<<" :"<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" result "<<trigger_res.back()<<" \n";
             }
         }

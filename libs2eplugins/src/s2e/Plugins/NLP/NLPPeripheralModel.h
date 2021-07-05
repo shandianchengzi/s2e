@@ -18,9 +18,9 @@
 
 namespace s2e {
 //type address reset
-static const boost::regex MemoRegEx("([TRPCO]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
+static const boost::regex MemoRegEx("([A-Z]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
 //static const boost::regex TARegEx("([TRPCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRPCO\\d\\*,]+)", boost::regex::perl);
-static const boost::regex TARegEx("([a-zTRPCO\\d\\*,=><]+)", boost::regex::perl);
+static const boost::regex TARegEx("([a-zA-Z\\d\\*,=><]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
