@@ -1670,6 +1670,12 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
 
 klee::ref<klee::Expr> SymbolicPeripherals::onLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
                                                          uint64_t address, unsigned size, uint64_t concreteValue) {
+    // peripheral address bit-band alias
+    if (address >= 0x42000000 && address <= 0x43fffffc) {
+        uint32_t phaddr = (address - 0x42000000) / 32 + 0x40000000;
+        getDebugStream() << "bit band alias address = " << hexval(address) << " alias address = " << hexval(phaddr) << "\n";
+        address = phaddr;
+    }
     // nlp regions
     for (auto nlpph : nlp_mmio) {
         if (address >= nlpph.first && address <= nlpph.second) {
@@ -1695,10 +1701,31 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
 void SymbolicPeripherals::onWritePeripheral(S2EExecutionState *state, uint64_t phaddr,
                                                 const klee::ref<klee::Expr> &value) {
     DECLARE_PLUGINSTATE(SymbolicPeripheralsState, state);
+    // peripheral address bit-band alias
+    uint32_t temp_value = 0;
+    uint32_t bit_loc = 0;
+    bool bit_alias = false;
+    if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc) {
+        bit_loc = ((phaddr - 0x42000000) % 32) / 4;
+        phaddr = (phaddr - 0x42000000) / 32 + 0x40000000;
+        onSymbolicNLPRegisterReadEvent.emit(state, SYMB_MMIO, phaddr, 0x4, &temp_value);
+        getDebugStream() << "write bit band alias address = " << hexval(phaddr)
+                         << " bit loc = " << hexval(bit_loc) << " nlp value =" << hexval(temp_value) <<"\n";
+        bit_alias = true;
+    }
+
     uint32_t writeConcreteValue;
     if (isa<klee::ConstantExpr>(value)) {
         klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(value);
         writeConcreteValue = ce->getZExtValue();
+        if (bit_alias) {
+            if (writeConcreteValue) {
+                temp_value |= (uint32_t)(1<< bit_loc);
+            } else {
+                temp_value &= (uint32_t)(~(1<< bit_loc));
+            }
+            writeConcreteValue = temp_value;
+        }
         getDebugStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue)
                          << "\n";
         plgState->update_writeph((uint32_t) phaddr, writeConcreteValue);
@@ -1710,6 +1737,10 @@ void SymbolicPeripherals::onWritePeripheral(S2EExecutionState *state, uint64_t p
             }
         }
     } else {
+        if (bit_alias) {
+            getWarningsStream() << " bit band does not support symbolic value\n";
+            exit(-1);
+        }
         // evaluate symbolic regs
         klee::ref<klee::ConstantExpr> ce;
         ce = dyn_cast<klee::ConstantExpr>(g_s2e_state->concolics->evaluate(value));
@@ -2963,6 +2994,7 @@ bool SymbolicPeripherals::updateGeneralKB(S2EExecutionState *state, uint32_t irq
                 } else {
                     getWarningsStream() << "do not store nlp phs = " << hexval(it.first.first) << "\n";
                     getWarningsStream() << "phaddr = " << hexval(it.first.first) << "Unknown Type!!!! " << type_flag_phs[it.first.first] << "\n";
+                    return false;
                 }
             }
         }
@@ -3123,6 +3155,7 @@ bool SymbolicPeripherals::updateGeneralKB(S2EExecutionState *state, uint32_t irq
                     break;
                 } else {
                     getInfoStream() << "Unknown Type!!!!\n";
+                    return false;
                 }
             }
         }
