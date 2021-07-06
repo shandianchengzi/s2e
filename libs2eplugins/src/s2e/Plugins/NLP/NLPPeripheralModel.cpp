@@ -23,6 +23,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
+    Map<int, bool> exit_interrupt;
 
 public:
     NLPPeripheralModelState() {
@@ -37,6 +38,14 @@ public:
 
     NLPPeripheralModelState *clone() const {
         return new NLPPeripheralModelState(*this);
+    }
+
+    bool get_exit_interrupt(uint32_t num) {
+	    return exit_interrupt[num];
+    }
+
+    void set_exit_interrupt(uint32_t num, bool cur) {
+	    exit_interrupt[num] = cur;
     }
 
     RegMap get_state_map() {
@@ -426,9 +435,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 	    for (auto p: countdown_register) {
                 getDebugStream(g_s2e_state) << "update graph Interrupt reg: "<< hexval(p) <<" cur: "<< hexval(state_map[p].cur_value) <<"\n";
             }
-            if (equ.interrupt != -1) {
+            if (equ.interrupt != -1 && plgState->get_exit_interrupt(equ.interrupt)) {
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
+		plgState->set_exit_interrupt(equ.interrupt, false);
             }
         }
     }
