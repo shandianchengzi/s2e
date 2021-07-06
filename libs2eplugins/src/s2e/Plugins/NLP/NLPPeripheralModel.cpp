@@ -23,7 +23,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model", "NLPPeripheralMode
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
-    Map<int, bool> exit_interrupt;
+    std::map<int, bool> exit_interrupt;
 
 public:
     NLPPeripheralModelState() {
@@ -100,14 +100,17 @@ void NLPPeripheralModel::initialize() {
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
-    onInterruptExitonnection = s2e()->getCorePlugin()->onExceptionExit.connect(
+    s2e()->getCorePlugin()->onExceptionExit.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
     rw_count = 0;
     srand(0);
 }
 
 void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
-
+	DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+	//interrupt vector+16
+	plgState->set_exit_interrupt(irq_no+16, false);
+        getDebugStream() << "EXIT Interrupt IRQ" << irq_no << "\n";
 }
 void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
@@ -435,10 +438,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 	    for (auto p: countdown_register) {
                 getDebugStream(g_s2e_state) << "update graph Interrupt reg: "<< hexval(p) <<" cur: "<< hexval(state_map[p].cur_value) <<"\n";
             }
-            if (equ.interrupt != -1 && plgState->get_exit_interrupt(equ.interrupt)) {
+            if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
-		plgState->set_exit_interrupt(equ.interrupt, false);
+		plgState->set_exit_interrupt(equ.interrupt, true);
             }
         }
     }
