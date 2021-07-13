@@ -20,13 +20,13 @@ namespace s2e {
 //type address reset
 static const boost::regex MemoRegEx("([A-Z]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
 //static const boost::regex TARegEx("([TRPCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRPCO\\d\\*,]+)", boost::regex::perl);
-static const boost::regex TARegEx("([a-zA-Z\\d\\*,=><]+)", boost::regex::perl);
+static const boost::regex TARegEx("([a-zA-Z\\d\\*,=></]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
     std::string type; //R: receive; T: transmit; O: other
     uint32_t phaddr;
-    std::string bits;
+    std::vector<int> bits;
 } Field;
 
 typedef struct equation {
@@ -77,6 +77,7 @@ private:
     std::vector<uint32_t> countdown_register;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
+    void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);

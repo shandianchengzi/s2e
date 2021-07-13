@@ -190,6 +190,19 @@ void NLPPeripheralModel::SplitString(const std::string &s, std::vector<std::stri
         v.push_back(s.substr(pos1));
 }
 
+void NLPPeripheralModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c) {
+    std::string::size_type pos1, pos2;
+    pos2 = s.find(c);
+    pos1 = 0;
+    while (std::string::npos != pos2) {
+        v.push_back(std::atoi(s.substr(pos1, pos2 - pos1).c_str()));
+        pos1 = pos2 + c.size();
+        pos2 = s.find(c, pos1);
+    }
+    if (pos1 != s.length())
+        v.push_back(std::atoi(s.substr(pos1).c_str()));
+}
+
 bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg) {
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
@@ -257,20 +270,33 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         equ.interrupt = -1;
         if (v[0] == "*") {
             equ.a1.type = v[0];
-            equ.a1.bits = "*";
+            equ.a1.bits = {-1};
             equ.eq = "*";
             equ.type_a2 = "*";
         } else {
             equ.a1.type = v[0];
             equ.a1.phaddr = std::stoull(v[1].c_str(), NULL, 16);
-            equ.a1.bits = v[2];
+	    std::vector<int> bits;
+	    if (v[2] == "*")
+		equ.a1.bits = {-1};
+	    else {
+	    	SplitStringToInt(v[2], bits, "/");
+            	equ.a1.bits = bits;
+	    }
             equ.eq = v[3];
+	    getDebugStream() << v[0]<<v[1]<<v[2]<<v[3]<<v[4]<<"\n";
             if (v[4] == "O" || v[4] == "C") {
                 equ.type_a2 = "F";
                 equ.value = 0;
                 equ.a2.type = v[4];
                 equ.a2.phaddr = std::stoull(v[5].c_str(), NULL, 16);
-                equ.a2.bits = v[6];
+		if (v[5] == "*")
+                	equ.a1.bits = {-1};
+            	else {
+			bits.clear();
+               	 	SplitStringToInt(v[5], bits, "/");
+        	        equ.a1.bits = bits;
+	        }
             } else if (v[4][0] != '*') {
                 equ.type_a2 = "V";
                 equ.value = std::stoull(v[4].c_str(), NULL, 2);
@@ -280,7 +306,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
             }
         }
         getDebugStream() << "equ type = " << equ.a1.type << " equ phaddr = " << equ.a1.phaddr
-                        << " equ bits = " << equ.a1.bits << " equ = " << equ.eq << " type_a2 = " << equ.type_a2 << " value = " << equ.value << "\n";
+                        << " equ bits = " << equ.a1.bits[0] << " equ = " << equ.eq << " type_a2 = " << equ.type_a2 << " value = " << equ.value << "\n";
         vec.push_back(equ);
         peripheralcache = what.suffix();
     }
@@ -306,12 +332,12 @@ bool compare(uint32_t a1, std::string sym, uint32_t a2) {
 
 uint32_t get_reg_value(RegMap &state_map, Field a) {
     uint32_t res;
-    if (a.bits == "*") {
+    if (a.bits[0] == -1) {
         res = state_map[a.phaddr].cur_value;
     } else {
         res = 0;
         for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i]-'0';
+            int tmp = a.bits[i]-0;
             res = res*i*2 + (state_map[a.phaddr].cur_value >> tmp & 1);
         }
     }
@@ -319,11 +345,11 @@ uint32_t get_reg_value(RegMap &state_map, Field a) {
 }
 
 void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
-    if (a.bits == "*") {
+    if (a.bits[0] == -1) {
         state_map[a.phaddr].cur_value = value;
     } else {
         for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i]-'0';
+            int tmp = a.bits[i]-0;
             int a2 = value >> (a.bits.size()-1-i);
             if (a2 == 1) {
                 state_map[a.phaddr].cur_value |= (1 << tmp);
@@ -400,7 +426,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         }
         if (!check) continue;
         for (auto equ: trigger) {
-            getDebugStream() << "trigger a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
+            getDebugStream() << "trigger a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits[0]<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
         }
 
         EquList action = ta.second;
@@ -425,10 +451,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             } else {
                 set_reg_value(state_map, equ.a1, a2);
                 if (type == Read) {
-                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " <<equ.a1.bits
+                    getDebugStream() << "Read Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " <<equ.a1.bits[0]
                         << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 } else {
-                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " <<equ.a1.bits
+                    getDebugStream() << "Write Action: phaddr =  "<<  hexval(equ.a1.phaddr) << " updated bit = " <<equ.a1.bits[0]
                         << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2 << "\n";
                 }
                 // update to state
