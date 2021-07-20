@@ -96,6 +96,10 @@ private:
     //void onTimer();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void CountDown();
+    uint32_t get_reg_value(RegMap &state_map, Field a);
+    void set_reg_value(RegMap &state_map, Field a, uint32_t value);
+    void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
+    void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,

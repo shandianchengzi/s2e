@@ -82,7 +82,7 @@ void NLPPeripheralWithAutoTimerModel::initialize() {
     srand(0);
 }
 
-uint32_t get_reg_value(RegMap &state_map, Field a) {
+uint32_t NLPPeripheralWithAutoTimerModel::get_reg_value(RegMap &state_map, Field a) {
     uint32_t res;
     if (a.bits[0] == -1) {
         res = state_map[a.phaddr].cur_value;
@@ -96,7 +96,7 @@ uint32_t get_reg_value(RegMap &state_map, Field a) {
     return res;  
 }
 
-void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
+void NLPPeripheralWithAutoTimerModel::set_reg_value(RegMap &state_map, Field a, uint32_t value) {
     if (a.bits[0] == -1) {
         state_map[a.phaddr].cur_value = value;
     } else {
@@ -191,7 +191,7 @@ bool NLPPeripheralWithAutoTimerModel::readNLPModelfromFile(S2EExecutionState *st
     return true;
 }
 
-void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c) {
+void NLPPeripheralWithAutoTimerModel::SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c) {
     std::string::size_type pos1, pos2;
     pos2 = s.find(c);
     pos1 = 0;
@@ -204,7 +204,7 @@ void SplitString(const std::string &s, std::vector<std::string> &v, const std::s
         v.push_back(s.substr(pos1));
 }
 
-void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c) {
+void NLPPeripheralWithAutoTimerModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c) {
     std::string::size_type pos1, pos2;
     pos2 = s.find(c);
     pos1 = 0;
