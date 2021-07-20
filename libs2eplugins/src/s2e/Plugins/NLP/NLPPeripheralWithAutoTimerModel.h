@@ -21,6 +21,7 @@ namespace s2e {
 static const boost::regex MemoRegEx("([A-Z]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
 //static const boost::regex TARegEx("([TRPCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRPCO\\d\\*,]+)", boost::regex::perl);
 static const boost::regex TARegEx("([a-zA-Z\\d\\*,=></]+)", boost::regex::perl);
+static const boost::regex CounterEx("([a-zA-Z\\d\\*,/\\-]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
@@ -53,7 +54,7 @@ typedef struct peripheralReg {
 typedef struct counter {
 	Field a;
 	uint32_t freq;
-	int value;
+	int32_t value;
 } Counter;
 
 typedef std::map<uint32_t, PeripheralReg> RegMap;
@@ -67,7 +68,7 @@ enum RWType { Write, Read };
 //};
 //0:= ; 1:>; 2: <; 3: >=; 4: <=
 
-class NLPPeripheralModel : public Plugin {
+class NLPPeripheralWithAutoTimerModel : public Plugin {
     S2E_PLUGIN
 public:
     NLPPeripheralModel(S2E *s2e) : Plugin(s2e) {
@@ -82,8 +83,8 @@ private:
     std::string NLPfileName;
     TAMap allTAs;
     CounterList allCounters;
-    //uint32_t data_register;
-    //std::vector<uint32_t> countdown_register;
+    uint32_t data_register;
+    uint32_t timer;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
