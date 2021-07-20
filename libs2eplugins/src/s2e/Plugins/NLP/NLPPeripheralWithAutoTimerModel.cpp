@@ -82,6 +82,36 @@ void NLPPeripheralWithAutoTimerModel::initialize() {
     srand(0);
 }
 
+uint32_t get_reg_value(RegMap &state_map, Field a) {
+    uint32_t res;
+    if (a.bits[0] == -1) {
+        res = state_map[a.phaddr].cur_value;
+    } else {
+        res = 0;
+        for (int i = 0; i < a.bits.size(); ++i) {
+            int tmp = a.bits[i]-0;
+            res = res*i*2 + (state_map[a.phaddr].cur_value >> tmp & 1);
+        }
+    }
+    return res;  
+}
+
+void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
+    if (a.bits[0] == -1) {
+        state_map[a.phaddr].cur_value = value;
+    } else {
+        for (int i = 0; i < a.bits.size(); ++i) {
+            int tmp = a.bits[i]-0;
+            int a2 = value >> (a.bits.size()-1-i);
+            if (a2 == 1) {
+                state_map[a.phaddr].cur_value |= (1 << tmp);
+            } else {
+                state_map[a.phaddr].cur_value &= ~(1 << tmp);
+            }
+        }
+    }
+}
+
 void NLPPeripheralWithAutoTimerModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
 	DECLARE_PLUGINSTATE(NLPPeripheralWithAutoTimerModelState, state);
 	//interrupt vector+16
@@ -150,7 +180,7 @@ bool NLPPeripheralWithAutoTimerModel::readNLPModelfromFile(S2EExecutionState *st
     }
 
     while (getline(fNLP, peripheralcache)) {
-        allCounters count;
+        Counter count;
         if (extractCounter(peripheralcache, count)) {
             allCounters.push_back(count);
         } else {
@@ -161,7 +191,7 @@ bool NLPPeripheralWithAutoTimerModel::readNLPModelfromFile(S2EExecutionState *st
     return true;
 }
 
-void NLPPeripheralWithAutoTimerModel::SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c) {
+void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c) {
     std::string::size_type pos1, pos2;
     pos2 = s.find(c);
     pos1 = 0;
@@ -174,7 +204,7 @@ void NLPPeripheralWithAutoTimerModel::SplitString(const std::string &s, std::vec
         v.push_back(s.substr(pos1));
 }
 
-void NLPPeripheralWithAutoTimerModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c) {
+void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c) {
     std::string::size_type pos1, pos2;
     pos2 = s.find(c);
     pos1 = 0;
@@ -297,7 +327,7 @@ bool NLPPeripheralWithAutoTimerModel::extractEqu(std::string peripheralcache, Eq
     return true;
 }
 
-bool extractCounter(std::string peripheralcache, CounterList &counter) {
+bool NLPPeripheralWithAutoTimerModel::extractCounter(std::string peripheralcache, Counter &counter) {
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
     if (!boost::regex_match(peripheralcache, what, MemoRegEx)) {
@@ -343,35 +373,6 @@ bool compare(uint32_t a1, std::string sym, uint32_t a2) {
     return false;
 }
 
-uint32_t get_reg_value(RegMap &state_map, Field a) {
-    uint32_t res;
-    if (a.bits[0] == -1) {
-        res = state_map[a.phaddr].cur_value;
-    } else {
-        res = 0;
-        for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i]-0;
-            res = res*i*2 + (state_map[a.phaddr].cur_value >> tmp & 1);
-        }
-    }
-    return res;  
-}
-
-void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
-    if (a.bits[0] == -1) {
-        state_map[a.phaddr].cur_value = value;
-    } else {
-        for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i]-0;
-            int a2 = value >> (a.bits.size()-1-i);
-            if (a2 == 1) {
-                state_map[a.phaddr].cur_value |= (1 << tmp);
-            } else {
-                state_map[a.phaddr].cur_value &= ~(1 << tmp);
-            }
-        }
-    }
-}
 
 void NLPPeripheralWithAutoTimerModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
     DECLARE_PLUGINSTATE(NLPPeripheralWithAutoTimerModelState, state);
@@ -418,7 +419,6 @@ void NLPPeripheralWithAutoTimerModel::UpdateGraph(S2EExecutionState *state, RWTy
 
                 } else
                         trigger_res.push_back(compare(a1, equ.eq, a2));
-                        getDebugStream() << "compare a1 " <<hexval(equ.a1.phaddr)<<" :"<<a1<<" eq "<<equ.eq<<" a2 "<<a2<<" result "<<trigger_res.back()<<" \n";
             }
         }
         bool check = rel;
@@ -495,7 +495,7 @@ void NLPPeripheralWithAutoTimerModel::onPeripheralRead(S2EExecutionState *state,
 
     UpdateGraph(state, Read, phaddr);
     if (phaddr == data_register) {
-        *NLPsymbolicvalue = plgState->get_dr_value(phaddr);
+        *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
@@ -509,7 +509,7 @@ void NLPPeripheralWithAutoTimerModel::onPeripheralWrite(S2EExecutionState *state
         readNLPModelfromFile(state, NLPfileName);
     }
     if (phaddr == data_register) {
-        plgState->write_dr_value(phaddr, writeconcretevalue);
+        plgState->write_ph_value(phaddr, writeconcretevalue);
         getDebugStream() << "Write to data register "<<data_register<<" "<<hexval(phaddr)<<" value: "<<writeconcretevalue<<" \n";
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);

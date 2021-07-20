@@ -5,8 +5,8 @@
 /// Licensed under the Cyberhaven Research License Agreement.
 ///
 
-#ifndef S2E_PLUGINS_NLPPeripheralModel_H
-#define S2E_PLUGINS_NLPPeripheralModel_H
+#ifndef S2E_PLUGINS_NLPPeripheralWithAutoTimerModel_H
+#define S2E_PLUGINS_NLPPeripheralWithAutoTimerModel_H
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
@@ -71,7 +71,7 @@ enum RWType { Write, Read };
 class NLPPeripheralWithAutoTimerModel : public Plugin {
     S2E_PLUGIN
 public:
-    NLPPeripheralModel(S2E *s2e) : Plugin(s2e) {
+    NLPPeripheralWithAutoTimerModel(S2E *s2e) : Plugin(s2e) {
     }
     void initialize();
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
@@ -86,12 +86,10 @@ private:
     uint32_t data_register;
     uint32_t timer;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
-    void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
-    void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
-    bool extractCounter(std::string peripheralcache, CounterList &counter);
+    bool extractCounter(std::string peripheralcache, Counter &counter);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
 
