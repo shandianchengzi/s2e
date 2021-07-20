@@ -100,6 +100,7 @@ private:
     void set_reg_value(RegMap &state_map, Field a, uint32_t value);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
+    bool compare(uint32_t a1, std::string sym, uint32_t a2);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,

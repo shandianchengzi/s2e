@@ -76,8 +76,6 @@ private:
     uint32_t data_register;
     std::vector<uint32_t> countdown_register;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
-    void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
-    void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
@@ -87,6 +85,11 @@ private:
     void onTimer();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void CountDown();
+    uint32_t get_reg_value(RegMap &state_map, Field a);
+    void set_reg_value(RegMap &state_map, Field a, uint32_t value);
+    void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
+    void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c);
+    bool compare(uint32_t a1, std::string sym, uint32_t a2);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,

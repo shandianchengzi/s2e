@@ -313,7 +313,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
     return true;
 }
 
-bool compare(uint32_t a1, std::string sym, uint32_t a2) {
+bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
     //1:= ; 2:>; 3:<; 4:>=; 5:<=
     if (sym == "*")
         return false;
@@ -330,7 +330,7 @@ bool compare(uint32_t a1, std::string sym, uint32_t a2) {
     return false;
 }
 
-uint32_t get_reg_value(RegMap &state_map, Field a) {
+uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
     uint32_t res;
     if (a.bits[0] == -1) {
         res = state_map[a.phaddr].cur_value;
@@ -344,7 +344,7 @@ uint32_t get_reg_value(RegMap &state_map, Field a) {
     return res;  
 }
 
-void set_reg_value(RegMap &state_map, Field a, uint32_t value) {
+void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t value) {
     if (a.bits[0] == -1) {
         state_map[a.phaddr].cur_value = value;
     } else {

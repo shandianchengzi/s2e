@@ -356,7 +356,7 @@ bool NLPPeripheralWithAutoTimerModel::extractCounter(std::string peripheralcache
     return true;
 }
 
-bool compare(uint32_t a1, std::string sym, uint32_t a2) {
+bool NLPPeripheralWithAutoTimerModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
     //1:= ; 2:>; 3:<; 4:>=; 5:<=
     if (sym == "*")
         return false;
