@@ -21,6 +21,7 @@ namespace s2e {
 static const boost::regex MemoRegEx("([A-Z]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
 //static const boost::regex TARegEx("([TRPCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRPCO\\d\\*,]+)", boost::regex::perl);
 static const boost::regex TARegEx("([a-zA-Z\\d\\*,=></]+)", boost::regex::perl);
+static const boost::regex CounterEx("([a-zA-Z\\d\\*,/\\-]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
@@ -50,9 +51,17 @@ typedef struct peripheralReg {
     uint32_t r_value;
 } PeripheralReg;
 
+typedef struct counter {
+	Field a;
+	uint32_t freq;
+	int32_t value;
+} Counter;
+
 typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
 typedef std::vector<std::pair<EquList, EquList>> TAMap;
+typedef std::vector<Counter> CounterList;
+
 enum RWType { Write, Read };
 //std::map<std::string, uint32_t> symbol_list = {
 //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
@@ -73,16 +82,18 @@ private:
     uint32_t rw_count;
     std::string NLPfileName;
     TAMap allTAs;
+    CounterList allCounters;
     uint32_t data_register;
-    std::vector<uint32_t> countdown_register;
+    uint32_t timer;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
+    bool extractCounter(std::string peripheralcache, Counter &counter);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
 
-    void onTimer();
+    //void onTimer();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void CountDown();
     uint32_t get_reg_value(RegMap &state_map, Field a);
