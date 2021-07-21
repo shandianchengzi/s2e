@@ -93,7 +93,7 @@ uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
             res = (res<<1) + (state_map[a.phaddr].cur_value >> tmp & 1);
         }
     }
-    return res;  
+    return res;
 }
 
 void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t value) {
@@ -136,7 +136,7 @@ void NLPPeripheralModel::CountDown() {
                     else {
                         if (cur_value <= -c.value) {
                             set_reg_value(state_map, c.a, 0);
-                        } else 
+                        } else
                             set_reg_value(state_map, c.a, cur_value + c.value);
                      }
                      getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" cur value " << hexval(cur_value) << " freq "<<c.freq<<" value "<<hexval(c.value)<<" new value "<< hexval(cur_value+c.value) << "\n";
@@ -146,7 +146,7 @@ void NLPPeripheralModel::CountDown() {
 		auto tmp = plgState->get_state_map();
 		getDebugStream()<<"new Counter"<<tmp[c.a.phaddr].cur_value<<"\n";
             }
-        } 
+        }
         UpdateGraph(g_s2e_state, Write, 0);
     }
 }
@@ -170,7 +170,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         if (getMemo(peripheralcache, reg)) {
             if (reg.type == "R") {
                 data_register = reg.phaddr;
-            } 
+            }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
             return false;
@@ -481,7 +481,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
             getDebugStream() << "equ.interrupt = " <<equ.interrupt<< "\n";
-            
+
             if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
                 getInfoStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
