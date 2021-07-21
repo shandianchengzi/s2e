@@ -258,6 +258,13 @@ void InvalidStatesDetection::initialize() {
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &InvalidStatesDetection::onTimerCount));
+}
+
+void InvalidStatesDetection::onTimerCount() {
+    if (begin_timer_count) {
+        timer_count ++;
+    }
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -331,11 +338,16 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
         bool actual_end = true;
         onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
         if (actual_end) {
-            getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
-            plgState->reset_allcache();
-            invalidPCAccessConnection.disconnect();
-            blockStartConnection.disconnect();
-            return true;
+            begin_timer_count = true;
+            if (timer_count > 1) {
+                getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
+                plgState->reset_allcache();
+                invalidPCAccessConnection.disconnect();
+                blockStartConnection.disconnect();
+                return true;
+            }  else {
+                return false;
+            }
         } else {
             terminate_tb_num += 0.05 * terminate_tb_num;
             return false;
