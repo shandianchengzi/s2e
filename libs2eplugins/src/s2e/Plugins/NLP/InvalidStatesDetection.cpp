@@ -259,11 +259,13 @@ void InvalidStatesDetection::initialize() {
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &InvalidStatesDetection::onTimerCount));
+    begin_timer_count = false;
+    timer_count = 0;
 }
 
 void InvalidStatesDetection::onTimerCount() {
+    getDebugStream() << "kill count\n";
     if (begin_timer_count) {
-        getDebugStream() << "begin kill count\n";
         timer_count ++;
     }
 }
@@ -320,6 +322,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
                                                  std::string reason_str) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
     begin_timer_count = true;
+    getDebugStream() << "begin kill count\n";
     if (timer_count > 1) {
         onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         std::string s;
@@ -329,6 +332,8 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         ss.flush();
         s2e()->getExecutor()->terminateState(*state, s);
     }  else {
+        getWarningsStream() << " cannot kill invalid state due to count down\n";
+        s2e()->getExecutor()->setCpuExitRequest();
         return;
     }
 }
