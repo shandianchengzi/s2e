@@ -263,6 +263,7 @@ void InvalidStatesDetection::initialize() {
 
 void InvalidStatesDetection::onTimerCount() {
     if (begin_timer_count) {
+        getDebugStream() << "begin kill count\n";
         timer_count ++;
     }
 }
@@ -318,14 +319,18 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
 void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type,
                                                  std::string reason_str) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-
-    onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
-    std::string s;
-    llvm::raw_string_ostream ss(s);
-    ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
-       << plgState->getnewtbnum() << "\n";
-    ss.flush();
-    s2e()->getExecutor()->terminateState(*state, s);
+    begin_timer_count = true;
+    if (timer_count > 1) {
+        onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
+        std::string s;
+        llvm::raw_string_ostream ss(s);
+        ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
+           << plgState->getnewtbnum() << "\n";
+        ss.flush();
+        s2e()->getExecutor()->terminateState(*state, s);
+    }  else {
+        return;
+    }
 }
 
 bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc) {
@@ -334,22 +339,17 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     // learning mode termination and switch to cache mode
     if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
-        getWarningsStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
+        getInfoStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
         bool actual_end = true;
-        begin_timer_count = true;
-        if (timer_count > 1) {
-            onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
-            if (actual_end) {
-                    getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
-                    plgState->reset_allcache();
-                    invalidPCAccessConnection.disconnect();
-                    blockStartConnection.disconnect();
-                    return true;
-            } else {
-                terminate_tb_num += 0.05 * terminate_tb_num;
-                return false;
-            }
-        }  else {
+        onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
+        if (actual_end) {
+            getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
+            plgState->reset_allcache();
+            invalidPCAccessConnection.disconnect();
+            blockStartConnection.disconnect();
+            return true;
+        } else {
+            terminate_tb_num += 0.05 * terminate_tb_num;
             return false;
         }
     }
