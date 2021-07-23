@@ -268,6 +268,10 @@ void InvalidStatesDetection::onTimerCount() {
     if (begin_timer_count) {
         timer_count ++;
     }
+    if (timer_count > 2) {
+        timer_count = 0;
+        begin_timer_count = false;
+    }
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -324,6 +328,8 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
     begin_timer_count = true;
     getDebugStream() << "begin kill count\n";
     if (timer_count > 1) {
+        timer_count = 0;
+        begin_timer_count = false;
         onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         std::string s;
         llvm::raw_string_ostream ss(s);
