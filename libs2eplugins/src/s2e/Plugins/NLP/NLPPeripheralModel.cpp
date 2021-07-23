@@ -122,16 +122,17 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     RegMap state_map = plgState->get_state_map();
+    srand (time(NULL));
     if (rw_count > 1) {
         timer += 1;
         for (auto c: allCounters) {
             if (timer % c.freq == 0) {
 		if (c.a.type == "F") {
-	                srand (time(NULL));
+		        getDebugStream()<<"old Counter"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
 			int tmp = c.value[std::rand() % c.value.size()];
 			set_reg_value(state_map, c.a, tmp);
 			//set_reg_value(state_map, c.a, c.value);
-                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<< "\n";
+                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
                      //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
 	        } else {
 			/*
@@ -221,15 +222,19 @@ void NLPPeripheralModel::SplitString(const std::string &s, std::vector<std::stri
 
 void NLPPeripheralModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c, int dtype) {
     std::string::size_type pos1, pos2;
+    getDebugStream() << s << "\n";
     pos2 = s.find(c);
     pos1 = 0;
     while (std::string::npos != pos2) {
-        v.push_back(std::atoi(s.substr(pos1, pos2 - pos1).c_str()));
+        v.push_back(std::strtol(s.substr(pos1, pos2 - pos1).c_str(), NULL, dtype));
+        getDebugStream() << s.substr(pos1, pos2 - pos1)<<" "<<std::strtol(s.substr(pos1, pos2 - pos1).c_str(), NULL, dtype) << "\n";
         pos1 = pos2 + c.size();
         pos2 = s.find(c, pos1);
     }
-    if (pos1 != s.length())
+    if (pos1 != s.length()){
         v.push_back(std::strtol(s.substr(pos1).c_str(),NULL,dtype));
+        getDebugStream() << s.substr(pos1)<<" "<<std::strtol(s.substr(pos1).c_str(), NULL, dtype) << "\n";
+    }
 }
 
 bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg) {
@@ -307,7 +312,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
             if (v[2] == "*")
                 equ.a1.bits = {-1};
             else {
-                SplitStringToInt(v[2], equ.a1.bits, "/", 2);
+                SplitStringToInt(v[2], equ.a1.bits, "/", 10);
             }
             equ.eq = v[3];
             if (v[4] == "O" || v[4] == "C") {
@@ -318,7 +323,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
                 if (v[5] == "*")
                     equ.a1.bits = {-1};
                 else {
-                    SplitStringToInt(v[5], equ.a1.bits, "/",2);
+                    SplitStringToInt(v[5], equ.a1.bits, "/",10);
                 }
             } else if (v[4][0] != '*') {
                 equ.type_a2 = "V";
@@ -356,11 +361,12 @@ bool NLPPeripheralModel::extractCounter(std::string peripheralcache, Counter &co
     if (v[2] == "*")
         counter.a.bits = {-1};
     else {
-        SplitStringToInt(v[2], counter.a.bits, "/",2);
+        SplitStringToInt(v[2], counter.a.bits, "/",10);
     }
-    counter.freq = std::stoull(v[3].c_str(), NULL, 16);
+    counter.freq = std::stoull(v[3].c_str(), NULL, 10);
     //counter.value = std::stoi(v[4].c_str(), NULL, 16);
     SplitStringToInt(v[4], counter.value, "/", 16);
+    getWarningsStream() << "extractCounter  " << hexval(counter.a.phaddr)<< " "<<counter.a.bits[0] << "\n";
     return true;
 }
 
