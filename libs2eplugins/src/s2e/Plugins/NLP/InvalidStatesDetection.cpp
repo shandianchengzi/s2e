@@ -325,23 +325,21 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
 void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type,
                                                  std::string reason_str) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-    begin_timer_count = true;
     getDebugStream() << "begin kill count\n";
-    if (timer_count > 1) {
-        timer_count = 0;
-        begin_timer_count = false;
-        onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
+    onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
+    kill_count_map[pc]++;
+    if (kill_count_map[pc] > 3) {
         std::string s;
         llvm::raw_string_ostream ss(s);
         ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
            << plgState->getnewtbnum() << "\n";
         ss.flush();
         s2e()->getExecutor()->terminateState(*state, s);
-    }  else {
-        getWarningsStream() << " cannot kill invalid state due to count down\n";
+    } else {
+        getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
         s2e()->getExecutor()->setCpuExitRequest();
-        return;
     }
+
 }
 
 bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc) {

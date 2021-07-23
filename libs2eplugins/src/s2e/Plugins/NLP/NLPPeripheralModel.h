@@ -11,6 +11,7 @@
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
 #include <s2e/Plugins/NLP/SymbolicPeripherals.h>
+#include <s2e/Plugins/NLP/InvalidStatesDetection.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
 #include <utility>
@@ -78,7 +79,7 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
 
 private:
-    sigc::connection symbolicPeripheralConnection;
+    InvalidStatesDetection *onInvalidStateDectionConnection;
 
     uint32_t rw_count;
     std::string NLPfileName;
@@ -96,6 +97,7 @@ private:
 
     //void onTimer();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
+    void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
     void CountDown();
     uint32_t get_reg_value(RegMap &state_map, Field a);
     void set_reg_value(RegMap &state_map, Field a, uint32_t value);

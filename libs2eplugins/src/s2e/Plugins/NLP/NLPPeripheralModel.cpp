@@ -70,10 +70,13 @@ void NLPPeripheralModel::initialize() {
     NLPfileName = s2e()->getConfig()->getString(getConfigKey() + ".NLPfileName", "all.txt");
     getDebugStream() << "NLP firmware name is " << NLPfileName << "\n";
     hw::SymbolicPeripherals *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
+    onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
     symbolicPeripheralConnection->onSymbolicNLPRegisterReadEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
+    onInvalidStateDectionConnection->onInvalidStatesEvent.connect(
+        sigc::mem_fun(*this, &NLPPeripheralModel::onInvalidStatesDetection));
     //s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
     s2e()->getCorePlugin()->onExceptionExit.connect(
@@ -81,7 +84,10 @@ void NLPPeripheralModel::initialize() {
     rw_count = 0;
     srand(0);
 }
-
+void NLPPeripheralModel::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
+                                                       uint64_t tb_num) {
+    CountDown();
+}
 uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
     uint32_t res;
     if (a.bits[0] == -1) {

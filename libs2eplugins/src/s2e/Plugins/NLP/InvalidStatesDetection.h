@@ -57,6 +57,7 @@ private:
     bool kill_point_flag;
     bool begin_timer_count;
     uint32_t timer_count;
+    std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 
