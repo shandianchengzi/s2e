@@ -57,12 +57,25 @@ public:
 
     void write_ph_value(uint32_t phaddr, uint32_t value) {
         state_map[phaddr].cur_value = value;
-        // UpdateGraph(Write, phaddr);
     }
 
     uint32_t get_ph_value(uint32_t phaddr) {
-        // UpdateGraph(Read, phaddr);
         return  state_map[phaddr].cur_value;
+    }
+
+    void write_dr_value(uint32_t phaddr, uint32_t value) {
+        state_map[phaddr].t_value = value;
+        state_map[phaddr].t_size = 0; // ignore
+    }
+
+    uint32_t get_dr_value(uint32_t phaddr) {
+        state_map[phaddr].r_size = 0;//TODO -width
+        return state_map[phaddr].r_value;
+    }
+
+    void hardware_write_to_receive_buffer(uint32_t phaddr,uint32_t value) {
+        state_map[phaddr].r_size = 1;//TODO calculate size
+        state_map[phaddr].r_value = value;
     }
 };
 
@@ -81,6 +94,7 @@ void NLPPeripheralModel::initialize() {
     rw_count = 0;
     srand(0);
 }
+
 
 uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
     uint32_t res;
@@ -491,11 +505,16 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     rw_count++;
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
+        //Write a value to DR
+        plgState->hardware_write_to_receive_buffer(data_register, 1111);
     }
 
     UpdateGraph(state, Read, phaddr);
     if (phaddr == data_register) {
-        *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
+        *NLPsymbolicvalue = plgState->get_dr_value(phaddr);
+        //TODO get value from AFL
+        uint32_t value = 0;
+        plgState->hardware_write_to_receive_buffer(data_register, value);
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
