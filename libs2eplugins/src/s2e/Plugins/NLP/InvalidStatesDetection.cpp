@@ -258,6 +258,20 @@ void InvalidStatesDetection::initialize() {
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &InvalidStatesDetection::onTimerCount));
+    begin_timer_count = false;
+    timer_count = 0;
+}
+
+void InvalidStatesDetection::onTimerCount() {
+    getDebugStream() << "kill count\n";
+    if (begin_timer_count) {
+        timer_count ++;
+    }
+    if (timer_count > 2) {
+        timer_count = 0;
+        begin_timer_count = false;
+    }
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -311,14 +325,21 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
 void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type,
                                                  std::string reason_str) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-
+    getDebugStream() << "begin kill count\n";
     onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
-    std::string s;
-    llvm::raw_string_ostream ss(s);
-    ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
-       << plgState->getnewtbnum() << "\n";
-    ss.flush();
-    s2e()->getExecutor()->terminateState(*state, s);
+    kill_count_map[pc]++;
+    if (kill_count_map[pc] > 3) {
+        std::string s;
+        llvm::raw_string_ostream ss(s);
+        ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
+           << plgState->getnewtbnum() << "\n";
+        ss.flush();
+        s2e()->getExecutor()->terminateState(*state, s);
+    } else {
+        getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
+        s2e()->getExecutor()->setCpuExitRequest();
+    }
+
 }
 
 bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc) {
@@ -327,7 +348,7 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     // learning mode termination and switch to cache mode
     if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
-        getWarningsStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
+        getInfoStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
         bool actual_end = true;
         onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
         if (actual_end) {

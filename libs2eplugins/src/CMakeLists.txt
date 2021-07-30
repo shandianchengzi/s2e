@@ -251,7 +251,7 @@ add_library(
     s2e/Plugins/ExecutionMonitors/LibraryCallMonitor.cpp
 
     # Fuzzer
-    # s2e/Plugins/Fuzzer/AFLFuzzer.cpp
+    s2e/Plugins/Fuzzer/AFLFuzzer.cpp
 
     ${PROTO_SRCS} ${PROTO_HDRS}
 

@@ -55,6 +55,9 @@ private:
     TBCounts all_tb_map;
     bool alive_point_flag;
     bool kill_point_flag;
+    bool begin_timer_count;
+    uint32_t timer_count;
+    std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 
@@ -70,6 +73,8 @@ private:
     void onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type, std::string reason_str);
 
     bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
+
+    void onTimerCount();
 };
 
 } // namespace plugins

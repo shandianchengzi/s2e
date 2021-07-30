@@ -11,7 +11,7 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 #include <sys/shm.h>
-
+#include <time.h> 
 #include "NLPPeripheralModel.h"
 
 namespace s2e {
@@ -83,10 +83,13 @@ void NLPPeripheralModel::initialize() {
     NLPfileName = s2e()->getConfig()->getString(getConfigKey() + ".NLPfileName", "all.txt");
     getDebugStream() << "NLP firmware name is " << NLPfileName << "\n";
     hw::SymbolicPeripherals *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
+    onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
     symbolicPeripheralConnection->onSymbolicNLPRegisterReadEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
+    onInvalidStateDectionConnection->onInvalidStatesEvent.connect(
+        sigc::mem_fun(*this, &NLPPeripheralModel::onInvalidStatesDetection));
     //s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
     s2e()->getCorePlugin()->onExceptionExit.connect(
@@ -103,11 +106,11 @@ uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
     } else {
         res = 0;
         for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i]-0;
-            res = res*i*2 + (state_map[a.phaddr].cur_value >> tmp & 1);
+            int tmp = a.bits[i];
+            res = (res<<1) + (state_map[a.phaddr].cur_value >> tmp & 1);
         }
     }
-    return res;  
+    return res;
 }
 
 void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t value) {
@@ -115,8 +118,8 @@ void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t valu
         state_map[a.phaddr].cur_value = value;
     } else {
         for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i]-0;
-            int a2 = value >> (a.bits.size()-1-i);
+            int tmp = a.bits[i];
+            int a2 = (value >> (a.bits.size()-1-i))&1;
             if (a2 == 1) {
                 state_map[a.phaddr].cur_value |= (1 << tmp);
             } else {
@@ -136,22 +139,38 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 void NLPPeripheralModel::CountDown() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     RegMap state_map = plgState->get_state_map();
+    srand (time(NULL));
     if (rw_count > 1) {
         timer += 1;
         for (auto c: allCounters) {
             if (timer % c.freq == 0) {
-                uint32_t cur_value = get_reg_value(state_map, c.a);
-                if (c.value > 0)
-                    set_reg_value(state_map, c.a, cur_value + c.value);
-                else {
-                    if (cur_value <= -c.value) {
-                        set_reg_value(state_map, c.a, 0);
-                    } else 
+		if (c.a.type == "F") {
+		        getDebugStream()<<"old Counter"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
+			int tmp = c.value[std::rand() % c.value.size()];
+			set_reg_value(state_map, c.a, tmp);
+			//set_reg_value(state_map, c.a, c.value);
+                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
+                     //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
+	        } else {
+			/*
+                    uint32_t cur_value = get_reg_value(state_map, c.a);
+                    if (c.value > 0)
                         set_reg_value(state_map, c.a, cur_value + c.value);
-                }
+                    else {
+                        if (cur_value <= -c.value) {
+                            set_reg_value(state_map, c.a, 0);
+                        } else
+                            set_reg_value(state_map, c.a, cur_value + c.value);
+                     }
+                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" cur value " << hexval(cur_value) << " freq "<<c.freq<<" value "<<hexval(c.value)<<" new value "<< hexval(cur_value+c.value) << "\n";
+		     */
+		}
+
                 plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
+		auto tmp = plgState->get_state_map();
+		getDebugStream()<<"new Counter"<<tmp[c.a.phaddr].cur_value<<"\n";
             }
-        } 
+        }
         UpdateGraph(g_s2e_state, Write, 0);
     }
 }
@@ -175,7 +194,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         if (getMemo(peripheralcache, reg)) {
             if (reg.type == "R") {
                 data_register = reg.phaddr;
-            } 
+            }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
             return false;
@@ -218,17 +237,21 @@ void NLPPeripheralModel::SplitString(const std::string &s, std::vector<std::stri
         v.push_back(s.substr(pos1));
 }
 
-void NLPPeripheralModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c) {
+void NLPPeripheralModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c, int dtype) {
     std::string::size_type pos1, pos2;
+    getDebugStream() << s << "\n";
     pos2 = s.find(c);
     pos1 = 0;
     while (std::string::npos != pos2) {
-        v.push_back(std::atoi(s.substr(pos1, pos2 - pos1).c_str()));
+        v.push_back(std::strtol(s.substr(pos1, pos2 - pos1).c_str(), NULL, dtype));
+        getDebugStream() << s.substr(pos1, pos2 - pos1)<<" "<<std::strtol(s.substr(pos1, pos2 - pos1).c_str(), NULL, dtype) << "\n";
         pos1 = pos2 + c.size();
         pos2 = s.find(c, pos1);
     }
-    if (pos1 != s.length())
-        v.push_back(std::atoi(s.substr(pos1).c_str()));
+    if (pos1 != s.length()){
+        v.push_back(std::strtol(s.substr(pos1).c_str(),NULL,dtype));
+        getDebugStream() << s.substr(pos1)<<" "<<std::strtol(s.substr(pos1).c_str(), NULL, dtype) << "\n";
+    }
 }
 
 bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg) {
@@ -273,12 +296,12 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     if (action_str.find('|', 0) != std::string::npos) {
         action_rel = false;
     }
-    getDebugStream() << " trigger = " << trigger_str << " action = " << action_str << "\n";
+    getInfoStream() << " trigger = " << trigger_str << " action = " << action_str << "\n";
 
     bool res = extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
     if (v.size() == 3) {
         action.back().interrupt = std::stoi(v[2].c_str(), NULL, 10);
-        getDebugStream() << " trigger = " << trigger_str << " action = " << action_str <<" interrupt = "<< action.back().interrupt << "\n";
+        getInfoStream() << " trigger = " << trigger_str << " action = " << action_str <<" interrupt = "<< action.back().interrupt << "\n";
     }
     return res;
 }
@@ -292,7 +315,6 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         std::vector<std::string> v;
         getDebugStream() << equ_str << "\n";
         SplitString(equ_str, v, ",");
-        getDebugStream() << v[0] << " " << v[1] << " " << v[2] << " " << v[3] << " " << v[4] << "\n";
         Equation equ;
         equ.rel = rel;
         equ.interrupt = -1;
@@ -304,15 +326,12 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         } else {
             equ.a1.type = v[0];
             equ.a1.phaddr = std::stoull(v[1].c_str(), NULL, 16);
-            std::vector<int> bits;
             if (v[2] == "*")
                 equ.a1.bits = {-1};
             else {
-                SplitStringToInt(v[2], bits, "/");
-                equ.a1.bits = bits;
+                SplitStringToInt(v[2], equ.a1.bits, "/", 10);
             }
             equ.eq = v[3];
-	        getDebugStream() << v[0]<<v[1]<<v[2]<<v[3]<<v[4]<<"\n";
             if (v[4] == "O" || v[4] == "C") {
                 equ.type_a2 = "F";
                 equ.value = 0;
@@ -321,9 +340,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
                 if (v[5] == "*")
                     equ.a1.bits = {-1};
                 else {
-                    bits.clear();
-                    SplitStringToInt(v[5], bits, "/");
-                    equ.a1.bits = bits;
+                    SplitStringToInt(v[5], equ.a1.bits, "/",10);
                 }
             } else if (v[4][0] != '*') {
                 equ.type_a2 = "V";
@@ -344,7 +361,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
 bool NLPPeripheralModel::extractCounter(std::string peripheralcache, Counter &counter) {
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
-    if (!boost::regex_match(peripheralcache, what, MemoRegEx)) {
+    if (!boost::regex_match(peripheralcache, what, CounterEx)) {
         getWarningsStream() << "extractCounter match false\n";
         exit(0);
         return false;
@@ -355,18 +372,18 @@ bool NLPPeripheralModel::extractCounter(std::string peripheralcache, Counter &co
         return false;
     }
     std::vector<std::string> v;
-    SplitString(what[1], v, "_");
+    SplitString(what[1], v, ",");
     counter.a.type = v[0];
     counter.a.phaddr = std::stoull(v[1].c_str(), NULL, 16);
-    std::vector<int> bits;
     if (v[2] == "*")
         counter.a.bits = {-1};
     else {
-        SplitStringToInt(v[2], bits, "/");
-        counter.a.bits = bits;
+        SplitStringToInt(v[2], counter.a.bits, "/",10);
     }
-    counter.freq = std::stoull(v[3].c_str(), NULL, 16);
-    counter.value = std::stoi(v[4].c_str(), NULL, 10);
+    counter.freq = std::stoull(v[3].c_str(), NULL, 10);
+    //counter.value = std::stoi(v[4].c_str(), NULL, 16);
+    SplitStringToInt(v[4], counter.value, "/", 16);
+    getWarningsStream() << "extractCounter  " << hexval(counter.a.phaddr)<< " "<<counter.a.bits[0] << "\n";
     return true;
 }
 
@@ -422,11 +439,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     a2 = equ.value;
                 } else {
 			        a2 = 0;
-                    getDebugStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" \n";
+                    getInfoStream() << "ERROR "<<a1<<" eq "<<equ.eq<<" \n";
                 }
                 if (equ.a1.type == "F") {
                     if (type == Write && a1 == a2 && phaddr == equ.a1.phaddr) {
-                        getDebugStream() << "Write 1 to "<<hexval(equ.a1.phaddr)<<" eq "<<equ.eq<<" \n";
+                        getInfoStream() << "Write 1 to "<<hexval(equ.a1.phaddr)<<" eq "<<equ.eq<<" \n";
                         trigger_res.push_back(true);
                     } else
                         trigger_res.push_back(false);
@@ -488,9 +505,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
             getDebugStream() << "equ.interrupt = " <<equ.interrupt<< "\n";
-            
+
             if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
-                getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
+                getInfoStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
                 plgState->set_exit_interrupt(equ.interrupt, true);
             }
