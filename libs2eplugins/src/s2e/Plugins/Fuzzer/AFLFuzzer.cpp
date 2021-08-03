@@ -191,11 +191,6 @@ void AFLFuzzer::initialize() {
     timer_ticks = 0;
     timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
-    max_fork_count = s2e()->getConfig()->getInt(getConfigKey() + ".forkCount", 10, &ok);
-    if (max_fork_count < 100) {
-        getWarningsStream()
-            << "Too frequent fork will slow down fuzzing speed and very like go to the deep path!!!\n";
-    }
 
     auto crash_keys = cfg->getIntegerList(getConfigKey() + ".crashPoints");
     foreach2 (it, crash_keys.begin(), crash_keys.end()) {
@@ -203,10 +198,8 @@ void AFLFuzzer::initialize() {
         crash_points.push_back(*it);
     }
 
-    hw::PeripheralModelLearning *PeripheralConnection = s2e()->getPlugin<hw::PeripheralModelLearning>();
-    PeripheralConnection->onFuzzingInput.connect(sigc::mem_fun(*this, &AFLFuzzer::onFuzzingInput));
-    PeripheralConnection->onModeSwitch.connect(sigc::mem_fun(*this, &AFLFuzzer::onModeSwitch));
-    PeripheralConnection->onInvalidPHs.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPHs));
+    hw::SymbolicPeripherals *PeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
+    PeripheralConnection->onBufferInput.connect(sigc::mem_fun(*this, &AFLFuzzer::onBufferInput));
 
     afl_setup();
 
@@ -277,60 +270,128 @@ void AFLFuzzer::onTimer() {
     ++timer_ticks;
 }
 
-void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {
+/*void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {*/
+    //DECLARE_PLUGINSTATE(AFLFuzzerState, state);
+    //if (fuzzing_to_learning) {
+        //memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+        //afl_con->AFL_input = 0;
+        //// afl_con->AFL_return = FAULT_ERROR;
+        //blockEndConnection.disconnect();
+        //concreteDataMemoryAccessConnection.disconnect();
+        //invalidPCAccessConnection.disconnect();
+        //timerConnection.disconnect();
+        //plgState->clear_hit_count();
+        //timer_ticks = 0;
+    //} else {
+        //getInfoStream() << " AFL Reconnection !!\n";
+        //timer_ticks = 0;
+        //blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
+            //sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
+        //concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
+            //sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
+        //invalidPCAccessConnection =
+            //s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
+        //timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
+    //}
+//}
+
+//void AFLFuzzer::onInvalidPHs(S2EExecutionState *state, uint64_t addr) {
+    //getWarningsStream() << "Kill path due to onInvalid PHs at pc = " << hexval(state->regs()->getPc())
+                        //<< "ph addr = " << hexval(addr) << "\n";
+    //onCrashHang(state, 1);
+/*}*/
+
+/*void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr,*/
+                               //uint32_t t3_count, uint32_t *size, uint32_t *value, bool *doFuzz) {
+    //DECLARE_PLUGINSTATE(AFLFuzzerState, state);
+
+    //memset(value, 0, 4 * sizeof(char));
+    //for (auto input_peripheral : input_peripherals) {
+        //if (input_peripheral.first == phaddr) {
+            //*doFuzz = true;
+            //*size = input_peripherals[phaddr];
+            //break;
+        //}
+    //}
+
+    //if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
+        //*doFuzz = true;
+        //*size = 1;
+        //Ethernet.pos++;
+        //if (Ethernet.pos == Ethernet.size) {
+            //Ethernet.pos = 0;
+        //}
+    //}
+
+    //if (*doFuzz && g_s2e_cache_mode && t3_count == 0) {
+        //if (plgState->get_hit_count() == 0) {
+            //afl_con->AFL_return = 0;
+            //invaild_pc = 0;
+            //cur_read = 0;
+            //Ethernet.pos = 0;
+            //getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
+                                //<< " pc = " << hexval(state->regs()->getPc()) << "\n";
+            //hw::ConcreteArray concolicValue;
+            //SymbHwGetConcolicVector(0x0, *size, concolicValue);
+            //klee::ref<klee::Expr> original_value =
+                //state->createSymbolicValue("checking_point", *size * 8, concolicValue);
+            //s2e()->getExecutor()->forkAndConcretize(state, original_value);
+        //}
+
+        //plgState->inc_hit_count();
+        //timer_ticks = 0;
+
+        //if (cur_read >= afl_con->AFL_size) {
+            //cur_read = 0;
+            //memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+            //afl_con->AFL_input = 0;
+            //fork_count++;
+            //if (fork_count > max_fork_count) {
+                //fork_count = 0;
+                //std::string s;
+                //llvm::raw_string_ostream ss(s);
+                //ss << "Fork point each " << max_fork_count << " testcases\n";
+                //ss.flush();
+                //s2e()->getExecutor()->terminateState(*state, s);
+            //}
+        //}
+
+        //if (afl_con->AFL_input) {
+            //getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
+                             //<< " cur_read = " << cur_read << "\n";
+            //memcpy(value, testcase + cur_read, *size);
+            //cur_read += *size;
+        //} else {
+            //memset(value, 0, 4 * sizeof(char));
+            //cur_read = 0;
+        //}
+    //}
+/*}*/
+
+void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size, uint32_t *value) {
     DECLARE_PLUGINSTATE(AFLFuzzerState, state);
-    if (fuzzing_to_learning) {
-        memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-        afl_con->AFL_input = 0;
-        // afl_con->AFL_return = FAULT_ERROR;
-        blockEndConnection.disconnect();
-        concreteDataMemoryAccessConnection.disconnect();
-        invalidPCAccessConnection.disconnect();
-        timerConnection.disconnect();
-        plgState->clear_hit_count();
-        timer_ticks = 0;
-    } else {
-        getInfoStream() << " AFL Reconnection !!\n";
-        timer_ticks = 0;
-        blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-            sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
-        concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
-            sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
-        invalidPCAccessConnection =
-            s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
-        timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
-    }
-}
 
-void AFLFuzzer::onInvalidPHs(S2EExecutionState *state, uint64_t addr) {
-    getWarningsStream() << "Kill path due to onInvalid PHs at pc = " << hexval(state->regs()->getPc())
-                        << "ph addr = " << hexval(addr) << "\n";
-    onCrashHang(state, 1);
-}
-
-void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr,
-                               uint32_t t3_count, uint32_t *size, uint32_t *value, bool *doFuzz) {
-    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
-
+    bool doFuzz;
+    doFuzz = true;
     memset(value, 0, 4 * sizeof(char));
     for (auto input_peripheral : input_peripherals) {
         if (input_peripheral.first == phaddr) {
-            *doFuzz = true;
-            *size = input_peripherals[phaddr];
+            doFuzz = true;
+            size = input_peripherals[phaddr];
             break;
         }
     }
 
     if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
-        *doFuzz = true;
-        *size = 1;
+        doFuzz = true;
+        size = 1;
         Ethernet.pos++;
         if (Ethernet.pos == Ethernet.size) {
             Ethernet.pos = 0;
         }
     }
 
-    if (*doFuzz && g_s2e_cache_mode && t3_count == 0) {
+    if (doFuzz) {
         if (plgState->get_hit_count() == 0) {
             afl_con->AFL_return = 0;
             invaild_pc = 0;
@@ -339,9 +400,9 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
             getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
                                 << " pc = " << hexval(state->regs()->getPc()) << "\n";
             hw::ConcreteArray concolicValue;
-            SymbHwGetConcolicVector(0x0, *size, concolicValue);
+            SymbHwGetConcolicVector(0x0, size, concolicValue);
             klee::ref<klee::Expr> original_value =
-                state->createSymbolicValue("checking_point", *size * 8, concolicValue);
+                state->createSymbolicValue("checking_point", size * 8, concolicValue);
             s2e()->getExecutor()->forkAndConcretize(state, original_value);
         }
 
@@ -352,22 +413,13 @@ void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType 
             cur_read = 0;
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
             afl_con->AFL_input = 0;
-            fork_count++;
-            if (fork_count > max_fork_count) {
-                fork_count = 0;
-                std::string s;
-                llvm::raw_string_ostream ss(s);
-                ss << "Fork point each " << max_fork_count << " testcases\n";
-                ss.flush();
-                s2e()->getExecutor()->terminateState(*state, s);
-            }
         }
 
         if (afl_con->AFL_input) {
             getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
                              << " cur_read = " << cur_read << "\n";
-            memcpy(value, testcase + cur_read, *size);
-            cur_read += *size;
+            memcpy(value, testcase + cur_read, size);
+            cur_read += size;
         } else {
             memset(value, 0, 4 * sizeof(char));
             cur_read = 0;

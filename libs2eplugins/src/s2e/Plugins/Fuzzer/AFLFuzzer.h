@@ -10,7 +10,7 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/uEmu/PeripheralModelLearning.h>
+#include <s2e/Plugins/NLP/SymbolicPeripherals.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
 
@@ -64,8 +64,6 @@ public:
     AFLFuzzer(S2E *s2e) : Plugin(s2e) {
     }
 
-    sigc::signal<void, S2EExecutionState *, uint32_t /* Fuzzer End Tyep */> onFuzzerTerminationEvent;
-
     void initialize();
 
     struct MEM {
@@ -93,8 +91,6 @@ private:
     TBCounts all_tb_map;
     uint64_t unique_tb_num; // new tb number
     bool enable_fuzzing;
-    uint32_t max_fork_count;
-    uint32_t fork_count;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
@@ -110,11 +106,8 @@ private:
 
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
-    void onInvalidPHs(S2EExecutionState *state, uint64_t addr);
-    void onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning);
     void onInvalidPCAccess(S2EExecutionState *state, uint64_t addr);
-    void onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr, uint32_t t3_count,
-                        uint32_t *size, uint32_t *value, bool *doFuzz);
+    void onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size, uint32_t *value);
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
                              bool staticTarget, uint64_t staticTargetPc);
     void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);

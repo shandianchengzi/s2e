@@ -1419,6 +1419,43 @@ klee::ref<klee::Expr> SymbolicPeripherals::onuEmuLearningMode(S2EExecutionState 
     }
 }
 
+klee::ref<klee::Expr> SymbolicPeripherals::onNLPFuzzingMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
+                                                         uint64_t address, unsigned size, uint64_t concreteValue) {
+
+    std::stringstream ss;
+    switch (type) {
+        case SYMB_MMIO:
+            ss << "iommuread_";
+            break;
+        case SYMB_DMA:
+            ss << "dmaread_";
+            break;
+        case SYMB_PORT:
+            ss << "portread_";
+            break;
+    }
+
+    // record all read phs
+    DECLARE_PLUGINSTATE(SymbolicPeripheralsState, state);
+    plgState->inc_readphs(address, size);
+    plgState->insert_all_rw_phs(address, 1);
+
+    ss << hexval(address) << "@" << hexval(state->regs()->getPc());
+    ss << "_" << hexval(size);
+
+    uint32_t NLP_value = concreteValue;
+    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
+
+    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size)
+                                << " NLP value = " << hexval(NLP_value) << "\n";
+
+    uint64_t LSB = ((uint64_t) 1 << (size * 8));
+    uint32_t value;
+    value = NLP_value & (LSB - 1);
+    return klee::ConstantExpr::create(value, size * 8);
+}
+
+
 klee::ref<klee::Expr> SymbolicPeripherals::onuEmuFuzzingMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
                                                              uint64_t address, unsigned size, uint64_t concreteValue) {
 
@@ -1664,7 +1701,7 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
     if (!g_s2e_cache_mode) {
         return hw->onLearningMode(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
     } else {
-        return hw->onuEmuFuzzingMode(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
+        return hw->onFuzzingMode(g_s2e_state, SYMB_MMIO, physaddress, size, concreteValue);
     }
 }
 
@@ -1683,6 +1720,23 @@ klee::ref<klee::Expr> SymbolicPeripherals::onLearningMode(S2EExecutionState *sta
         }
     }
     return onuEmuLearningMode(state, type, address, size, concreteValue);
+}
+
+klee::ref<klee::Expr> SymbolicPeripherals::onFuzzingMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
+                                                         uint64_t address, unsigned size, uint64_t concreteValue) {
+    // peripheral address bit-band alias
+    if (address >= 0x42000000 && address <= 0x43fffffc) {
+        uint32_t phaddr = (address - 0x42000000) / 32 + 0x40000000;
+        getDebugStream() << "bit band alias address = " << hexval(address) << " alias address = " << hexval(phaddr) << "\n";
+        address = phaddr;
+    }
+    // nlp regions
+    for (auto nlpph : nlp_mmio) {
+        if (address >= nlpph.first && address <= nlpph.second) {
+            return onNLPFuzzingMode(state, type, address, size, concreteValue);
+        }
+    }
+    return onuEmuFuzzingMode(state, type, address, size, concreteValue);
 }
 
 static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const klee::ref<klee::Expr> &value,

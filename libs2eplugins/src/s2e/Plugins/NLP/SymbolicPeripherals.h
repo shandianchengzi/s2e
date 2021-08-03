@@ -215,7 +215,11 @@ public:
 
     klee::ref<klee::Expr> onLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
                                         uint64_t address, unsigned size, uint64_t concreteValue);
+    klee::ref<klee::Expr> onFuzzingMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
+                                        uint64_t address, unsigned size, uint64_t concreteValue);
     klee::ref<klee::Expr> onNLPLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type, uint64_t address,
+                                        unsigned size, uint64_t concreteValue);
+    klee::ref<klee::Expr> onNLPFuzzingMode(S2EExecutionState *state, SymbolicHardwareAccessType type, uint64_t address,
                                         unsigned size, uint64_t concreteValue);
     klee::ref<klee::Expr> onuEmuLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type, uint64_t address,
                                         unsigned size, uint64_t concreteValue);
