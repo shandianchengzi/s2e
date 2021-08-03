@@ -198,7 +198,7 @@ void AFLFuzzer::initialize() {
         crash_points.push_back(*it);
     }
 
-    hw::SymbolicPeripherals *PeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
+    NLPPeripheralModel *PeripheralConnection = s2e()->getPlugin<NLPPeripheralModel>();
     PeripheralConnection->onBufferInput.connect(sigc::mem_fun(*this, &AFLFuzzer::onBufferInput));
 
     afl_setup();

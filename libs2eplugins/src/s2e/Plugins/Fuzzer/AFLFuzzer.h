@@ -10,7 +10,7 @@
 
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
-#include <s2e/Plugins/NLP/SymbolicPeripherals.h>
+#include <s2e/Plugins/NLP/NLPPeripheralModel.h>
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
 
