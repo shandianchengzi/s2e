@@ -63,18 +63,23 @@ public:
         return  state_map[phaddr].cur_value;
     }
 
-    void write_dr_value(uint32_t phaddr, uint32_t value) {
+    void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width) {
         state_map[phaddr].t_value = value;
-        state_map[phaddr].t_size = 0; // ignore
+        state_map[phaddr].t_size = width; 
     }
 
-    uint32_t get_dr_value(uint32_t phaddr) {
-        state_map[phaddr].r_size = 0;//TODO -width
-        return state_map[phaddr].r_value;
+    uint32_t get_dr_value(uint32_t phaddr, uint32_t width) {
+        state_map[phaddr].r_size -= width;
+        int length = 0;
+        for (int i = 0; i < width; ++i) {
+            length |= (1<i);
+        }
+        return state_map[phaddr].r_value & length;
+        //1111 0011
     }
 
-    void hardware_write_to_receive_buffer(uint32_t phaddr,uint32_t value) {
-        state_map[phaddr].r_size = 1;//TODO calculate size
+    void hardware_write_to_receive_buffer(uint32_t phaddr, uint32_t value, uint32_t width) {
+        state_map[phaddr].r_size = width;
         state_map[phaddr].r_value = value;
     }
 };
@@ -523,15 +528,15 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
         //Write a value to DR
-        plgState->hardware_write_to_receive_buffer(data_register, 1111);
+        plgState->hardware_write_to_receive_buffer(data_register, 1111, 32);
     }
 
     UpdateGraph(state, Read, phaddr);
     if (phaddr == data_register) {
-        *NLPsymbolicvalue = plgState->get_dr_value(phaddr);
-        //TODO get value from AFL
-        uint32_t value = 0;
-        plgState->hardware_write_to_receive_buffer(data_register, value);
+        *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
+        uint32_t return_value = 0;
+        onBufferInput.emit(state, phaddr, size, &return_value);
+        plgState->hardware_write_to_receive_buffer(data_register, return_value, size);
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
@@ -545,7 +550,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         readNLPModelfromFile(state, NLPfileName);
     }
     if (phaddr == data_register) {
-        plgState->write_ph_value(phaddr, writeconcretevalue);
+        plgState->write_dr_value(phaddr, writeconcretevalue, 32);
         getDebugStream() << "Write to data register "<<data_register<<" "<<hexval(phaddr)<<" value: "<<writeconcretevalue<<" \n";
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);
