@@ -1088,7 +1088,7 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
 
     getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size)
-                                << " NLP value = " << hexval(NLP_value) << "\n";
+                                << " SYM NLP value = " << hexval(NLP_value) << "\n";
 
     ConcreteArray concolicValue;
     SymbHwGetConcolicVector(NLP_value, size, concolicValue);

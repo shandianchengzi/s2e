@@ -17,7 +17,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzzer", "PeripheralModelLearning");
+S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzzer", "NLPPeripheralModel");
 
 class AFLFuzzerState : public PluginState {
 private:
