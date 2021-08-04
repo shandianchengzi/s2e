@@ -49,10 +49,12 @@ private:
     uint64_t terminate_tb_num;
     uint64_t max_loop_tb_num;
     uint32_t disable_interrupt_count;
-    // uint32_t tb_interval;
+    uint32_t tb_interval;
     std::vector<uint32_t> kill_points;
     std::vector<uint32_t> alive_points;
     TBCounts all_tb_map;
+    bool cache_mode;
+    bool init_cache_mode;
     bool alive_point_flag;
     bool kill_point_flag;
     bool begin_timer_count;
@@ -75,6 +77,7 @@ private:
     bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
 
     void onTimerCount();
+    void onCacheModeMonitor(S2EExecutionState *state, uint64_t pc);
 };
 
 } // namespace plugins

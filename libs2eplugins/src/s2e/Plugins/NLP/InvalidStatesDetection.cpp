@@ -222,6 +222,8 @@ void InvalidStatesDetection::initialize() {
     s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockEnd));
 
+    cache_mode = s2e()->getConfig()->getBool(getConfigKey() + ".usePeripheralCache", false);
+    init_cache_mode = cache_mode;
     bool ok;
     disable_interrupt_count = 0;
     cache_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv1", 20, &ok);
@@ -250,7 +252,12 @@ void InvalidStatesDetection::initialize() {
         getDebugStream() << "Add alive point address = " << hexval(*it) << "\n";
         alive_points.push_back(*it);
     }
+    tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
 
+    if (cache_mode) {
+        getWarningsStream() << "Invalid States Detection is unabled in cache mode\n";
+        return;
+    }
 
     // use for user-defined invlid pc and alive pc
     blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
@@ -393,8 +400,52 @@ void InvalidStatesDetection::onInvalidPCAccess(S2EExecutionState *state, uint64_
     onInvalidStatesKill(state, state->regs()->getPc(), IM, reason_str);
 }
 
+void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64_t pc) {
+    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
+
+    getDebugStream() << "InvalidStatesDetection in cache mode " << plgState->getnewtbnum() << " pc = " << hexval(pc)
+                     << " disable_interrupt_count = " << disable_interrupt_count
+                     << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
+
+    if (plgState->inctbnum(pc)) {
+        getInfoStream() << "The unqiue number of the executed basic blocks in current state is "
+                            << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
+    }
+
+    // we should make sure new tb in normal mode will be executed after interrupt
+    // in case too frequent interrupts
+    if (state->regs()->getInterruptFlag()) {
+        disable_interrupt_count = cache_tb_num;
+    } else {
+        if (disable_interrupt_count > 0) {
+            disable_interrupt_count--;
+        }
+    }
+
+    if (disable_interrupt_count == 0) {
+        g_s2e_allow_interrupt = 1;
+    } else {
+        g_s2e_allow_interrupt = 0;
+    }
+
+    if (!state->regs()->getInterruptFlag()) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
+            getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
+            g_s2e_allow_interrupt = 1;
+            s2e()->getExecutor()->setCpuExitRequest();
+        }
+    }
+}
+
+
 void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, uint64_t pc, unsigned source_type) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
+
+    // cache mode
+    if (g_s2e_cache_mode) {
+        onCacheModeMonitor(state, pc);
+        return;
+    }
 
     if (onModeSwitchandTermination(state, pc)) {
         // learning mode termination
