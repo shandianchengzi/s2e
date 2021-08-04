@@ -176,12 +176,17 @@ void NLPPeripheralModel::CountDown() {
 		     */
 		}
 
-                plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
+        plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
 		auto tmp = plgState->get_state_map();
 		getDebugStream()<<"new Counter"<<tmp[c.a.phaddr].cur_value<<"\n";
             }
         }
         UpdateGraph(g_s2e_state, Write, 0);
+        if (timer > 2) {
+            getDebugStream() << " write init dr value 1111!\n";
+            //Write a value to DR
+            plgState->hardware_write_to_receive_buffer(data_register, 1111, 32);
+        }
     }
 }
 
@@ -532,8 +537,6 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     rw_count++;
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
-        //Write a value to DR
-        plgState->hardware_write_to_receive_buffer(data_register, 1111, 32);
     }
 
     UpdateGraph(state, Read, phaddr);
