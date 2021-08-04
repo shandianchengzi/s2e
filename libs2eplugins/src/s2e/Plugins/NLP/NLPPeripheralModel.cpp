@@ -23,7 +23,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model With Auto Timer", "N
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
-    std::map<int, bool> exit_interrupt;
+    std::map<int, int> exit_interrupt;//interrupt id, num
 
 public:
     NLPPeripheralModelState() {
@@ -41,11 +41,11 @@ public:
     }
 
     bool get_exit_interrupt(uint32_t num) {
-	    return exit_interrupt[num];
+	    return exit_interrupt[num] > 0;
     }
 
-    void set_exit_interrupt(uint32_t num, bool cur) {
-	    exit_interrupt[num] = cur;
+    void set_exit_interrupt(uint32_t num, int cur) {
+	    exit_interrupt[num] += cur;
     }
 
     RegMap get_state_map() {
@@ -72,7 +72,7 @@ public:
         state_map[phaddr].r_size -= width;
         int length = 0;
         for (int i = 0; i < width; ++i) {
-            length |= (1<i);
+            length |= (1<<i);
         }
         return state_map[phaddr].r_value & length;
         //1111 0011
@@ -137,7 +137,7 @@ void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t valu
 void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
 	DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
 	//interrupt vector+16
-	plgState->set_exit_interrupt(irq_no+16, false);
+	plgState->set_exit_interrupt(irq_no+16, -1);
         getDebugStream() << "EXIT Interrupt IRQ" << irq_no << "\n";
 }
 
@@ -182,7 +182,7 @@ void NLPPeripheralModel::CountDown() {
             }
         }
         UpdateGraph(g_s2e_state, Write, 0);
-        if (timer > 2) {
+        if (timer == 3) {
             getDebugStream() << " write init dr value 1111!\n";
             //Write a value to DR
             plgState->hardware_write_to_receive_buffer(data_register, 1111, 32);
@@ -521,11 +521,13 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
             getDebugStream() << "equ.interrupt = " <<equ.interrupt<< "\n";
 
-            if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
-                getInfoStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
-                onExternalInterruptEvent.emit(state, equ.interrupt);
-                plgState->set_exit_interrupt(equ.interrupt, true);
-            }
+            if (equ.interrupt != -1) {
+		if (!plgState->get_exit_interrupt(equ.interrupt)) {
+                    getInfoStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
+                    onExternalInterruptEvent.emit(state, equ.interrupt);
+                }
+	        plgState->set_exit_interrupt(equ.interrupt, 1);
+	    }
 
         }
     }
@@ -546,6 +548,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         onBufferInput.emit(state, phaddr, size, &return_value);
         getDebugStream() << "Read data register "<<data_register<<" "<<*NLPsymbolicvalue<<" return value: "<<return_value<<" \n";
         plgState->hardware_write_to_receive_buffer(data_register, return_value, size);
+        UpdateGraph(state, Read, phaddr);
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
