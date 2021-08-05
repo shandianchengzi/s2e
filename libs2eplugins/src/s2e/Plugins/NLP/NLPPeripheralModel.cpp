@@ -71,6 +71,7 @@ public:
     }
 
     uint32_t get_dr_value(uint32_t phaddr, uint32_t width) {
+	width *= 8;
         state_map[phaddr].r_size -= width;
         int length = 0;
         for (int i = 0; i < width; ++i) {
@@ -81,7 +82,7 @@ public:
     }
 
     void hardware_write_to_receive_buffer(uint32_t phaddr, uint32_t value, uint32_t width) {
-        state_map[phaddr].r_size = width;
+        state_map[phaddr].r_size = width * 8;
         state_map[phaddr].r_value = value;
     }
 };
@@ -552,7 +553,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
         uint32_t return_value = 0;
         onBufferInput.emit(state, phaddr, size, &return_value);
-        getDebugStream() << "Read data register "<<data_register<<" "<<*NLPsymbolicvalue<<" return value: "<<return_value<<" \n";
+        getDebugStream() << "Read data register "<<data_register<<" width "<<size<<" value "<<*NLPsymbolicvalue<<" "<<plgState->get_dr_value(phaddr, size)<<" return value: "<<return_value<<" \n";
         plgState->hardware_write_to_receive_buffer(data_register, return_value, size);
         UpdateGraph(state, Read, phaddr);
     } else {
