@@ -23,8 +23,8 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model With Auto Timer", "N
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
-    std::map<int, int> exit_interrupt;//interrupt id, num
-
+    //std::map<int, int> exit_interrupt;//interrupt id, num
+    std::map<int, bool> exit_interrupt;
 public:
     NLPPeripheralModelState() {
     }
@@ -41,11 +41,13 @@ public:
     }
 
     bool get_exit_interrupt(uint32_t num) {
-	    return exit_interrupt[num] > 0;
+	//return exit_interrupt[num] > 0;
+	return exit_interrupt[num];
     }
 
-    void set_exit_interrupt(uint32_t num, int cur) {
-	    exit_interrupt[num] += cur;
+    void set_exit_interrupt(uint32_t num, bool cur) {
+	//exit_interrupt[num] += cur;
+	exit_interrupt[num] = cur;
     }
 
     RegMap get_state_map() {
@@ -138,8 +140,9 @@ void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t valu
 void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
 	DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
 	//interrupt vector+16
-	plgState->set_exit_interrupt(irq_no+16, -1);
-        getDebugStream() << "EXIT Interrupt IRQ" << irq_no << "\n";
+	//plgState->set_exit_interrupt(irq_no, -1);
+	plgState->set_exit_interrupt(irq_no, false);
+        getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = "<< plgState->get_exit_interrupt(irq_no)<< "\n";
 }
 
 void NLPPeripheralModel::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
@@ -524,15 +527,13 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 // update to state
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             }
-            getDebugStream() << "equ.interrupt = " <<equ.interrupt<< "\n";
+            getDebugStream() << "equ.interrupt = " <<equ.interrupt<<" exit_inter = "<<plgState->get_exit_interrupt(equ.interrupt)<< "\n";
 
-            if (equ.interrupt != -1) {
-		if (!plgState->get_exit_interrupt(equ.interrupt)) {
-                    getInfoStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
-                    onExternalInterruptEvent.emit(state, equ.interrupt);
-                }
-	        plgState->set_exit_interrupt(equ.interrupt, 1);
-	    }
+	    if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
+                getInfoStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
+                onExternalInterruptEvent.emit(state, equ.interrupt);
+                plgState->set_exit_interrupt(equ.interrupt, true);
+            }
 
         }
     }
