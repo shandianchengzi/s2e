@@ -11,7 +11,7 @@
 #include <s2e/Utils.h>
 #include <s2e/cpu.h>
 #include <sys/shm.h>
-#include <time.h> 
+#include <time.h>
 #include "NLPPeripheralModel.h"
 
 namespace s2e {
@@ -65,7 +65,7 @@ public:
 
     void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width) {
         state_map[phaddr].t_value = value;
-        state_map[phaddr].t_size = 0;//width; 
+        state_map[phaddr].t_size = 0;//width;
     }
 
     uint32_t get_dr_value(uint32_t phaddr, uint32_t width) {
@@ -95,7 +95,8 @@ void NLPPeripheralModel::initialize() {
     onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
     onInvalidStateDectionConnection->onInvalidStatesEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onInvalidStatesDetection));
-    //s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onTimer));
+    onInvalidStateDectionConnection->onForceExitEvent.connect(
+        sigc::mem_fun(*this, &NLPPeripheralModel::onForceIRQCheck));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
     s2e()->getCorePlugin()->onExceptionExit.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
@@ -190,6 +191,10 @@ void NLPPeripheralModel::CountDown() {
     }
 }
 
+void NLPPeripheralModel::onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num) {
+    getDebugStream() << "Force IRQ Check "<< hexval(re_tb_num) << "\n";
+    UpdateGraph(state, Write, 0);
+}
 
 bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::string fileName) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);

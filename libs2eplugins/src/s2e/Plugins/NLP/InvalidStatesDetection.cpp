@@ -432,6 +432,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
         if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
             getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
             g_s2e_allow_interrupt = 1;
+            onForceExitEvent.emit(state, pc, plgState->gettbnum());
             s2e()->getExecutor()->setCpuExitRequest();
         }
     }

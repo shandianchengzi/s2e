@@ -96,10 +96,10 @@ private:
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
 
-    //void onTimer();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
     void CountDown();
+    void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     uint32_t get_reg_value(RegMap &state_map, Field a);
     void set_reg_value(RegMap &state_map, Field a, uint32_t value);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
