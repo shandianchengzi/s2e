@@ -47,7 +47,7 @@ public:
 
     void set_exit_interrupt(uint32_t num, bool cur) {
 	//exit_interrupt[num] += cur;
-	exit_interrupt[num] = cur;
+        exit_interrupt[num] = cur;
     }
 
     RegMap get_state_map() {
@@ -142,8 +142,9 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 	DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
 	//interrupt vector+16
 	//plgState->set_exit_interrupt(irq_no, -1);
-	plgState->set_exit_interrupt(irq_no, false);
-        getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = "<< plgState->get_exit_interrupt(irq_no)<< "\n";
+    if (irq_no > 15)
+        plgState->set_exit_interrupt(irq_no - 16, false);
+    getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = "<< plgState->get_exit_interrupt(irq_no)<< "\n";
 }
 
 void NLPPeripheralModel::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
