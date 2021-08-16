@@ -474,12 +474,15 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                         trigger_res.push_back(false);
 
                 } else
-                        trigger_res.push_back(compare(a1, equ.eq, a2));
+                    trigger_res.push_back(compare(a1, equ.eq, a2));
+                //getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
+                //    << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
             }
         }
         bool check = rel;
         if (rel == true) {
             for (bool idx: trigger_res) {
+                // getDebugStream() << "idx = " << idx <<"\n";
                 if (idx == false) {
                     check = false;
                     break;
@@ -495,7 +498,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         }
         if (!check) continue;
         for (auto equ: trigger) {
-            getDebugStream() << "trigger a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits[0]<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
+            getDebugStream() << "trigger a1 "<< hexval(equ.a1.phaddr) <<" bit: "
+                << equ.a1.bits[0] << " eq " << equ.eq << " a2 " << equ.value<<" \n";
         }
 
         EquList action = ta.second;
