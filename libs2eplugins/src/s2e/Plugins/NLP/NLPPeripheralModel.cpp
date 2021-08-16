@@ -446,11 +446,27 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.a1.type == "*") {
                 trigger_res.push_back(true);
             } else if (equ.a1.type == "R") {
+                if (equ.type_a2 == "V") {
+                    a1 = state_map[equ.a1.phaddr].r_size;
+                    a2 = equ.value;
+                    trigger_res.push_back(compare(a1, equ.eq, a2));
+                    getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
+                        << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
+                    continue;
+                }
                 if (type == Read && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
             } else if (equ.a1.type == "T") {
+                if (equ.type_a2 == "V") {
+                    a1 = state_map[equ.a1.phaddr].t_size;
+                    a2 = equ.value;
+                    trigger_res.push_back(compare(a1, equ.eq, a2));
+                    getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
+                        << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
+                    continue;
+                }
                 if (type == Write && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
                     trigger_res.push_back(true);
                 else
@@ -479,8 +495,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 
                 } else
                     trigger_res.push_back(compare(a1, equ.eq, a2));
-                //getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
-                //    << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
+                getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
+                    << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
             }
         }
         bool check = rel;
