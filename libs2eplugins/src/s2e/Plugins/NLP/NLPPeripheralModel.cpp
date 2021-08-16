@@ -188,10 +188,11 @@ void NLPPeripheralModel::CountDown() {
             }
         }
         UpdateGraph(g_s2e_state, Write, 0);
-        if (timer == 3) {
-            getDebugStream() << " write init dr value 1111!\n";
+        if (timer == 9) {
+            getDebugStream() << " write init dr value 0xA!\n";
             //Write a value to DR
-            plgState->hardware_write_to_receive_buffer(data_register, 1111, 32);
+            plgState->hardware_write_to_receive_buffer(data_register, 0xA, 32);
+            UpdateGraph(g_s2e_state, Write, 0);
         }
     }
 }
@@ -218,7 +219,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         PeripheralReg reg;
         if (getMemo(peripheralcache, reg)) {
             if (reg.type == "R") {
-                data_register = reg.phaddr;
+                data_register.push_back(reg.phaddr);
             }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
@@ -442,12 +443,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.a1.type == "*") {
                 trigger_res.push_back(true);
             } else if (equ.a1.type == "R") {
-                if (type == Read && phaddr == data_register)
+                if (type == Read && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
             } else if (equ.a1.type == "T") {
-                if (type == Write && phaddr == data_register)
+                if (type == Write && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);

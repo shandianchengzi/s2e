@@ -86,7 +86,7 @@ private:
     std::string NLPfileName;
     TAMap allTAs;
     CounterList allCounters;
-    uint32_t data_register;
+    std::vector<uint32_t> data_register;
     uint32_t timer;
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
