@@ -374,9 +374,13 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
                 equ.value = std::stoull(v[4].c_str(), NULL, 2);
             } else {
                 equ.value = 0;
+		if (v[4] == "*") {
+			equ.type_a2 = v[4];
+		} else {
                 equ.type_a2 = v[4][1];
                 equ.a2.type = v[4][1];
                 equ.a2.phaddr = std::stoull(v[4].substr(2, v[4].size()-2).c_str(), NULL, 16);
+		}
             }
         }
         getDebugStream() << "equ type = " << equ.a1.type << " equ phaddr = " << equ.a1.phaddr
@@ -447,8 +451,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 trigger_res.push_back(true);
             } else if (equ.a1.type == "R") {
                 if (equ.type_a2 == "V") {
-                    a1 = state_map[equ.a1.phaddr].r_size;
-                    a2 = equ.value;
+                    uint32_t a1 = state_map[equ.a1.phaddr].r_size;
+                    uint32_t a2 = equ.value;
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                     getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
                         << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
@@ -460,8 +464,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     trigger_res.push_back(false);
             } else if (equ.a1.type == "T") {
                 if (equ.type_a2 == "V") {
-                    a1 = state_map[equ.a1.phaddr].t_size;
-                    a2 = equ.value;
+                    uint32_t a1 = state_map[equ.a1.phaddr].t_size;
+                    uint32_t a2 = equ.value;
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                     getDebugStream() << "tirgger condition a1 = " << hexval(a1) << "a2 = " << hexval(a2)
                         << equ.eq << "equ.a1.phaddr" << hexval(equ.a1.phaddr) <<" trigger result" << trigger_res.back() << "\n";
