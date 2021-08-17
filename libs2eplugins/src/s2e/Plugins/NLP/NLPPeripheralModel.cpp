@@ -161,12 +161,12 @@ void NLPPeripheralModel::CountDown() {
         for (auto c: allCounters) {
             if (timer % c.freq == 0) {
 		        if (c.a.type == "O") {
-                    getDebugStream()<<"old Counter"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
+                    /*getDebugStream()<<"old Counter"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
                     int tmp = c.value[std::rand() % c.value.size()];
                     set_reg_value(state_map, c.a, tmp);
                     //set_reg_value(state_map, c.a, c.value);
                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
-                    //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
+                    //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";*/
                 } else {
                     /*
                     uint32_t cur_value = get_reg_value(state_map, c.a);
