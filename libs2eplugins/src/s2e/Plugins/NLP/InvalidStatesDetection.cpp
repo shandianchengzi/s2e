@@ -335,7 +335,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
     getDebugStream() << "begin kill count\n";
     onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
     kill_count_map[pc]++;
-    if (kill_count_map[pc] > 3) {
+    if (kill_count_map[pc] > 5) {
         std::string s;
         llvm::raw_string_ostream ss(s);
         ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
