@@ -63,6 +63,7 @@ private:
     bool begin_timer_count;
     uint32_t timer_count;
     std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
+    uint32_t last_loop_pc;
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 
