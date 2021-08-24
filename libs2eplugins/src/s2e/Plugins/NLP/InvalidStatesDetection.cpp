@@ -265,20 +265,6 @@ void InvalidStatesDetection::initialize() {
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
-    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &InvalidStatesDetection::onTimerCount));
-    begin_timer_count = false;
-    timer_count = 0;
-}
-
-void InvalidStatesDetection::onTimerCount() {
-    getDebugStream() << "kill count\n";
-    if (begin_timer_count) {
-        timer_count ++;
-    }
-    if (timer_count > 2) {
-        timer_count = 0;
-        begin_timer_count = false;
-    }
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -345,6 +331,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         s2e()->getExecutor()->terminateState(*state, s);
     } else {
         getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
+        onPreInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
         s2e()->getExecutor()->setCpuExitRequest();
     }

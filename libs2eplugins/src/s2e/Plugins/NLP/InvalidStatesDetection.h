@@ -39,6 +39,9 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */, uint64_t /* unique tb num */>
         onInvalidStatesEvent;
 
+    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */, uint64_t /* unique tb num */>
+        onPreInvalidStatesEvent;
+
     sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>
         onForceExitEvent;
 
@@ -60,8 +63,6 @@ private:
     bool init_cache_mode;
     bool alive_point_flag;
     bool kill_point_flag;
-    bool begin_timer_count;
-    uint32_t timer_count;
     std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
     uint32_t last_loop_pc;
 
@@ -80,7 +81,6 @@ private:
 
     bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
 
-    void onTimerCount();
     void onCacheModeMonitor(S2EExecutionState *state, uint64_t pc);
 };
 

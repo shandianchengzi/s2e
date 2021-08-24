@@ -96,7 +96,7 @@ void NLPPeripheralModel::initialize() {
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
                             sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
     onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
-    onInvalidStateDectionConnection->onInvalidStatesEvent.connect(
+    onInvalidStateDectionConnection->onPreInvalidStatesEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onInvalidStatesDetection));
     onInvalidStateDectionConnection->onForceExitEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onForceIRQCheck));
