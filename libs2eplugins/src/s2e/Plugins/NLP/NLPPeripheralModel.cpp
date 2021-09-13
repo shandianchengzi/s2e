@@ -194,7 +194,7 @@ void NLPPeripheralModel::CountDown() {
         }
         UpdateGraph(g_s2e_state, Write, 0);
         */
-        if (timer == 9) {
+        if (timer == 3) {
             getDebugStream() << " write init dr value 0xA!\n";
             //Write a value to DR
             for (auto phaddr: data_register)
@@ -488,10 +488,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     } else
                         trigger_res.push_back(false);
 
-                } else
+                } else {
                     getDebugStream() << "intermediate trigger a1 "<<hexval(equ.a1.phaddr)<<" bit: "<<equ.a1.bits[0]<<" a1 "<<a1<<" eq "<<equ.eq<<" a2 "<<equ.value<<" \n";
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                 }
+	    }
         }
         bool check = rel;
         if (rel == true) {
@@ -559,8 +560,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
 }
 
-void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type,
-                            uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue) {
+void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     rw_count++;
     if (rw_count == 1) {
