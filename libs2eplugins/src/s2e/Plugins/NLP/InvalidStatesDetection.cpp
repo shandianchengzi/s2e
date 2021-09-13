@@ -265,20 +265,6 @@ void InvalidStatesDetection::initialize() {
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
-    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &InvalidStatesDetection::onTimerCount));
-    begin_timer_count = false;
-    timer_count = 0;
-}
-
-void InvalidStatesDetection::onTimerCount() {
-    getDebugStream() << "kill count\n";
-    if (begin_timer_count) {
-        timer_count ++;
-    }
-    if (timer_count > 2) {
-        timer_count = 0;
-        begin_timer_count = false;
-    }
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -332,10 +318,11 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
 void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type,
                                                  std::string reason_str) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
-    getDebugStream() << "begin kill count\n";
-    onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
     kill_count_map[pc]++;
+    last_loop_pc = pc;
     if (kill_count_map[pc] > 3) {
+        onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
+        kill_count_map[pc] = 0;
         std::string s;
         llvm::raw_string_ostream ss(s);
         ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
@@ -343,6 +330,8 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         ss.flush();
         s2e()->getExecutor()->terminateState(*state, s);
     } else {
+        getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
+        onPreInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
         s2e()->getExecutor()->setCpuExitRequest();
     }
@@ -559,6 +548,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                     onInvalidStatesKill(state, pc, LL2, reason_str);
                 }
             }
+            kill_count_map[last_loop_pc] = 0;
             plgState->setloopflag(false);
             plgState->inserttbregs(conregs);
             return;
@@ -624,6 +614,8 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
             std::string reason_str = "Kill State due to long loop (single-tb):";
             onInvalidStatesKill(state, pc, LL1, reason_str);
         }
+    } else {
+        kill_count_map[last_loop_pc] = 0;
     }
 
     plgState->inserttbregs(conregs);

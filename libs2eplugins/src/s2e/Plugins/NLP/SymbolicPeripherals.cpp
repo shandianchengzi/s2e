@@ -2407,7 +2407,7 @@ void SymbolicPeripherals::onStateForkDecide(S2EExecutionState *state, bool *doFo
         } else if (plgState->get_type_flag_ph_it(phaddr) == T0) {
             *conditionFork = false;
         } else {
-            getWarningsStream() << " condition false for nlp phaddr = " << hexval(phaddr) << "\n";
+            //getWarningsStream() << " condition false for nlp phaddr = " << hexval(phaddr) << "\n";
             *conditionFork = false;
         }
     }
