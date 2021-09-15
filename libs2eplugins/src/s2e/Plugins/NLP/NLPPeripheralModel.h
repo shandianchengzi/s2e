@@ -84,7 +84,7 @@ private:
 
     uint32_t rw_count;
     std::string NLPfileName;
-    TAMap allTAs;
+    std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
     CounterList allCounters;
     std::vector<uint32_t> data_register;
     uint32_t timer;

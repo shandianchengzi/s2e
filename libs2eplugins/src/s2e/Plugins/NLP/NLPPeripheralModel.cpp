@@ -235,12 +235,25 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         }
     }
 
+    uint32_t start = 0xFFFFFFFF, end = 0;
+    TAMap allTAs;
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==") break;
+        if (peripheralcache == "--") {
+            TA_range[std::make_pair(start, end)] = allTAs;
+            allTAs.clear();
+            start = 0xFFFFFFFF;
+            end = 0;
+            continue;
+        }
         EquList trigger;
         EquList action;
         if (getTApairs(peripheralcache, trigger, action)) {
             allTAs.push_back(std::make_pair(trigger, action));
+            for (auto equ: trigger) {
+                start = std::min(start, equ.a1.phaddr);
+                end = std::max(end, equ.a1.phaddr);
+            }
         } else {
             return false;
         }
@@ -448,6 +461,15 @@ bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
 void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
+    TAMap allTAs;
+    for (auto loc: TA_range) {
+        auto range = loc.first;
+        auto TA = loc.second;
+        if (phaddr >= range.first && phaddr <= range.second) {
+            allTAs = TA;
+            break;
+        }
+    }
     for (auto ta: allTAs) {
         EquList trigger = ta.first;
         bool rel;
