@@ -164,6 +164,7 @@ void NLPPeripheralModel::CountDown() {
         timer += 1;
         getDebugStream()<<"start CountDown"<<rw_count<<" "<<timer<<" "<<allCounters.size()<<"\n";
         
+        int _idx = ta_numbers;
         for (auto c: allCounters) {
             if (timer % c.freq == 0) {
 		        if (c.a.type == "O") {
@@ -171,9 +172,9 @@ void NLPPeripheralModel::CountDown() {
                     int tmp = c.value[std::rand() % c.value.size()];
                     set_reg_value(state_map, c.a, tmp);
                     if (c.value.size() == 1)
-                        statistics_hw[c] += 1;
+                        statistics[++_idx] += 1;
                     else:
-                        statistics_flag[c] += 1;
+                        statistics[++_idx] += 1;
                     //set_reg_value(state_map, c.a, c.value);
                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
                     //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
@@ -229,6 +230,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
 
     uint32_t start = 0xFFFFFFFF, end = 0;
     TAMap allTAs;
+    int _idx = 0; 
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==") break;
         if (peripheralcache == "--") {
@@ -246,15 +248,19 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
                 start = std::min(start, equ.a1.phaddr);
                 end = std::max(end, equ.a1.phaddr);
             }
+            statistics[++_idx] = 0;
         } else {
             return false;
         }
     }
 
+    ta_numbers = _idx;
+
     while (getline(fNLP, peripheralcache)) {
         Counter count;
         if (extractCounter(peripheralcache, count)) {
             allCounters.push_back(count);
+            statistics[++_idx] = 0;
         } else {
             return false;
         }
@@ -454,6 +460,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
     TAMap allTAs;
+    int _idx = 0;
     for (auto loc: TA_range) {
         auto range = loc.first;
         auto TA = loc.second;
@@ -461,9 +468,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             allTAs = TA;
             break;
         }
+        _idx += TA.size();
     }
     if (phaddr == 0) { 
         int total_sz = 0;
+        _idx = 0;
         for (auto loc: TA_range) {
             total_sz += loc.second.size();
         }
@@ -474,6 +483,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         }
     }
     for (auto ta: allTAs) {
+        _idx += 1;
         EquList trigger = ta.first;
         bool rel;
         std::vector<bool> trigger_res;
@@ -537,7 +547,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
         }
         if (!check) continue;
-        statistics_ta[ta] += 1;
+        statistics_ta[_idx] += 1;
         for (auto equ: trigger) {
             getDebugStream() << "trigger a1 "<< hexval(equ.a1.phaddr) <<" bit: "
                 << equ.a1.bits[0] << " eq " << equ.eq << " a2 " << equ.value<<"statistics:"<<statistics[ta]<<" \n";
