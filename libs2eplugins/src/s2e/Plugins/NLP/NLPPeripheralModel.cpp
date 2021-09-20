@@ -455,7 +455,6 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         auto TA = loc.second;
         if (phaddr >= range.first && phaddr <= range.second) {
             allTAs = TA;
-            prev_addr = phaddr;
             break;
         }
     }
