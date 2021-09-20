@@ -170,6 +170,10 @@ void NLPPeripheralModel::CountDown() {
                     getDebugStream()<<"old Counter"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
                     int tmp = c.value[std::rand() % c.value.size()];
                     set_reg_value(state_map, c.a, tmp);
+                    if (c.value.size() == 1)
+                        statistics_hw[c] += 1;
+                    else:
+                        statistics_flag[c] += 1;
                     //set_reg_value(state_map, c.a, c.value);
                     getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
                     //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
@@ -534,9 +538,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
         }
         if (!check) continue;
+        statistics_ta[ta] += 1;
         for (auto equ: trigger) {
             getDebugStream() << "trigger a1 "<< hexval(equ.a1.phaddr) <<" bit: "
-                << equ.a1.bits[0] << " eq " << equ.eq << " a2 " << equ.value<<" \n";
+                << equ.a1.bits[0] << " eq " << equ.eq << " a2 " << equ.value<<"statistics:"<<statistics[ta]<<" \n";
         }
 
         EquList action = ta.second;
