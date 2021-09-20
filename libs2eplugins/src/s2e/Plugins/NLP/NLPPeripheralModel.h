@@ -61,7 +61,8 @@ typedef struct counter {
 
 typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
-typedef std::vector<std::pair<EquList, EquList>> TAMap;
+typedef std::pair<EquList, EquList> TA;
+typedef std::vector<TA> TAMap;
 typedef std::vector<Counter> CounterList;
 
 enum RWType { Write, Read };
@@ -85,6 +86,9 @@ private:
     uint32_t rw_count;
     std::string NLPfileName;
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
+    std::map<TA, uint32_t> statistics_ta;
+    std::map<Counter, uint32_t> statistics_hw;
+    std::map<Counter, uint32_t> statistics_flag;
     CounterList allCounters;
     std::vector<uint32_t> data_register;
     uint32_t timer;
