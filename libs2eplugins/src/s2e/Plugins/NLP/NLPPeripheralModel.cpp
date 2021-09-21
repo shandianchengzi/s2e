@@ -501,6 +501,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
+            } else if (equ.a1.type == "F" && (type != Write || phaddr != equ.a1.phaddr)) {
+                trigger_res.push_back(false);
             } else {
                 uint32_t a1, a2;
                 a1 = get_reg_value(state_map, equ.a1);
