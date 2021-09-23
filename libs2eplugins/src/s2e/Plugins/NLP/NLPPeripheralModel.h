@@ -100,6 +100,7 @@ private:
 
 
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
+    void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
     void CountDown();
     void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);

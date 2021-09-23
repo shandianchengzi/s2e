@@ -341,6 +341,9 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
 bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
 
+    if (plgState->getretbnum() == terminate_tb_num / 2) {
+        onEnableReceiveExternalEvent.emit(state, pc, plgState->getretbnum());
+    }
     // learning mode termination and switch to cache mode
     if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {

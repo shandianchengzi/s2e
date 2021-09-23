@@ -45,6 +45,9 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>
         onForceExitEvent;
 
+    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>
+        onEnableReceiveExternalEvent;
+
     sigc::signal<void, S2EExecutionState *, bool * /* succuess or not */, uint64_t /* unique tb num */>
         onLearningTerminationEvent;
 
