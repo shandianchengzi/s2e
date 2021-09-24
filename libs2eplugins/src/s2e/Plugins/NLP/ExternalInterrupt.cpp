@@ -117,8 +117,8 @@ public:
 void ExternalInterrupt::initialize() {
     // tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 2000, &ok);
     // tb_scale = s2e()->getConfig()->getInt(getConfigKey() + ".BBScale", 30000, &ok);
-    /*s2e()->getCorePlugin()->onTranslateBlockStart.connect(*/
-        //sigc::mem_fun(*this, &ExternalInterrupt::onTranslateBlockStart));
+    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+        sigc::mem_fun(*this, &ExternalInterrupt::onTranslateBlockStart));
     bool ok;
     /*if (!ok) {*/
         //getWarningsStream()
@@ -151,10 +151,10 @@ void ExternalInterrupt::initialize() {
     }
 }
 
-/*void ExternalInterrupt::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,*/
-                                              //uint64_t pc) {
-    //signal->connect(sigc::mem_fun(*this, &ExternalInterrupt::onBlockStart));
-/*}*/
+void ExternalInterrupt::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
+                                              uint64_t pc) {
+    signal->connect(sigc::mem_fun(*this, &ExternalInterrupt::onBlockStart));
+}
 
 std::map<uint32_t, bool> setActiveIrqs(std::vector<uint32_t> irqs_bitmap) {
     std::map<uint32_t /* external irq no */, bool /*enable*/> active_irqs;
@@ -169,7 +169,7 @@ std::map<uint32_t, bool> setActiveIrqs(std::vector<uint32_t> irqs_bitmap) {
     return active_irqs;
 }
 
-void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no) {
+void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(ExternalInterruptState, state);
 
     if (plgState->get_systick_flag() == true && systick_disable_flag) {
@@ -180,7 +180,9 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
             s2e()->getExecutor()->disableSystickInterrupt(7);
         }
     }
-
+}
+void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no) {
+    DECLARE_PLUGINSTATE(ExternalInterruptState, state);
     std::vector<uint32_t> irqs_bitmap;
     std::vector<uint32_t> last_irqs_bitmap;
     irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(0));

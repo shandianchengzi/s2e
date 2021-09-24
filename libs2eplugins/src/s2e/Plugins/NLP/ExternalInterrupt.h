@@ -31,6 +31,8 @@ private:
     std::vector<uint32_t> disable_irqs;
     uint64_t systick_begin_point;
 
+    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+    void onBlockStart(S2EExecutionState *state, uint64_t pc);
     void onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no);
 };
 
