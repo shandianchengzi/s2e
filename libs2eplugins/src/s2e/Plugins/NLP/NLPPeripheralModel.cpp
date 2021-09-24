@@ -620,6 +620,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
+    CountDown();
     UpdateGraph(state, Read, phaddr);
 }
 
