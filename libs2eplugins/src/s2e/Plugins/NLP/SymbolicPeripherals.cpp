@@ -1090,6 +1090,13 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     getInfoStream(g_s2e_state) << ss.str() << " size " << hexval(size)
                                 << " SYM NLP value = " << hexval(NLP_value) << "\n";
 
+    uint64_t LSB = ((uint64_t) 1 << (size * 8));
+    if (address == 0x40005410 ||
+        (plgState->get_readphs_count(address) > 300 && !state->regs()->getInterruptFlag())) {
+        getInfoStream() << "return concrete value phaddr = " << hexval(address) << "\n";
+        uint32_t value = NLP_value & (LSB - 1);
+        return klee::ConstantExpr::create(value, size * 8);
+    }
     ConcreteArray concolicValue;
     SymbHwGetConcolicVector(NLP_value, size, concolicValue);
     return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
