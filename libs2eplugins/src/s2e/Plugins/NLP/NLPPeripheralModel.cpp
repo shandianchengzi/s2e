@@ -100,9 +100,9 @@ void NLPPeripheralModel::initialize() {
         sigc::mem_fun(*this, &NLPPeripheralModel::onInvalidStatesDetection));
     onInvalidStateDectionConnection->onForceExitEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onForceIRQCheck));
-    onInvalidStateDectionConnection->onEnableReceiveExternalEvent.connect(
-        sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
-    //s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::CountDown));
+    //onInvalidStateDectionConnection->onEnableReceiveExternalEvent.connect(
+    //    sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
+    s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     s2e()->getCorePlugin()->onExceptionExit.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
     rw_count = 0;
@@ -158,12 +158,15 @@ void NLPPeripheralModel::onInvalidStatesDetection(S2EExecutionState *state, uint
     CountDown();
 }
 
-void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num) {
+void NLPPeripheralModel::onEnableReceive() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
-    getDebugStream() << " write init dr value 0xA!\n";
     //Write a value to DR
-    for (auto phaddr: data_register)
-        plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
+    for (auto phaddr: data_register) {
+        if (disable_init_dr_value_flag[phaddr] != 1) {
+            getInfoStream() << " write init dr value 0xA! phaddr = "<< hexval(phaddr) << "\n";
+            plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
+        }
+    }
     UpdateGraph(g_s2e_state, Write, 0);
 }
 
@@ -224,6 +227,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             if ((reg.type == "R" || reg.type == "T") && std::find(data_register.begin(), data_register.end(), reg.phaddr)
  == data_register.end()) {
                 data_register.push_back(reg.phaddr);
+                disable_init_dr_value_flag[reg.phaddr] = 0;
             }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
@@ -606,15 +610,24 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     rw_count++;
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
+        //Write a value to DR
+        for (auto phaddr: data_register) {
+            if (disable_init_dr_value_flag[phaddr] != 1) {
+                getInfoStream() << " write init dr value 0xA! "<< hexval(phaddr) << "\n";
+                plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
+            }
+        }
+        UpdateGraph(g_s2e_state, Write, 0);
     }
+
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
         uint32_t return_value = 0;
         onBufferInput.emit(state, phaddr, size, &return_value);
         getDebugStream() << "Read data register "<<phaddr<<" width "<<size<<" value "<<*NLPsymbolicvalue<<" "<<plgState->get_dr_value(phaddr, size)<<" return value: "<<return_value<<" \n";
-        for (auto phaddr: data_register)
-            //plgState->hardware_write_to_receive_buffer(phaddr, return_value, size);
-            plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
+        //plgState->hardware_write_to_receive_buffer(phaddr, return_value, size);
+        disable_init_dr_value_flag[phaddr] = 1;
+        plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
         //UpdateGraph(state, Read, phaddr);
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
