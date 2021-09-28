@@ -320,7 +320,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
     kill_count_map[pc]++;
     last_loop_pc = pc;
-    if (kill_count_map[pc] > 3) {
+    if (kill_count_map[pc] > 2) {
         onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         kill_count_map[pc] = 0;
         std::string s;
@@ -551,7 +551,9 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                     onInvalidStatesKill(state, pc, LL2, reason_str);
                 }
             }
-            kill_count_map[last_loop_pc] = 0;
+            if (k == 0) {
+                kill_count_map[last_loop_pc] = 0;
+            }
             plgState->setloopflag(false);
             plgState->inserttbregs(conregs);
             return;
@@ -617,8 +619,6 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
             std::string reason_str = "Kill State due to long loop (single-tb):";
             onInvalidStatesKill(state, pc, LL1, reason_str);
         }
-    } else {
-        kill_count_map[last_loop_pc] = 0;
     }
 
     plgState->inserttbregs(conregs);
