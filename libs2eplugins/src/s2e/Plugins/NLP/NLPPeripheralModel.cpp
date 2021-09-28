@@ -605,33 +605,26 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
 }
 
-void NLPPeripheralModel::onStatistics(uint32_t *write_num, uint32_t *read_num, uint32_t * ta_num,std::map<uint32_t, uint32_t>* ta) {
-    *write_num = write_numbers;
-    *read_num = read_numbers;
-    *ta_num = ta_numbers;
-    *ta = statistics;
-    getWarningsStream() <<"ta: "<<sum_ta<<" "<<unique_ta<<" flag: " <<sum_flag<<" "<<unique_flag<<"\n";
-    std::string NLPfileName = s2e()->getOutputDirectory() + "/" + NLPfileName +
+void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num) {
+    std::string NLPstafileName = s2e()->getOutputDirectory() + "/" + NLPfileName +
                "_NLPStatistics.dat";
     std::ofstream fPHNLP;
-    fPHNLP.open(fileName, std::ios::out | std::ios::trunc);
+    fPHNLP.open(NLPfileName, std::ios::out | std::ios::trunc);
 
-    uint32_t write_num = 0, read_num = 0, ta_num = 0;
-    std::map<uint32_t, uint32_t> tas;
-
-    fPHNLP<< "nlp write: "<< write_num <<"nlp read: "<<read_num<<" ta_num: "<<ta_num<<"\n";
+    fPHNLP << "nlp write: " << write_numbers << " nlp read: " << read_numbers << " ta_num: " << ta_numbers << "\n";
 
     uint32_t sum_ta = 0, sum_flag = 0, unique_ta=0, unique_flag=0;
-    for (auto ta:tas) {
-        if (ta.first>=ta_num) {
+    for (auto ta : statistics) {
+        if (ta.first >= ta_numbers) {
             sum_flag += ta.second;
-            unique_flag+=ta.second>0;
+            unique_flag += ta.second>0;
         } else {
             sum_ta += ta.second;
-            unique_ta+= ta.second>0;
+            unique_ta += ta.second>0;
         }
         fPHNLP <<"id: "<< ta.first <<" cnt: "<< ta.second <<"\n";
     }
+    fPHNLP <<"ta: "<<sum_ta<<" "<<unique_ta<<" flag: " <<sum_flag<<" "<<unique_flag<<"\n";
     fPHNLP.close();
 }
 
