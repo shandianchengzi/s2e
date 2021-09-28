@@ -2087,24 +2087,8 @@ void SymbolicPeripherals::saveKBtoFile(S2EExecutionState *state, uint64_t tb_num
 
     fPHKB.close();
 
-    uint32_t write_num = 0, read_num = 0, ta_num = 0;
-    std::map<uint32_t, uint32_t> tas;
-    onNLPStatisticsEvent.emit(&write_num, &read_num, &ta_num, &tas);
-    getWarningsStream() <<"write: "<<write_num<<" read: "<<read_num<<" ta_num: "<<ta_num<<"\n";
-    uint32_t sum_ta = 0, sum_flag = 0, unique_ta=0, unique_flag=0;
-    for (auto ta:tas) {
-	if (ta.first>=ta_num) {
-		sum_flag += ta.second;
-		unique_flag+=ta.second>0;
-	} else {
-		sum_ta += ta.second;
-		unique_ta+= ta.second>0;
-	}
-	//getInfoStream() <<"id: "<<ta.first<<" cnt: "<<ta.second<<"\n";
-    }
-    getWarningsStream() <<"ta: "<<sum_ta<<" "<<unique_ta<<" flag: " <<sum_flag<<" "<<unique_flag<<"\n"; 
-
     getInfoStream(state) << "=========KB Extraction Phase Finish===========\n";
+
 }
 
 void SymbolicPeripherals::onARMFunctionCall(S2EExecutionState *state, uint32_t caller_pc, uint64_t function_hash) {

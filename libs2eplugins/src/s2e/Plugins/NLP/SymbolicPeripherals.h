@@ -190,9 +190,6 @@ public:
                  unsigned /* size */, uint32_t * /* NLPsymbolicvalue */>
         onSymbolicNLPRegisterReadEvent;
 
-    sigc::signal<void, uint32_t * /*write numbers */, uint32_t * /*read numbers */,uint32_t * ,std::map<uint32_t, uint32_t>*>
-        onNLPStatisticsEvent;
-
     sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint32_t /* physicalAddress */,
                  uint32_t  /* writeconcretevalue */>
         onSymbolicNLPRegisterWriteEvent;

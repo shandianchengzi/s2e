@@ -102,6 +102,7 @@ private:
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
 
+    void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive();
     void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
@@ -112,7 +113,6 @@ private:
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c, int dtype);
     bool compare(uint32_t a1, std::string sym, uint32_t a2);
-    void onStatistics(uint32_t *, uint32_t *,uint32_t *, std::map<uint32_t, uint32_t> *);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
