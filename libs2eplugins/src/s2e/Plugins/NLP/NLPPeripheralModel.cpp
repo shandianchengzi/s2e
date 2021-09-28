@@ -100,7 +100,7 @@ void NLPPeripheralModel::initialize() {
         sigc::mem_fun(*this, &NLPPeripheralModel::onInvalidStatesDetection));
     onInvalidStateDectionConnection->onForceExitEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onForceIRQCheck));
-    onInvalidStateDectionConnection->onLearningTerminationEvent.connect(
+    onInvalidStateDectionConnection->onLearningTerminationEvent2.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
     s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     s2e()->getCorePlugin()->onExceptionExit.connect(
@@ -606,10 +606,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 }
 
 void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num) {
-    std::string NLPstafileName = s2e()->getOutputDirectory() + "/" + NLPfileName +
-               "_NLPStatistics.dat";
+    getInfoStream() << "write NLP files\n";
+    std::string NLPstafileName = s2e()->getOutputDirectory() + "/" +
+               "NLPStatistics.dat";
     std::ofstream fPHNLP;
-    fPHNLP.open(NLPfileName, std::ios::out | std::ios::trunc);
+
+    fPHNLP.open(NLPstafileName, std::ios::out | std::ios::trunc);
 
     fPHNLP << "nlp write: " << write_numbers << " nlp read: " << read_numbers << " ta_num: " << ta_numbers << "\n";
 

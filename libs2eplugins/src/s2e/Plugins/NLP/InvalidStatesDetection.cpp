@@ -349,6 +349,7 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
         (state->regs()->getInterruptFlag() == 0)) {
         getInfoStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
         bool actual_end = true;
+        onLearningTerminationEvent2.emit(state, &actual_end, plgState->getnewtbnum());
         onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
         if (actual_end) {
             getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";

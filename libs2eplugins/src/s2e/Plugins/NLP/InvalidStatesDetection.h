@@ -51,6 +51,9 @@ public:
     sigc::signal<void, S2EExecutionState *, bool * /* succuess or not */, uint64_t /* unique tb num */>
         onLearningTerminationEvent;
 
+    sigc::signal<void, S2EExecutionState *, bool * /* succuess or not */, uint64_t /* unique tb num */>
+        onLearningTerminationEvent2;
+
 private:
     sigc::connection invalidPCAccessConnection;
     sigc::connection blockStartConnection;
