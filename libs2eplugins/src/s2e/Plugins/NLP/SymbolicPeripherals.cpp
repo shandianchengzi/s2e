@@ -1089,7 +1089,7 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     uint32_t NLP_value = concreteValue;
     onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
 
-    getInfoStream(g_s2e_state) << ss.str() << " size " << hexval(size)
+    getWarningsStream(g_s2e_state) << ss.str() << " size " << hexval(size)
                                 << " SYM NLP value = " << hexval(NLP_value) << "\n";
 
     //uint64_t LSB = ((uint64_t) 1 << (size * 8));
