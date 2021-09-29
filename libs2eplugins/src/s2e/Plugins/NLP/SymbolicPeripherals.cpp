@@ -544,6 +544,8 @@ void SymbolicPeripherals::initialize() {
     onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
     onInvalidStateDectionConnection->onInvalidStatesEvent.connect(
         sigc::mem_fun(*this, &SymbolicPeripherals::onInvalidStatesDetection));
+    onInvalidStateDectionConnection->onPreInvalidStatesEvent.connect(
+        sigc::mem_fun(*this, &SymbolicPeripherals::onPreInvalidStatesDetection));
     onInvalidStateDectionConnection->onLearningTerminationEvent.connect(
         sigc::mem_fun(*this, &SymbolicPeripherals::onLearningTerminationDetection));
 
@@ -1090,13 +1092,13 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     getInfoStream(g_s2e_state) << ss.str() << " size " << hexval(size)
                                 << " SYM NLP value = " << hexval(NLP_value) << "\n";
 
-    uint64_t LSB = ((uint64_t) 1 << (size * 8));
+    //uint64_t LSB = ((uint64_t) 1 << (size * 8));
     //getInfoStream() << "return concrete value phaddr = " << hexval(address) << "\n";
-    uint32_t value = NLP_value & (LSB - 1);
-    return klee::ConstantExpr::create(value, size * 8);
-    /*ConcreteArray concolicValue;*/
-    //SymbHwGetConcolicVector(NLP_value, size, concolicValue);
-    /*return state->createSymbolicValue(ss.str(), size * 8, concolicValue);*/
+    //uint32_t value = NLP_value & (LSB - 1);
+    //return klee::ConstantExpr::create(value, size * 8);
+    ConcreteArray concolicValue;
+    SymbHwGetConcolicVector(NLP_value, size, concolicValue);
+    return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
 }
 
 klee::ref<klee::Expr> SymbolicPeripherals::onuEmuLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
@@ -2157,6 +2159,20 @@ void SymbolicPeripherals::onLearningTerminationDetection(S2EExecutionState *stat
     }
 }
 
+void SymbolicPeripherals::onPreInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
+                                                   uint64_t tb_num, bool* uEmu_mode) {
+    DECLARE_PLUGINSTATE(SymbolicPeripheralsState, state);
+    for (auto &it : plgState->getlastfork_phs()) {
+        // nlp regions
+        for (auto nlpph : nlp_mmio) {
+            if (it.first.first >= nlpph.first && it.first.first <= nlpph.second) {
+                getInfoStream() << "last fork in NLP range kill later on\n";
+                *uEmu_mode = false;
+            }
+        }
+    }
+
+}
 void SymbolicPeripherals::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
                                                        uint64_t tb_num) {
     DECLARE_PLUGINSTATE(SymbolicPeripheralsState, state);

@@ -106,7 +106,7 @@ private:
     void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive();
-    void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
+    //void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
     void CountDown();
     void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     uint32_t get_reg_value(RegMap &state_map, Field a);

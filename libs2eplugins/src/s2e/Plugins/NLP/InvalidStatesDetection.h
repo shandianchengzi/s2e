@@ -39,7 +39,8 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */, uint64_t /* unique tb num */>
         onInvalidStatesEvent;
 
-    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */, uint64_t /* unique tb num */>
+    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */,
+                uint64_t /* unique tb num */, bool * /* uEmu or NLP */>
         onPreInvalidStatesEvent;
 
     sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>

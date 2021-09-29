@@ -331,9 +331,21 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         s2e()->getExecutor()->terminateState(*state, s);
     } else {
         getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
-        onPreInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
-        getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
-        s2e()->getExecutor()->setCpuExitRequest();
+        bool uEmu_mode = true;
+        onPreInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum(), &uEmu_mode);
+        if (uEmu_mode) {
+            onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
+            kill_count_map[pc] = 0;
+            std::string s;
+            llvm::raw_string_ostream ss(s);
+            ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
+               << plgState->getnewtbnum() << "\n";
+            ss.flush();
+            s2e()->getExecutor()->terminateState(*state, s);
+        } else {
+            getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
+            s2e()->getExecutor()->setCpuExitRequest();
+        }
     }
 
 }
