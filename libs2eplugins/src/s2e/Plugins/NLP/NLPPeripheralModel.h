@@ -90,6 +90,7 @@ private:
     int ta_numbers=0;
     int read_numbers=0;
     int write_numbers=0;
+    std::map<uint32_t, uint32_t> interrupt_freq;
     CounterList allCounters;
     std::vector<uint32_t> data_register;
     uint32_t timer;

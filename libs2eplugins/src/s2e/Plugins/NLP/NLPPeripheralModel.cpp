@@ -596,6 +596,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             getDebugStream() << "equ.interrupt = " <<equ.interrupt<<" exit_inter = "<<plgState->get_exit_interrupt(equ.interrupt)<< "\n";
 
 	    if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
+		interrupt_freq[equ.interrupt]+=1;
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
                 plgState->set_exit_interrupt(equ.interrupt, true);
@@ -624,9 +625,12 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
             sum_ta += ta.second;
             unique_ta += ta.second>0;
         }
-        fPHNLP <<"id: "<< ta.first <<" cnt: "<< ta.second <<"\n";
+        fPHNLP <<"TA id: "<< ta.first <<" cnt: "<< ta.second <<"\n";
     }
-    fPHNLP <<"ta: "<<sum_ta<<" "<<unique_ta<<" flag: " <<sum_flag<<" "<<unique_flag<<"\n";
+    for (auto interrupt: interrupt_freq) {
+	    fPHNLP<<"interrupt id:"<<interrupt.first<<" freq: "<<interrupt.second<<"\n";
+    }
+    fPHNLP <<"ta: "<<sum_ta<<"\\"<<unique_ta<<" flag: " <<sum_flag<<" \\"<<unique_flag<<"\n";
     fPHNLP.close();
 }
 
