@@ -2168,9 +2168,11 @@ void SymbolicPeripherals::onPreInvalidStatesDetection(S2EExecutionState *state, 
             if (it.first.first >= nlpph.first && it.first.first <= nlpph.second) {
                 getInfoStream() << "last fork in NLP range kill later on\n";
                 *uEmu_mode = false;
+                return;
             }
         }
     }
+    *uEmu_mode = true;
 
 }
 void SymbolicPeripherals::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,

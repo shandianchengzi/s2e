@@ -331,7 +331,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         s2e()->getExecutor()->terminateState(*state, s);
     } else {
         getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
-        bool uEmu_mode = true;
+        bool uEmu_mode = false;
         onPreInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum(), &uEmu_mode);
         if (uEmu_mode) {
             onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
