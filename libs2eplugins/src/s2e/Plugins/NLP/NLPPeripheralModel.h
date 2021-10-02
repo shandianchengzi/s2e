@@ -78,7 +78,8 @@ public:
     }
     void initialize();
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
-    sigc::signal<void, S2EExecutionState *,uint32_t /* physicalAddress */,                uint32_t  /* size */, uint32_t * /* return value */> onBufferInput;
+    sigc::signal<void, S2EExecutionState *,uint32_t /* physicalAddress */,
+        uint32_t  /* size */, uint32_t * /* return value */> onBufferInput;
 
 private:
     InvalidStatesDetection *onInvalidStateDectionConnection;

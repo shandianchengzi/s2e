@@ -197,11 +197,6 @@ public:
     SymbolicPeripherals(S2E *s2e) : Plugin(s2e) {
     }
 
-    sigc::signal<void, S2EExecutionState *, PeripheralRegisterType /* type */, uint64_t /* physicalAddress */,
-                 uint32_t /* t3 rest count */, uint32_t * /* size */, uint32_t * /* fuzz input */,
-                 bool * /* enable fuzz */>
-        onFuzzingInput;
-
     sigc::signal<void, S2EExecutionState *, bool /* fuzzing to learning mode */> onModeSwitch;
 
     void initialize();

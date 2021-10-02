@@ -1196,23 +1196,25 @@ klee::ref<klee::Expr> SymbolicPeripherals::onuEmuLearningMode(S2EExecutionState 
     }
 
     if (enable_fuzzing) {
-        bool fuzzOk = false;
-        uint32_t fuzz_value;
-        uint32_t fuzz_size;
+        //bool fuzzOk = false;
+        //uint32_t fuzz_value;
+        //uint32_t fuzz_size;
 
         if (plgState->get_type_flag_ph_it(phaddr) == T3) {
-            fuzzOk = true;
-            fuzz_size = cache_dr_type_size[phaddr];
+            getWarningsStream() << "Fuzzing input should come from NLP Model peripheral DRs\n";
+            exit(-1);
+            /*fuzzOk = true;*/
+            /*fuzz_size = cache_dr_type_size[phaddr];*/
         }
 
-        onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value, &fuzzOk);
+        /*onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value, &fuzzOk);*/
 
-        if (fuzzOk) {
-            getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
-                             << " pc = " << hexval(pc) << " return value set as zero"
-                             << " size = " << size << "\n";
-            return klee::ConstantExpr::create(0x0, size * 8);
-        }
+        //if (fuzzOk) {
+            //getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
+                             //<< " pc = " << hexval(pc) << " return value set as zero"
+                             //<< " size = " << size << "\n";
+            //return klee::ConstantExpr::create(0x0, size * 8);
+        /*}*/
     }
 
     switch (plgState->get_type_flag_ph_it(phaddr)) {
@@ -1496,32 +1498,35 @@ klee::ref<klee::Expr> SymbolicPeripherals::onuEmuFuzzingMode(S2EExecutionState *
 
     bool fuzzOk = false;
     if (enable_fuzzing) {
-        uint32_t fuzz_value;
-        uint32_t fuzz_size;
+        //uint32_t fuzz_value;
+        //uint32_t fuzz_size;
 
         if (itf->second == T3) {
-            fuzzOk = true;
-            fuzz_size = cache_dr_type_size[phaddr];
-            onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr,
-                                cache_t3_type_phs[itf->first].size(), &fuzz_size, &fuzz_value, &fuzzOk);
-            if (cache_t3_type_phs[itf->first].size() == 0) {
-                getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
-                uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
-                fuzz_value = fuzz_value & (fuzz_LSB - 1);
-                return klee::ConstantExpr::create(fuzz_value, size * 8);
-            }
-        } else {
-            onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value,
-                                &fuzzOk);
-            if (fuzzOk) {
-                getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
-                uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
-                fuzz_value = fuzz_value & (fuzz_LSB - 1);
-                return klee::ConstantExpr::create(fuzz_value, size * 8);
-            }
+            getWarningsStream() << "Fuzzing input should come from NLP Model peripheral DRs\n";
+            exit(-1);
+            /*fuzzOk = true;*/
+            //fuzz_size = cache_dr_type_size[phaddr];
+            //onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr,
+                                //cache_t3_type_phs[itf->first].size(), &fuzz_size, &fuzz_value, &fuzzOk);
+            //if (cache_t3_type_phs[itf->first].size() == 0) {
+                //getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                 //<< " value = " << hexval(fuzz_value) << " size = " << size << "\n";
+                //uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
+                //fuzz_value = fuzz_value & (fuzz_LSB - 1);
+                //return klee::ConstantExpr::create(fuzz_value, size * 8);
+            /*}*/
         }
+        //else {
+            //onFuzzingInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value,
+            //                    &fuzzOk);
+            //if (fuzzOk) {
+                /*getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)*/
+                                 //<< " value = " << hexval(fuzz_value) << " size = " << size << "\n";
+                //uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
+                //fuzz_value = fuzz_value & (fuzz_LSB - 1);
+                /*return klee::ConstantExpr::create(fuzz_value, size * 8);*/
+            //}
+        //}
     }
 
     uint64_t sum_hash;
