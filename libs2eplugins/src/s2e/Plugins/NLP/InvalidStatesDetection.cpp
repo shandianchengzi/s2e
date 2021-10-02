@@ -489,7 +489,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     plgState->setcachenum(cache_tb_num);
     std::vector<uint32_t> conregs = getRegs(state, pc);
 
-    getDebugStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
+    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
                              << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
 
     // kill points defined by users
