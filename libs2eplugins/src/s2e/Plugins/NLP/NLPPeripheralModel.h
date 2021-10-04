@@ -103,7 +103,7 @@ private:
     bool extractCounter(std::string peripheralcache, Counter &counter);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
-
+    std::pair<uint32_t, uint32_t> AddressCorrection(uint32_t phaddr);
     void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive();
