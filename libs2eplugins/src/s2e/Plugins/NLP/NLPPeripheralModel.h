@@ -79,7 +79,7 @@ public:
     void initialize();
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
     sigc::signal<void, S2EExecutionState *,uint32_t /* physicalAddress */,
-        uint32_t  /* size */, uint32_t * /* return value */> onBufferInput;
+        uint32_t  /* size */, uint32_t * /* return value */, bool * /* real all test case or not*/> onBufferInput;
 
 private:
     InvalidStatesDetection *onInvalidStateDectionConnection;
@@ -96,6 +96,10 @@ private:
     std::vector<uint32_t> data_register;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
+    bool enable_fuzzing;
+    uint32_t fork_point;
+    bool init_dr_flag;
+
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
@@ -109,6 +113,7 @@ private:
     void onEnableReceive();
     //void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
     void CountDown();
+    void onForkPoints(S2EExecutionState *state, uint64_t pc);
     void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     uint32_t get_reg_value(RegMap &state_map, Field a);
     void set_reg_value(RegMap &state_map, Field a, uint32_t value);
@@ -119,6 +124,10 @@ private:
                      unsigned size, uint32_t *NLPsymbolicvalue);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      uint32_t  writeconcretevalue);
+    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+    void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
+                             bool staticTarget, uint64_t staticTargetPc);
+    void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
 };
 
 } // namespace plugins
