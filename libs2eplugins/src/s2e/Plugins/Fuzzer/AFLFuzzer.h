@@ -85,18 +85,20 @@ public:
 private:
     sigc::connection concreteDataMemoryAccessConnection;
     sigc::connection invalidPCAccessConnection;
+    sigc::connection blockStartConnection;
     sigc::connection blockEndConnection;
     sigc::connection timerConnection;
 
     TBCounts all_tb_map;
     uint64_t unique_tb_num; // new tb number
     bool enable_fuzzing;
-    std::map<uint32_t /* phaddr */, uint32_t /* size */> input_peripherals;
+    std::map<uint32_t /* phaddr */, uint32_t /* size */> disable_input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
     uint32_t cur_read;
+    bool fork_flag;
+    uint32_t fork_point;
     std::vector<uint32_t> crash_points;
-    uint32_t invaild_pc;
     std::vector<MEM> roms;
     std::vector<MEM> rams;
     uint64_t afl_start_code; /* .text start pointer      */
@@ -107,11 +109,14 @@ private:
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
     void onInvalidPCAccess(S2EExecutionState *state, uint64_t addr);
-    void onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size, uint32_t *value);
+    void onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size, uint32_t *value, bool *empty_flag);
+    void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
+    void onForkPoints(S2EExecutionState *state, uint64_t pc);
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
                              bool staticTarget, uint64_t staticTargetPc);
     void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
+    void forkPoint(S2EExecutionState *state);
     void onTimer();
     void recordTBMap();
 };

@@ -93,12 +93,12 @@ void AFLFuzzer::initialize() {
         return;
     }
 
-    int input_peripheral_size = g_s2e->getConfig()->getListSize(getConfigKey() + ".inputPeripherals", &ok);
+    int disable_input_peripheral_size = g_s2e->getConfig()->getListSize(getConfigKey() + ".disableInputPeripherals", &ok);
 
-    for (unsigned i = 0; i < input_peripheral_size; i++) {
+    for (unsigned i = 0; i < disable_input_peripheral_size; i++) {
         uint32_t phaddr, size;
         std::stringstream ssphs;
-        ssphs << getConfigKey() << ".inputPeripherals"
+        ssphs << getConfigKey() << ".disableInputPeripherals"
               << "[" << (i + 1) << "]";
 
         phaddr = cfg->getInt(ssphs.str() + "[1]", 0, &ok);
@@ -108,7 +108,7 @@ void AFLFuzzer::initialize() {
             Ethernet.size = size;
             Ethernet.pos = 0;
         } else {
-            input_peripherals[phaddr] = size;
+            disable_input_peripherals[phaddr] = size;
         }
 
         getDebugStream() << "Add fuzzing target ph address = " << hexval(phaddr) << " size = " << hexval(size) << "\n";
@@ -181,13 +181,24 @@ void AFLFuzzer::initialize() {
                          << " size:" << hexval(rams[i].size) << "\n";
     }
 
+    blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+        sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockStart));
     blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
         sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
     concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
         sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
-
     invalidPCAccessConnection =
         s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
+
+    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
+    if (!ok || fork_point == 0x0) {
+        getWarningsStream() << " fork point should be set at the beginning of one basic block!\n";
+        exit(-1);
+    } else {
+        getInfoStream() << "fork point = " << hexval(fork_point) << "\n";
+    }
+
+    fork_flag = true;
     timer_ticks = 0;
     timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
@@ -210,19 +221,19 @@ void AFLFuzzer::initialize() {
     unique_tb_num = 0;
 }
 
-static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {
-    union {
-        // XXX: assumes little endianness!
-        uint64_t value;
-        uint8_t array[8];
-    };
+/*static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {*/
+    //union {
+        //// XXX: assumes little endianness!
+        //uint64_t value;
+        //uint8_t array[8];
+    //};
 
-    value = in;
-    out.resize(size);
-    for (unsigned i = 0; i < size; ++i) {
-        out[i] = array[i];
-    }
-}
+    //value = in;
+    //out.resize(size);
+    //for (unsigned i = 0; i < size; ++i) {
+        //out[i] = array[i];
+    //}
+/*}*/
 
 template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
     auto size = sizeof(T);
@@ -232,13 +243,13 @@ template <typename T> static bool getConcolicValue(S2EExecutionState *state, uns
         klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
         *value = ce->getZExtValue();
         return true;
+    } else {
+        // evaluate symobolic regs
+        klee::ref<klee::ConstantExpr> ce;
+        ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+        *value = ce->getZExtValue();
+        return false;
     }
-
-    // evaluate symobolic regs
-    klee::ref<klee::ConstantExpr> ce;
-    ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
-    *value = ce->getZExtValue();
-    return true;
 }
 
 static void PrintRegs(S2EExecutionState *state) {
@@ -246,8 +257,11 @@ static void PrintRegs(S2EExecutionState *state) {
         unsigned offset = offsetof(CPUARMState, regs[i]);
         target_ulong concreteData;
 
-        getConcolicValue(state, offset, &concreteData);
-        g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+        if (getConcolicValue(state, offset, &concreteData)) {
+            g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+        } else {
+            g_s2e->getWarningsStream() << "Sym Regs " << i << " = " << hexval(concreteData) << "\n";
+        }
     }
 }
 
@@ -368,16 +382,16 @@ void AFLFuzzer::onTimer() {
     //}
 /*}*/
 
-void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size, uint32_t *value) {
-    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
+void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size,
+                            uint32_t *value, bool *empty_flag) {
 
     bool doFuzz;
     doFuzz = true;
     memset(value, 0, 4 * sizeof(char));
-    for (auto input_peripheral : input_peripherals) {
-        if (input_peripheral.first == phaddr) {
-            doFuzz = true;
-            size = input_peripherals[phaddr];
+    for (auto disable_input_peripheral : disable_input_peripherals) {
+        if (disable_input_peripheral.first == phaddr) {
+            doFuzz = false;
+            size = disable_input_peripherals[phaddr];
             break;
         }
     }
@@ -392,35 +406,20 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
     }
 
     if (doFuzz) {
-        if (plgState->get_hit_count() == 0) {
-            afl_con->AFL_return = 0;
-            invaild_pc = 0;
-            cur_read = 0;
-            Ethernet.pos = 0;
-            getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
-                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
-            hw::ConcreteArray concolicValue;
-            SymbHwGetConcolicVector(0x0, size, concolicValue);
-            klee::ref<klee::Expr> original_value =
-                state->createSymbolicValue("checking_point", size * 8, concolicValue);
-            s2e()->getExecutor()->forkAndConcretize(state, original_value);
-        }
-
-        plgState->inc_hit_count();
         timer_ticks = 0;
-
         if (cur_read >= afl_con->AFL_size) {
             cur_read = 0;
-            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-            afl_con->AFL_input = 0;
+            *empty_flag = true;
+            return;
         }
 
         if (afl_con->AFL_input) {
-            getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
+            getInfoStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
                              << " cur_read = " << cur_read << "\n";
             memcpy(value, testcase + cur_read, size);
             cur_read += size;
         } else {
+            getWarningsStream() << "AFL testcase is not ready!! return 0\n";
             memset(value, 0, 4 * sizeof(char));
             cur_read = 0;
         }
@@ -572,6 +571,67 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         onCrashHang(state, 1);
     }
 }
+
+void AFLFuzzer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state,
+                                                   TranslationBlock *tb, uint64_t pc) {
+    signal->connect(sigc::mem_fun(*this, &AFLFuzzer::onForkPoints));
+}
+
+void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
+    if (pc == fork_point) {
+        if (fork_flag == false) {
+            fork_flag = true;
+            std::string s;
+            llvm::raw_string_ostream ss(s);
+            ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
+            ss.flush();
+            s2e()->getExecutor()->terminateState(*state, s);
+        } else {
+            getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            forkPoint(state);
+            PrintRegs(state);
+            fork_flag = false;
+            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+            afl_con->AFL_input = 0;
+            cur_read = 0;
+            Ethernet.pos = 0;
+            afl_con->AFL_return = 0;
+            timer_ticks = 0;
+        }
+    }
+}
+
+void AFLFuzzer::forkPoint(S2EExecutionState *state) {
+    //target_ulong count;
+    //target_ulong nameptr;
+
+    state->jumpToSymbolicCpp();
+
+
+    std::string name = "fork_point";
+
+    // add a meaningless symbol for a cond to fork
+    klee::ref<klee::Expr> var = state->createSymbolicValue<uint32_t>(name, 0);
+
+    for (unsigned i = 1; i < 2; ++i) {
+        klee::ref<klee::Expr> val = klee::ConstantExpr::create(i, var->getWidth());
+        klee::ref<klee::Expr> cond = klee::NeExpr::create(var, val);
+
+        klee::Executor::StatePair sp = s2e()->getExecutor()->forkCondition(state, cond, true);
+        assert(sp.first == state);
+        assert(sp.second && sp.second != sp.first);
+        if (sp.second) {
+            // Re-execute the plugin invocation in the other state
+            sp.second->pc = sp.second->prevPC;
+        }
+    }
+
+    /*klee::ref<klee::Expr> cond = klee::EqExpr::create(var, klee::ConstantExpr::create(0, var->getWidth()));*/
+    //if (!state->addConstraint(cond)) {
+        //s2e()->getExecutor()->terminateState(*state, "Could not add condition");
+    /*}*/
+}
+
 
 } // namespace plugins
 } // namespace s2e
