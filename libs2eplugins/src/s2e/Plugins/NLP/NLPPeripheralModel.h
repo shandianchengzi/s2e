@@ -22,7 +22,7 @@ namespace s2e {
 static const boost::regex MemoRegEx("([A-Z]_[a-z\\d]+_[a-z\\d]+)", boost::regex::perl);
 //static const boost::regex TARegEx("([TRPCO\\*],[\\*a-z\\d]+,[\\*\\d]+,[=><\\*]{1,2},[a-zTRPCO\\d\\*,]+)", boost::regex::perl);
 static const boost::regex TARegEx("([a-zA-Z\\d\\*,=></]+)", boost::regex::perl);
-static const boost::regex CounterEx("([a-zA-Z\\d\\*,/\\-]+)", boost::regex::perl);
+static const boost::regex FlagEx("([a-zA-Z\\d\\*,/\\-]+)", boost::regex::perl);
 namespace plugins {
 
 typedef struct field {
@@ -52,18 +52,18 @@ typedef struct peripheralReg {
     uint32_t r_value;
 } PeripheralReg;
 
-typedef struct counter {
+typedef struct flag {
 	Field a;
 	uint32_t freq;
         std::vector<int32_t> value;
 	//int32_t value;
-} Counter;
+} Flag;
 
 typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
 typedef std::pair<EquList, EquList> TA;
 typedef std::vector<TA> TAMap;
-typedef std::vector<Counter> CounterList;
+typedef std::vector<Flag> FlagList;
 
 enum RWType { Write, Read };
 //std::map<std::string, uint32_t> symbol_list = {
@@ -92,7 +92,7 @@ private:
     int read_numbers=0;
     int write_numbers=0;
     std::map<uint32_t, uint32_t> interrupt_freq;
-    CounterList allCounters;
+    FlagList allFlags;
     std::vector<uint32_t> data_register;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
@@ -104,15 +104,15 @@ private:
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
-    bool extractCounter(std::string peripheralcache, Counter &counter);
+    bool extractFlag(std::string peripheralcache, Flag &flag);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
-    std::pair<uint32_t, uint32_t> AddressCorrection(uint32_t phaddr);
+    std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state,uint32_t phaddr);
     void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive();
     //void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
-    void CountDown();
+    void UpdateFlag();
     void onForkPoints(S2EExecutionState *state, uint64_t pc);
     void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     uint32_t get_reg_value(RegMap &state_map, Field a);

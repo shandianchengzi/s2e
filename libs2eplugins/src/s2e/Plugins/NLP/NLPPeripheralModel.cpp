@@ -133,7 +133,6 @@ uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
         for (int i = 0; i < a.bits.size(); ++i) {
             int tmp = a.bits[i];
             res = (res<<1) + (state_map[a.phaddr].cur_value >> tmp & 1);
-	    getDebugStream() << "get bit "<<tmp<<" cur at bit "<<(state_map[a.phaddr].cur_value >> tmp & 1)<<res<<"\n";
         }
     }
     return res;
@@ -166,7 +165,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 
 //void NLPPeripheralModel::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
 //                                                       uint64_t tb_num) {
-    //CountDown();
+    //UpdateFlag();
 //}
 
 void NLPPeripheralModel::onEnableReceive() {
@@ -181,18 +180,18 @@ void NLPPeripheralModel::onEnableReceive() {
     UpdateGraph(g_s2e_state, Write, 0);
 }
 
-void NLPPeripheralModel::CountDown() {
+void NLPPeripheralModel::UpdateFlag() {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     RegMap state_map = plgState->get_state_map();
     if (rw_count > 1) {
         timer += 1;
-        getDebugStream()<<"start CountDown"<<rw_count<<" "<<timer<<" "<<allCounters.size()<<"\n";
+        getDebugStream()<<"start UpdateFlag"<<rw_count<<" "<<timer<<" "<<allFlags.size()<<"\n";
 
         int _idx = ta_numbers;
-        for (auto c: allCounters) {
+        for (auto c: allFlags) {
             if (timer % c.freq == 0) {
 		        if (c.a.type == "O") {
-                    getDebugStream()<<"old Counter"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
+                    getDebugStream()<<"old Flag"<<state_map[c.a.phaddr].cur_value<<" bits "<<c.a.bits[0]<<"\n";
                     int tmp = c.value[std::rand() % c.value.size()];
                     set_reg_value(state_map, c.a, tmp);
                     if (c.value.size() == 1)
@@ -200,13 +199,13 @@ void NLPPeripheralModel::CountDown() {
                     else
                         statistics[++_idx] += 1;
                     //set_reg_value(state_map, c.a, c.value);
-                    getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
-                    //getDebugStream() << "Counter "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
+                    getDebugStream() << "Flag "<< hexval(c.a.phaddr)<<" value "<<tmp <<" size "<<c.value.size()<<" "<<std::rand()<< "\n";
+                    //getDebugStream() << "Flag "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
                 }
 
                 plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
                 auto tmp = plgState->get_state_map();
-                getDebugStream()<<"new Counter"<<tmp[c.a.phaddr].cur_value<<"\n";
+                getDebugStream()<<"new Flag"<<tmp[c.a.phaddr].cur_value<<"\n";
             }
         }
         //UpdateGraph(g_s2e_state, Write, 0);
@@ -282,9 +281,9 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     ta_numbers = _idx;
 
     while (getline(fNLP, peripheralcache)) {
-        Counter count;
-        if (extractCounter(peripheralcache, count)) {
-            allCounters.push_back(count);
+        Flag count;
+        if (extractFlag(peripheralcache, count)) {
+            allFlags.push_back(count);
             statistics[++_idx] = 0;
         } else {
             return false;
@@ -434,32 +433,32 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
     return true;
 }
 
-bool NLPPeripheralModel::extractCounter(std::string peripheralcache, Counter &counter) {
+bool NLPPeripheralModel::extractFlag(std::string peripheralcache, Flag &flag) {
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
-    if (!boost::regex_match(peripheralcache, what, CounterEx)) {
-        getWarningsStream() << "extractCounter match false\n";
+    if (!boost::regex_match(peripheralcache, what, FlagEx)) {
+        getWarningsStream() << "extractFlag match false\n";
         exit(0);
         return false;
     }
     if (what.size() != 2) {
-        getWarningsStream() << "extractCounter wrong size = " << what.size() << "\n";
+        getWarningsStream() << "extractFlag wrong size = " << what.size() << "\n";
         exit(0);
         return false;
     }
     std::vector<std::string> v;
     SplitString(what[1], v, ",");
-    counter.a.type = v[0];
-    counter.a.phaddr = std::stoull(v[1].c_str(), NULL, 16);
+    flag.a.type = v[0];
+    flag.a.phaddr = std::stoull(v[1].c_str(), NULL, 16);
     if (v[2] == "*")
-        counter.a.bits = {-1};
+        flag.a.bits = {-1};
     else {
-        SplitStringToInt(v[2], counter.a.bits, "/",10);
+        SplitStringToInt(v[2], flag.a.bits, "/",10);
     }
-    counter.freq = std::stoull(v[3].c_str(), NULL, 10);
-    //counter.value = std::stoi(v[4].c_str(), NULL, 16);
-    SplitStringToInt(v[4], counter.value, "/", 16);
-    getWarningsStream() << "extractCounter  " << hexval(counter.a.phaddr)<< " "<<counter.a.bits[0] << "\n";
+    flag.freq = std::stoull(v[3].c_str(), NULL, 10);
+    //flag.value = std::stoi(v[4].c_str(), NULL, 16);
+    SplitStringToInt(v[4], flag.value, "/", 16);
+    getWarningsStream() << "extractFlag  " << hexval(flag.a.phaddr)<< " "<<flag.a.bits[0] << "\n";
     return true;
 }
 
@@ -589,7 +588,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 a2 = state_map[equ.a2.phaddr].cur_value;
             } else if (equ.type_a2 == "F"){
                 a2 = get_reg_value(state_map, equ.a2);
-		getDebugStream() << "get by address, phaddr"<<equ.a2.phaddr<<" "<<a2<<"\n";
+		getDebugStream() << "get by address, phaddr"<<hexval(equ.a2.phaddr)<<" "<<a2<<"\n";
             } else {
                 a2 = equ.value;
             }
@@ -653,9 +652,19 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     fPHNLP.close();
 }
 
-std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(uint32_t phaddr) {
-	uint32_t new_phaddr = phaddr & 0xFFFFFFFC;
+std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(S2EExecutionState *state, uint32_t phaddr) {
+	DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+	RegMap state_map = plgState->get_state_map();
+	if (state_map.find(phaddr) != state_map.end())
+		return {phaddr, 0};
+	auto uppper_node = state_map.upper_bound(phaddr);
+	//uint32_t new_phaddr = phaddr & 0xFFFFFFFC;
+	if (uppper_node != state_map.begin())
+        	uppper_node--;
+	uint32_t new_phaddr = uppper_node->first;
 	uint32_t offset = (phaddr-new_phaddr)*8;
+	if (offset != 0)
+		getDebugStream() << "correction "<<hexval(phaddr)<<" new correction "<<hexval(new_phaddr)<<" \n";
 	return {new_phaddr, offset};
 }
 
@@ -674,8 +683,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         UpdateGraph(g_s2e_state, Write, 0);
     }
     read_numbers += 1;
-    CountDown();
-    auto correction = AddressCorrection(phaddr);
+    UpdateFlag();
+    auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         disable_init_dr_value_flag[phaddr] = 1;
@@ -697,10 +706,11 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
     UpdateGraph(state, Read, phaddr);
+    getDebugStream() << "correction "<<hexval(phaddr)<<" value "<<*NLPsymbolicvalue<<" \n";
     if (correction.second != 0) {
 	    *NLPsymbolicvalue = *NLPsymbolicvalue >> correction.second;
     }
-    getDebugStream() << "Read phaddr "<<phaddr<<" value "<<*NLPsymbolicvalue<<" \n";
+    getDebugStream() << "Read phaddr "<<hexval(phaddr)<<" value "<<*NLPsymbolicvalue<<" \n";
 }
 
 void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type,
@@ -719,7 +729,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         UpdateGraph(g_s2e_state, Write, 0);
     }
     write_numbers += 1;
-    auto correction = AddressCorrection(phaddr);
+    auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
     if (correction.second != 0) {
             writeconcretevalue = writeconcretevalue << correction.second;
