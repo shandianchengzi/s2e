@@ -272,6 +272,10 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
                 start = std::min(start, equ.a1.phaddr);
                 end = std::max(end, equ.a1.phaddr);
             }
+            for (auto equ: action) {
+                start = std::min(start, equ.a1.phaddr);
+                end = std::max(end, equ.a1.phaddr);
+            }
             statistics[++_idx] = 0;
         } else {
             return false;
