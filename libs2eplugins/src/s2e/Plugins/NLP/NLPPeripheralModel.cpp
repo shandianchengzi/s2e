@@ -121,6 +121,7 @@ uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
         for (int i = 0; i < a.bits.size(); ++i) {
             int tmp = a.bits[i];
             res = (res<<1) + (state_map[a.phaddr].cur_value >> tmp & 1);
+	    getDebugStream() << "get bit "<<tmp<<" cur at bit "<<(state_map[a.phaddr].cur_value >> tmp & 1)<<res<<"\n";
         }
     }
     return res;
@@ -387,10 +388,10 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
                 equ.value = 0;
                 equ.a2.type = v[4];
                 equ.a2.phaddr = std::stoull(v[5].c_str(), NULL, 16);
-                if (v[5] == "*")
+                if (v[6] == "*")
                     equ.a2.bits = {-1};
                 else {
-                    SplitStringToInt(v[5], equ.a2.bits, "/",10);
+                    SplitStringToInt(v[6], equ.a2.bits, "/",10);
                 }
             } else if (v[4][0] != '*') {
                 equ.type_a2 = "V";
@@ -569,6 +570,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 a2 = state_map[equ.a2.phaddr].cur_value;
             } else if (equ.type_a2 == "F"){
                 a2 = get_reg_value(state_map, equ.a2);
+		getDebugStream() << "get by address, phaddr"<<equ.a2.phaddr<<" "<<a2<<"\n";
             } else {
                 a2 = equ.value;
             }
@@ -632,23 +634,30 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     fPHNLP.close();
 }
 
+std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(uint32_t phaddr) {
+	uint32_t new_phaddr = phaddr & 0xFFFFFFFC;
+	uint32_t offset = (phaddr-new_phaddr)*8;
+	return {new_phaddr, offset};
+}
+
 void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     rw_count++;
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
         //Write a value to DR
-        for (auto phaddr: data_register) {
-            if (disable_init_dr_value_flag[phaddr] != 1) {
-                getWarningsStream() << " write init dr value 0xA! "<< hexval(phaddr) << "\n";
-                plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
+        for (auto _phaddr: data_register) {
+            if (disable_init_dr_value_flag[_phaddr] != 1) {
+                getWarningsStream() << " write init dr value 0xA! "<< hexval(_phaddr) << "\n";
+                plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 32);
             }
         }
         UpdateGraph(g_s2e_state, Write, 0);
     }
     read_numbers += 1;
     CountDown();
-
+    auto correction = AddressCorrection(phaddr);
+    phaddr = correction.first;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
         uint32_t return_value = 0;
@@ -662,6 +671,10 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
     UpdateGraph(state, Read, phaddr);
+    if (correction.second != 0) {
+	    *NLPsymbolicvalue = *NLPsymbolicvalue >> correction.second;
+    }
+        getDebugStream() << "Read phaddr "<<phaddr<<" value "<<*NLPsymbolicvalue<<" \n";
 }
 
 void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type,
@@ -671,15 +684,20 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
         //Write a value to DR
-        for (auto phaddr: data_register) {
-            if (disable_init_dr_value_flag[phaddr] != 1) {
-                getWarningsStream() << " write init dr value 0xA! "<< hexval(phaddr) << "\n";
-                plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
+        for (auto _phaddr: data_register) {
+            if (disable_init_dr_value_flag[_phaddr] != 1) {
+                getWarningsStream() << " write init dr value 0xA! "<< hexval(_phaddr) << "\n";
+                plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 32);
             }
         }
         UpdateGraph(g_s2e_state, Write, 0);
     }
     write_numbers += 1;
+    auto correction = AddressCorrection(phaddr);
+    phaddr = correction.first;
+    if (correction.second != 0) {
+            writeconcretevalue = writeconcretevalue << correction.second;
+    }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         plgState->write_dr_value(phaddr, writeconcretevalue, 32);
         getDebugStream() << "Write to data register "<<phaddr<<" "<<hexval(phaddr)<<" value: "<<writeconcretevalue<<" \n";

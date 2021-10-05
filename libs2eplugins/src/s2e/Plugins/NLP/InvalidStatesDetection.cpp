@@ -320,7 +320,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
     kill_count_map[pc]++;
     last_loop_pc = pc;
-    if (kill_count_map[pc] > 2) {
+    if (kill_count_map[pc] > 3) {
         onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         kill_count_map[pc] = 0;
         std::string s;
