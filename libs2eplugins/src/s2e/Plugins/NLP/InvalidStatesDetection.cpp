@@ -408,10 +408,10 @@ void InvalidStatesDetection::onInvalidPCAccess(S2EExecutionState *state, uint64_
 void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
 
-    getDebugStream() << "InvalidStatesDetection in cache mode " << plgState->getnewtbnum() << " pc = " << hexval(pc)
+    getInfoStream() << "InvalidStatesDetection in cache mode " << plgState->getnewtbnum() << " pc = " << hexval(pc)
                      << " disable_interrupt_count = " << disable_interrupt_count
-                     << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
-
+                     << " interrupt flag = " << state->regs()->getInterruptFlag()
+                     << " concrete mode: " << g_s2e_fast_concrete_invocation << "\n";
     if (plgState->inctbnum(pc)) {
         getInfoStream() << "The unqiue number of the executed basic blocks in current state is "
                             << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";

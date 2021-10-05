@@ -653,7 +653,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
         uint32_t return_value = 0;
         onBufferInput.emit(state, phaddr, size, &return_value);
-        getDebugStream() << "Read data register "<<phaddr<<" width "<<size<<" value "<<*NLPsymbolicvalue<<" "<<plgState->get_dr_value(phaddr, size)<<" return value: "<<return_value<<" \n";
+        getDebugStream() << "Read data register "<< hexval(phaddr) <<" width "<<size<<" value "<<*NLPsymbolicvalue<<" "<<plgState->get_dr_value(phaddr, size)<<" return value: "<<return_value<<" \n";
         //plgState->hardware_write_to_receive_buffer(phaddr, return_value, size);
         disable_init_dr_value_flag[phaddr] = 1;
         plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 32);
