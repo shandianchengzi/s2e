@@ -3370,6 +3370,8 @@ void SymbolicPeripherals::onSymbolicAddress(S2EExecutionState *state, ref<Expr> 
 klee::ref<klee::Expr> SymbolicPeripherals::switchModefromFtoL(S2EExecutionState *state, std::string ss,
                                                                   uint32_t phaddr, unsigned size,
                                                                   uint64_t concreteValue) {
+    getWarningsStream() << "should not be switch to learning mode with NLP\n";
+    exit(-1);
     DECLARE_PLUGINSTATE(SymbolicPeripheralsState, state);
     uint32_t pc = state->regs()->getPc();
     getInfoStream() << "New peripheral has found, ph addr = " << hexval(phaddr) << " pc = " << hexval(pc) << "\n";
