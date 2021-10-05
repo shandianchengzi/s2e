@@ -102,17 +102,19 @@ void NLPPeripheralModel::initialize() {
         sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
     enable_fuzzing = s2e()->getConfig()->getBool(getConfigKey() + ".useFuzzer", false);
     if (enable_fuzzing) {
-        bool ok;
         init_dr_flag = false;
-        s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-            sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockStart));
         s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
             sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
-        fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
     } else {
         s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     }
 
+    bool ok;
+    fork_point_count = 0;
+    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
+    getWarningsStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
+    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+        sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockStart));
     s2e()->getCorePlugin()->onExceptionExit.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
     rw_count = 0;
@@ -757,6 +759,8 @@ void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecu
 void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc){
     if (pc == fork_point) {
         init_dr_flag = true;
+        fork_point_count++;
+        getWarningsStream() << "Main Loop Point Count = " << fork_point_count << "\n";
     }
 }
 
