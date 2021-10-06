@@ -122,7 +122,7 @@ private:
     void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c, int dtype);
     bool compare(uint32_t a1, std::string sym, uint32_t a2);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
-                     unsigned size, uint32_t *NLPsymbolicvalue);
+                     unsigned size, uint32_t *NLPsymbolicvalue, bool *flag);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                      uint32_t  writeconcretevalue);
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);

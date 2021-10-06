@@ -1087,7 +1087,8 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     ss << "_" << hexval(size);
 
     uint32_t NLP_value = concreteValue;
-    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
+    bool flag = false;
+    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value, &flag);
 
     getWarningsStream(g_s2e_state) << ss.str() << " size " << hexval(size)
                                 << " SYM NLP value = " << hexval(NLP_value) << "\n";
@@ -1454,7 +1455,8 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPFuzzingMode(S2EExecutionState *s
     ss << "_" << hexval(size);
 
     uint32_t NLP_value = concreteValue;
-    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value);
+    bool flag = false;
+    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value, &flag);
 
     getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size)
                                 << " NLP value = " << hexval(NLP_value) << "\n";
@@ -1775,7 +1777,8 @@ void SymbolicPeripherals::onWritePeripheral(S2EExecutionState *state, uint64_t p
     if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc) {
         bit_loc = ((phaddr - 0x42000000) % 32) / 4;
         phaddr = (phaddr - 0x42000000) / 32 + 0x40000000;
-        onSymbolicNLPRegisterReadEvent.emit(state, SYMB_MMIO, phaddr, 0x4, &temp_value);
+	bool flag = false;
+        onSymbolicNLPRegisterReadEvent.emit(state, SYMB_MMIO, phaddr, 0x4, &temp_value, &flag);
         getDebugStream() << "write bit band alias address = " << hexval(phaddr)
                          << " bit loc = " << hexval(bit_loc) << " nlp value =" << hexval(temp_value) <<"\n";
         bit_alias = true;

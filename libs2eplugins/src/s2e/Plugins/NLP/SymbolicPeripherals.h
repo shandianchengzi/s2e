@@ -187,7 +187,7 @@ private:
 
 public:
     sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint32_t /* physicalAddress */,
-                 unsigned /* size */, uint32_t * /* NLPsymbolicvalue */>
+                 unsigned /* size */, uint32_t * /* NLPsymbolicvalue */, bool *>
         onSymbolicNLPRegisterReadEvent;
 
     sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint32_t /* physicalAddress */,

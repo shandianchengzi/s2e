@@ -674,7 +674,7 @@ std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(S2EExecution
 	return {new_phaddr, offset};
 }
 
-void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue) {
+void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue, bool *flag) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     rw_count++;
     if (rw_count == 1 && !enable_fuzzing) {
@@ -692,7 +692,9 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     UpdateFlag();
     auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
+    *flag = false;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
+        *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
         if (enable_fuzzing) {
             uint32_t return_value = 0;
