@@ -696,11 +696,11 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
+        *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
         if (enable_fuzzing) {
             uint32_t return_value = 0;
             bool empty_flag = false;
             onBufferInput.emit(state, phaddr, size, &return_value, &empty_flag);
-            *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
             if (!empty_flag) {
                 getDebugStream() << "Read data register "<< hexval(phaddr) <<" width " << size
                     << " value " << *NLPsymbolicvalue
