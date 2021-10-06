@@ -343,7 +343,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
             ss.flush();
             s2e()->getExecutor()->terminateState(*state, s);
         } else {
-            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
+            //onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
             getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
             s2e()->getExecutor()->setCpuExitRequest();
         }
@@ -432,8 +432,9 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
     }
 
     if (!state->regs()->getInterruptFlag()) {
-        if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 1000 == 0) {
             getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
+            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
             g_s2e_allow_interrupt = 1;
             s2e()->getExecutor()->setCpuExitRequest();
         }
@@ -459,7 +460,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     // we should make sure new tb in normal mode will be executed after interrupt
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
-        disable_interrupt_count = cache_tb_num;
+        disable_interrupt_count = cache_tb_num*5;
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;

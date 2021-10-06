@@ -98,14 +98,14 @@ void NLPPeripheralModel::initialize() {
     onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
     onInvalidStateDectionConnection->onLearningTerminationEvent2.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
+    onInvalidStateDectionConnection->onReceiveExternalDataEvent.connect(
+        sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
+
     enable_fuzzing = s2e()->getConfig()->getBool(getConfigKey() + ".useFuzzer", false);
     if (enable_fuzzing) {
         init_dr_flag = false;
         s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
             sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
-    } else {
-        onInvalidStateDectionConnection->onReceiveExternalDataEvent.connect(
-            sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     }
 
     bool ok;
@@ -172,9 +172,11 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     //Write a value to DR
-    for (auto phaddr: data_register) {
-        getWarningsStream() << " write init dr value 0xA! phaddr = "<< hexval(phaddr) << "\n";
-        plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 4);
+    if (!enable_fuzzing) {
+        for (auto phaddr: data_register) {
+            getWarningsStream() << " write init dr value 0xA! phaddr = "<< hexval(phaddr) << "\n";
+            plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 4);
+        }
     }
     UpdateGraph(g_s2e_state, Write, 0);
 }
