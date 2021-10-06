@@ -343,6 +343,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
             ss.flush();
             s2e()->getExecutor()->terminateState(*state, s);
         } else {
+            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
             getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
             s2e()->getExecutor()->setCpuExitRequest();
         }
@@ -353,9 +354,6 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
 bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
 
-    if (plgState->getretbnum() == terminate_tb_num / 2) {
-        onEnableReceiveExternalEvent.emit(state, pc, plgState->getretbnum());
-    }
     // learning mode termination and switch to cache mode
     if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
@@ -437,7 +435,6 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
         if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
             getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
             g_s2e_allow_interrupt = 1;
-            onForceExitEvent.emit(state, pc, plgState->gettbnum());
             s2e()->getExecutor()->setCpuExitRequest();
         }
     }
@@ -482,6 +479,12 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         if (plgState->inctbnum(pc)) {
             getWarningsStream() << "InvalidStatesDetection in learning mode new tb num = " << plgState->getnewtbnum()
                                 << " pc = " << hexval(pc) << "\n";
+        }
+    }
+
+    if (!state->regs()->getInterruptFlag()) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 1000 == 0) {
+            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
         }
     }
 

@@ -43,11 +43,11 @@ public:
                 uint64_t /* unique tb num */, bool * /* uEmu or NLP */>
         onPreInvalidStatesEvent;
 
-    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>
-        onForceExitEvent;
+    //sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>
+    //    onForceExitEvent;
 
-    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* re tb num */>
-        onEnableReceiveExternalEvent;
+    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, uint64_t /* tb num */>
+        onReceiveExternalDataEvent;
 
     sigc::signal<void, S2EExecutionState *, bool * /* succuess or not */, uint64_t /* unique tb num */>
         onLearningTerminationEvent;

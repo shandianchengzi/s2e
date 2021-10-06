@@ -111,11 +111,11 @@ private:
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state,uint32_t phaddr);
     void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
-    void onEnableReceive();
+    void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
     //void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
     void UpdateFlag();
     void onForkPoints(S2EExecutionState *state, uint64_t pc);
-    void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
+    //void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     uint32_t get_reg_value(RegMap &state_map, Field a);
     void set_reg_value(RegMap &state_map, Field a, uint32_t value);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);

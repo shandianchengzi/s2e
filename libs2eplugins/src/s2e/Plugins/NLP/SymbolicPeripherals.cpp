@@ -2512,6 +2512,14 @@ void SymbolicPeripherals::onFork(S2EExecutionState *state, const std::vector<S2E
                 // update cachefork after T3 check
                 cachefork_phs[k][uniquePeripheral][ch_value] = std::make_pair(no, value);
                 plgState->insert_cachephs(phaddr, no, value);
+                fork_states_values.push_back(value);
+                // divide irq data regs with sr and cr regs
+                if (newStates[k]->regs()->getInterruptFlag()) {
+                    if (newStates[k]->regs()->getExceptionIndex() > 15) {
+                        // used for irq sr type judgement
+                        plgState->insert_current_irq_values(phaddr, value);
+                    }
+                }
                 getInfoStream(newStates[k]) << " nlp cache phaddr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                         << " value = " << hexval(value) << " no = " << no
                                         << " width = " << hexval(ch_value)  << "value = " << hexval(value) << "\n";
