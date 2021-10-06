@@ -1087,13 +1087,13 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     ss << "_" << hexval(size);
 
     uint32_t NLP_value = concreteValue;
-    bool flag = false;
-    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value, &flag);
+    bool dr_flag = false;
+    onSymbolicNLPRegisterReadEvent.emit(state, type, address, size, &NLP_value, &dr_flag);
 
-    getWarningsStream(g_s2e_state) << ss.str() << " size " << hexval(size)
+    getWarningsStream(g_s2e_state) << ss.str() << " size " << hexval(size) << "dr flag = " << dr_flag
                                 << " SYM NLP value = " << hexval(NLP_value) << "\n";
 
-    if (address == 0x40005410) {
+    if (dr_flag) {
         uint64_t LSB = ((uint64_t) 1 << (size * 8));
         getInfoStream() << "return concrete value phaddr = " << hexval(address) << "\n";
         uint32_t value = NLP_value & (LSB - 1);
