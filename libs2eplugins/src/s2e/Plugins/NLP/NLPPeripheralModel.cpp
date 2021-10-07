@@ -463,7 +463,7 @@ bool NLPPeripheralModel::extractFlag(std::string peripheralcache, Flag &flag) {
     flag.freq = std::stoull(v[3].c_str(), NULL, 10);
     //flag.value = std::stoi(v[4].c_str(), NULL, 16);
     SplitStringToInt(v[4], flag.value, "/", 16);
-    getWarningsStream() << "extractFlag  " << hexval(flag.a.phaddr)<< " "<<flag.a.bits[0] << "\n";
+    getInfoStream() << "extractFlag  " << hexval(flag.a.phaddr)<< " "<<flag.a.bits[0] << "\n";
     return true;
 }
 
@@ -676,14 +676,16 @@ std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(S2EExecution
 void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size, uint32_t *NLPsymbolicvalue, bool *flag) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     rw_count++;
-    if (rw_count == 1 && !enable_fuzzing) {
+    if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
-        //Write a value to DR
-        for (auto _phaddr: data_register) {
-            getWarningsStream() << " write init dr value 0xA! "<< hexval(_phaddr) << "\n";
-            plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 4);
+        if (!enable_fuzzing) {
+            //Write a value to DR
+            for (auto _phaddr: data_register) {
+                getWarningsStream() << " write init dr value 0xA! "<< hexval(_phaddr) << "\n";
+                plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 4);
+            }
+            UpdateGraph(g_s2e_state, Write, 0);
         }
-        UpdateGraph(g_s2e_state, Write, 0);
     }
     read_numbers += 1;
     UpdateFlag();
@@ -722,20 +724,22 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
                             uint32_t phaddr, uint32_t writeconcretevalue) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     rw_count++;
-    if (rw_count == 1 && !enable_fuzzing) {
+    if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
-        //Write a value to DR
-        for (auto _phaddr: data_register) {
-            getWarningsStream() << " write init dr value 0xA! "<< hexval(_phaddr) << "\n";
-            plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 4);
+        if (!enable_fuzzing) {
+            //Write a value to DR
+            for (auto _phaddr: data_register) {
+                getWarningsStream() << " write init dr value 0xA! "<< hexval(_phaddr) << "\n";
+                plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 4);
+            }
+            UpdateGraph(g_s2e_state, Write, 0);
         }
-        UpdateGraph(g_s2e_state, Write, 0);
     }
     write_numbers += 1;
     auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
     if (correction.second != 0) {
-            writeconcretevalue = writeconcretevalue << correction.second;
+        writeconcretevalue = writeconcretevalue << correction.second;
     }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         plgState->write_dr_value(phaddr, writeconcretevalue, 32);
@@ -757,7 +761,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc){
     if (pc == fork_point) {
         init_dr_flag = true;
         fork_point_count++;
-        getWarningsStream() << "Main Loop Point Count = " << fork_point_count << "\n";
+        if (!enable_fuzzing)
+            getWarningsStream() << "Main Loop Point Count = " << fork_point_count << "\n";
     }
 }
 
