@@ -537,6 +537,11 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         }
     }
 
+    // Do not map external interrupt
+    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
+        return;
+    }
+
     // path bitmap
     if (cur_loc > afl_end_code || cur_loc < afl_start_code || !bitmap)
         return;
