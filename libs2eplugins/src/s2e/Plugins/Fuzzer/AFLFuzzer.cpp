@@ -586,6 +586,12 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     if (pc == fork_point) {
         if (fork_flag == false) {
             fork_flag = true;
+            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+            afl_con->AFL_input = 0;
+            cur_read = 0;
+            Ethernet.pos = 0;
+            afl_con->AFL_return = 0;
+            timer_ticks = 0;
             std::string s;
             llvm::raw_string_ostream ss(s);
             ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
@@ -594,14 +600,8 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         } else {
             getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             forkPoint(state);
-            PrintRegs(state);
+            //PrintRegs(state);
             fork_flag = false;
-            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-            afl_con->AFL_input = 0;
-            cur_read = 0;
-            Ethernet.pos = 0;
-            afl_con->AFL_return = 0;
-            timer_ticks = 0;
         }
     }
 }
