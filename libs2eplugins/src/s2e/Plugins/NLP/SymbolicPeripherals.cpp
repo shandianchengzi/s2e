@@ -553,8 +553,12 @@ void SymbolicPeripherals::initialize() {
     if (g_s2e_cache_mode) {
         fileName = s2e()->getConfig()->getString(getConfigKey() + ".cacheFileName", "statename");
         if (!readKBfromFile(fileName)) {
-            getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
-            exit(-1);
+            if (fileName != "none") {
+                getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
+                exit(-1);
+            } else {
+                getWarningsStream() << "Please make sure all peripheral models have been coverd by NLP\n";
+            }
         }
     } else {
         onInterruptExitonnection = s2e()->getCorePlugin()->onExceptionExit.connect(
