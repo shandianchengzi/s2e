@@ -278,6 +278,8 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         if (getTApairs(peripheralcache, trigger, action)) {
             allTAs.push_back(std::make_pair(trigger, action));
             for (auto equ : trigger) {
+		if (equ.eq == "*")
+                   continue;
                 start = std::min(start, equ.a1.phaddr);
                 end = std::max(end, equ.a1.phaddr);
             }
@@ -717,13 +719,12 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
+        getDebugStream() << "Read data register " << hexval(phaddr) << " width " << size << " value " << *NLPsymbolicvalue  << "\n";
         if (enable_fuzzing) {
             uint32_t return_value = 0;
             bool empty_flag = false;
             onBufferInput.emit(state, phaddr, size, &return_value, &empty_flag);
             if (!empty_flag) {
-                getDebugStream() << "Read data register " << hexval(phaddr) << " width " << size << " value "
-                                 << *NLPsymbolicvalue << " new fuzzing value: " << return_value << "\n";
                 plgState->hardware_write_to_receive_buffer(phaddr, return_value, size);
             }
         } else {
