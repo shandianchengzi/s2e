@@ -157,7 +157,8 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     // interrupt vector+16
     // if (irq_no > 15)
     // plgState->set_exit_interrupt(irq_no - 16, false);
-    irq_no -= 16;
+    if (irq_no > 15)
+	irq_no -= 16;
     plgState->set_exit_interrupt(irq_no, -1);
 
     getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
@@ -641,7 +642,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 interrupt_freq[equ.interrupt] += 1;
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
-                // plgState->set_exit_interrupt(equ.interrupt, true);
+                plgState->set_exit_interrupt(equ.interrupt, true);
             } else if (equ.interrupt != -1) {
                 plgState->set_exit_interrupt(equ.interrupt, true);
             }
