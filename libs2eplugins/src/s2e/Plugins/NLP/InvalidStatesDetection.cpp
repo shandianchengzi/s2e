@@ -320,7 +320,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
     kill_count_map[pc]++;
     last_loop_pc = pc;
-    if (kill_count_map[pc] > 10) {
+    if (kill_count_map[pc] > 5) {
         onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
         kill_count_map[pc] = 0;
         std::string s;
@@ -343,7 +343,7 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
             ss.flush();
             s2e()->getExecutor()->terminateState(*state, s);
         } else {
-            //onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
+            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
             getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
             s2e()->getExecutor()->setCpuExitRequest();
         }
@@ -432,7 +432,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
     }
 
     if (!state->regs()->getInterruptFlag()) {
-        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 200 == 0) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 1000 == 0) {
             getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
             onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
             g_s2e_allow_interrupt = 1;
@@ -478,13 +478,16 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         plgState->inctbnum2(pc); // only counter new tb in irq
     } else {
         if (plgState->inctbnum(pc)) {
+            for (auto kill_count_pc: kill_count_map) {
+                kill_count_pc.second = 0;
+            }
             getWarningsStream() << "InvalidStatesDetection in learning mode new tb num = " << plgState->getnewtbnum()
                                 << " pc = " << hexval(pc) << "\n";
         }
     }
 
     if (!state->regs()->getInterruptFlag()) {
-        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 1000 == 0) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 500 == 0) {
             onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
         }
     }
