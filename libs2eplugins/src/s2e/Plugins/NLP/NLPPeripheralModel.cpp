@@ -596,8 +596,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         statistics[_idx] += 1;
         for (auto equ : trigger) {
             auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
-            if (prev_action.find(_tmp) == prev_action.end()) {
+            if (prev_action.find(_tmp) != prev_action.end()) {
                 chain_freq[{prev_action[_tmp], _idx}] += 1;
+		getDebugStream() << "chain a1 "<<prev_action[_tmp]<<" a2 "<<_idx<<" \n";
             }
             getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
                              << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
@@ -667,6 +668,17 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     fPHNLP << "nlp write: " << write_numbers << " nlp read: " << read_numbers << " ta_num: " << ta_numbers << "\n";
 
     uint32_t sum_ta = 0, sum_flag = 0, unique_ta = 0, unique_flag = 0;
+    int idx = 0;
+    for (auto loc : TA_range) {
+	    for (auto ta: loc.second) {
+		    idx += 1;
+		    fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
+		    if (ta.first.size() > 1) {
+			    fPHNLP << " " << hexval(ta.first.back().a1.phaddr) <<" "<<ta.first.back().a1.bits[0];
+		    }
+		    fPHNLP << "\n";
+	    }
+    }
     for (auto ta : statistics) {
         if (ta.first >= ta_numbers) {
             sum_flag += ta.second;
@@ -679,6 +691,9 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     }
     for (auto interrupt : interrupt_freq) {
         fPHNLP << "interrupt id:" << interrupt.first << " freq: " << interrupt.second << "\n";
+    }
+    for (auto chain : chain_freq) {
+        fPHNLP << "chain id1:" << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
     }
     fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << " \\" << unique_flag << "\n";
     fPHNLP.close();
