@@ -158,7 +158,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     // if (irq_no > 15)
     // plgState->set_exit_interrupt(irq_no - 16, false);
     if (irq_no > 15)
-	irq_no -= 16;
+        irq_no -= 16;
     plgState->set_exit_interrupt(irq_no, -1);
 
     getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
@@ -249,8 +249,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             break;
         PeripheralReg reg;
         if (getMemo(peripheralcache, reg)) {
-            if ((reg.type == "R" || reg.type == "T") &&
-                std::find(data_register.begin(), data_register.end(), reg.phaddr) == data_register.end()) {
+            if ((reg.type == "R" || reg.type == "T") && std::find(data_register.begin(), data_register.end(), reg.phaddr) == data_register.end()) {
                 data_register.push_back(reg.phaddr);
                 disable_init_dr_value_flag[reg.phaddr] = 0;
             }
@@ -278,8 +277,8 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         if (getTApairs(peripheralcache, trigger, action)) {
             allTAs.push_back(std::make_pair(trigger, action));
             for (auto equ : trigger) {
-		if (equ.eq == "*")
-                   continue;
+                if (equ.eq == "*")
+                    continue;
                 start = std::min(start, equ.a1.phaddr);
                 end = std::max(end, equ.a1.phaddr);
             }
@@ -523,6 +522,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             allTAs.insert(allTAs.end(), loc.second.begin(), loc.second.end());
         }
     }
+    std::map<std::pair<uint32_t, int>, uint32_t> prev_action;
     for (auto ta : allTAs) {
         _idx += 1;
         EquList trigger = ta.first;
@@ -533,14 +533,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.a1.type == "*") {
                 trigger_res.push_back(true);
             } else if (equ.type_a2 == "*" && equ.a1.type == "R") {
-                if (type == Read &&
-                    std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
+                if (type == Read && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
             } else if (equ.type_a2 == "*" && equ.a1.type == "T") {
-                if (type == Write &&
-                    std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
+                if (type == Write && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
                     trigger_res.push_back(true);
                 else
                     trigger_res.push_back(false);
@@ -597,6 +595,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             continue;
         statistics[_idx] += 1;
         for (auto equ : trigger) {
+            auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
+            if (prev_action.find(_tmp) == prev_action.end()) {
+                chain_freq[{prev_action[_tmp], _idx}] += 1;
+            }
             getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
                              << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
         }
@@ -614,6 +616,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             } else {
                 a2 = equ.value;
             }
+
+            auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
+            prev_action[_tmp] = _idx;
 
             if (equ.a1.type == "R") {
                 state_map[equ.a1.phaddr].cur_value = a2;
@@ -719,7 +724,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
-        getDebugStream() << "Read data register " << hexval(phaddr) << " width " << size << " value " << *NLPsymbolicvalue  << "\n";
+        getDebugStream() << "Read data register " << hexval(phaddr) << " width " << size << " value " << *NLPsymbolicvalue << "\n";
         if (enable_fuzzing) {
             uint32_t return_value = 0;
             bool empty_flag = false;
@@ -789,7 +794,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
 
 void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
                                              uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
-    signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onBlockEnd), (unsigned) tb->se_tb_type));
+    signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onBlockEnd), (unsigned)tb->se_tb_type));
 }
 
 void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
@@ -813,5 +818,5 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
     }
 }
 
-} // namespace plugins
-} // namespace s2e
+}
+} // namespace s2e::plugins
