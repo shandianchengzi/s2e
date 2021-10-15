@@ -406,6 +406,7 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         if (v[0] == "*") {
             equ.a1.type = v[0];
             equ.a1.bits = {-1};
+            equ.a2.bits = {-1};
             equ.eq = "*";
             equ.type_a2 = "*";
         } else {
@@ -672,7 +673,8 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     for (auto loc : TA_range) {
 	    for (auto ta: loc.second) {
 		    idx += 1;
-		    fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
+		    fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" ";
+		    //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
 		    if (ta.first.size() > 1) {
 			    fPHNLP << " " << hexval(ta.first.back().a1.phaddr) <<" "<<ta.first.back().a1.bits[0];
 		    }
@@ -808,6 +810,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
             // Flush here just in case ~S2E() is not called (e.g., if atexit()
             // shutdown handler was not called properly).
+	    onStatistics(state, NULL ,pc);
             g_s2e->flushOutputStreams();
             exit(0);
         }
