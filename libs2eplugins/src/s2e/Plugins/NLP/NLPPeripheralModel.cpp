@@ -264,11 +264,11 @@ void NLPPeripheralModel::UpdateFlag() {
                     getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                      << "\n";
                     int tmp = c.value[std::rand() % c.value.size()];
+		    auto old_value = state_map[c.a.phaddr].cur_value;
                     set_reg_value(state_map, c.a, tmp);
-                    if (c.value.size() == 1)
-                        statistics[++_idx] += 1;
-                    else
-                        statistics[++_idx] += 1;
+		    if (state_map[c.a.phaddr].cur_value == old_value)
+			    continue;
+                    statistics[++_idx] += 1;
                     // set_reg_value(state_map, c.a, c.value);
                     getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << tmp << " size " << c.value.size()
                                      << " " << std::rand() << "\n";
@@ -731,7 +731,7 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
 
     fPHNLP << "nlp write: " << write_numbers << " nlp read: " << read_numbers << " ta_num: " << ta_numbers << "\n";
 
-    uint32_t sum_ta = 0, sum_flag = 0, unique_ta = 0, unique_flag = 0;
+    uint32_t sum_ta = 0, sum_flag = 0, unique_ta = 0, unique_flag = 0, uncertain_flag = 0, unique_uncertain_flag = 0;
     int idx = 0;
     for (auto loc : TA_range) {
         for (auto ta : loc.second) {
@@ -753,9 +753,14 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
             for (auto nlpph : nlp_mmio) {
                 auto tmp = allFlags[ta.first - ta_numbers].a.phaddr;
                 if (tmp >= nlpph.first && tmp <= nlpph.second) {
+			bool uncertain = allFlags[ta.first - ta_numbers].value.size() > 1;
+			if (uncertain) {
+				unique_uncertain_flag += ta.second > 0;
+				uncertain_flag += ta.second;
+			}
             sum_flag += ta.second;
             unique_flag += ta.second > 0;
-        fPHNLP << "Flag id: " << ta.first <<" reg: "<< hexval(tmp) << " cnt: " << ta.second << "\n";
+        fPHNLP << "Flag uncertain? "<< uncertain <<" id: " << ta.first <<" reg: "<< hexval(tmp) << " cnt: " << ta.second << "\n";
                     break;
                 }
             }
@@ -767,7 +772,7 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     for (auto chain : chain_freq) {
         fPHNLP << "chain id1:" << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
     }
-    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << " \\" << unique_flag << "\n";
+    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag <<"\\"<< unique_uncertain_flag<<"\n";
     fPHNLP.close();
 }
 
