@@ -454,7 +454,7 @@ bool NLPPeripheralModel::extractFlag(std::string peripheralcache, Flag &flag) {
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
     if (!boost::regex_match(peripheralcache, what, FlagEx)) {
-        getWarningsStream() << "extractFlag match false\n";
+        getWarningsStream() << "extractFlag match false"<< peripheralcache<< "\n";
         exit(0);
         return false;
     }
@@ -802,8 +802,15 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     if (pc == fork_point) {
         init_dr_flag = true;
         fork_point_count++;
-        if (!enable_fuzzing)
-            getWarningsStream() << "Main Loop Point Count = " << fork_point_count << "\n";
+        if (!enable_fuzzing) {
+            getWarningsStream() << "already go though Main Loop Point Count = " << fork_point_count << "\n";
+            getWarningsStream() << "===========unit test pass============\n";
+            g_s2e->getCorePlugin()->onEngineShutdown.emit();
+            // Flush here just in case ~S2E() is not called (e.g., if atexit()
+            // shutdown handler was not called properly).
+            g_s2e->flushOutputStreams();
+            exit(0);
+        }
     }
 }
 
