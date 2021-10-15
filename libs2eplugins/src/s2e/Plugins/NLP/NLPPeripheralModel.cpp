@@ -86,9 +86,70 @@ public:
     }
 };
 
+bool NLPPeripheralModel::parseConfig(void) {
+    ConfigFile *cfg = s2e()->getConfig();
+    hw::PeripheralMmioRanges nlpphs;
+    std::stringstream ss;
+    ss << getConfigKey();
+    if (!parseRangeList(cfg, ss.str() + ".nlp_mmio", nlpphs)) {
+        return false;
+    }
+
+    for (auto nlpph : nlpphs) {
+        getInfoStream() << "Adding nlp ph range " << hexval(nlpph.first) << " - "
+                    << hexval(nlpph.second) << "\n";
+        nlp_mmio.push_back(nlpph);
+    }
+
+    return true;
+}
+
+template <typename T> bool NLPPeripheralModel::parseRangeList(ConfigFile *cfg, const std::string &key, T &result) {
+    bool ok;
+
+    int ranges = cfg->getListSize(key, &ok);
+    if (!ok) {
+        getWarningsStream() << "Could not parse ranges: " << key << "\n";
+        return false;
+    }
+
+    for (int i = 0; i < ranges; ++i) {
+        std::stringstream ss;
+        ss << key << "[" << (i + 1) << "]";
+        uint64_t start = cfg->getInt(ss.str() + "[1]", 0, &ok);
+        if (!ok) {
+            getWarningsStream() << "Could not parse start address: " << ss.str() + "[1]"
+                                << "\n";
+            return false;
+        }
+
+        uint64_t end = cfg->getInt(ss.str() + "[2]", 0, &ok);
+        if (!ok) {
+            getWarningsStream() << "Could not parse end address: " << ss.str() + "[2]"
+                                << "\n";
+            return false;
+        }
+
+        if (!(start <= end)) {
+            getWarningsStream() << hexval(start) << " is greater than " << hexval(end) << "\n";
+            return false;
+        }
+
+        result.push_back(std::make_pair(start, end));
+    }
+
+    return true;
+}
+
 void NLPPeripheralModel::initialize() {
     NLPfileName = s2e()->getConfig()->getString(getConfigKey() + ".NLPfileName", "all.txt");
     getDebugStream() << "NLP firmware name is " << NLPfileName << "\n";
+
+    if (!parseConfig()) {
+        getWarningsStream() << "Could not parse NLP range config\n";
+        exit(-1);
+    }
+
     hw::SymbolicPeripherals *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicPeripherals>();
     symbolicPeripheralConnection->onSymbolicNLPRegisterReadEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));

@@ -79,7 +79,6 @@ public:
     NLPPeripheralModel(S2E *s2e) :
         Plugin(s2e) {
     }
-    void initialize();
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
     sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* size */,
                  uint32_t * /* return value */, bool * /* real all test case or not*/>
@@ -88,6 +87,7 @@ public:
 private:
     InvalidStatesDetection *onInvalidStateDectionConnection;
 
+    hw::PeripheralMmioRanges nlp_mmio;
     uint32_t rw_count;
     std::string NLPfileName;
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
@@ -106,6 +106,9 @@ private:
     uint32_t fork_point_count;
     bool init_dr_flag;
 
+    bool parseConfig();
+    void initialize();
+    template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);

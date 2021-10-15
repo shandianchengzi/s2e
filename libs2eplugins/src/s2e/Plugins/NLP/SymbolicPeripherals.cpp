@@ -519,11 +519,13 @@ void SymbolicPeripherals::initialize() {
         exit(-1);
     }
 
-    if (!parseConfig()) {
-        getWarningsStream() << "Could not parse NLP range config\n";
-        exit(-1);
-    }
+    /*if (!parseConfig()) {*/
+        //getWarningsStream() << "Could not parse NLP range config\n";
+        //exit(-1);
+    /*}*/
 
+    ARMMmioRange nlpph = std::make_pair(0x40000000,0x60000000);
+    nlp_mmio.push_back(nlpph);
     bool ok;
     round_count = 0;
     durationtime = 0;
