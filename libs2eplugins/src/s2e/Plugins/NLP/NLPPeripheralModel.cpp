@@ -97,14 +97,15 @@ bool NLPPeripheralModel::parseConfig(void) {
 
     for (auto nlpph : nlpphs) {
         getInfoStream() << "Adding nlp ph range " << hexval(nlpph.first) << " - "
-                    << hexval(nlpph.second) << "\n";
+                        << hexval(nlpph.second) << "\n";
         nlp_mmio.push_back(nlpph);
     }
 
     return true;
 }
 
-template <typename T> bool NLPPeripheralModel::parseRangeList(ConfigFile *cfg, const std::string &key, T &result) {
+template <typename T>
+bool NLPPeripheralModel::parseRangeList(ConfigFile *cfg, const std::string &key, T &result) {
     bool ok;
 
     int ranges = cfg->getListSize(key, &ok);
@@ -516,7 +517,7 @@ bool NLPPeripheralModel::extractFlag(std::string peripheralcache, Flag &flag) {
     boost::smatch what;
     getDebugStream() << peripheralcache << "\n";
     if (!boost::regex_match(peripheralcache, what, FlagEx)) {
-        getWarningsStream() << "extractFlag match false"<< peripheralcache<< "\n";
+        getWarningsStream() << "extractFlag match false" << peripheralcache << "\n";
         exit(0);
         return false;
     }
@@ -660,7 +661,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
             if (prev_action.find(_tmp) != prev_action.end()) {
                 chain_freq[{prev_action[_tmp], _idx}] += 1;
-		getDebugStream() << "chain a1 "<<prev_action[_tmp]<<" a2 "<<_idx<<" \n";
+                getDebugStream() << "chain a1 " << prev_action[_tmp] << " a2 " << _idx << " \n";
             }
             getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
                              << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
@@ -732,23 +733,29 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     uint32_t sum_ta = 0, sum_flag = 0, unique_ta = 0, unique_flag = 0;
     int idx = 0;
     for (auto loc : TA_range) {
-	    for (auto ta: loc.second) {
-		    idx += 1;
-		    fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" ";
-		    //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
-		    if (ta.first.size() > 1) {
-			    fPHNLP << " " << hexval(ta.first.back().a1.phaddr) <<" "<<ta.first.back().a1.bits[0];
-		    }
-		    fPHNLP << "\n";
-	    }
+        for (auto ta : loc.second) {
+            idx += 1;
+            fPHNLP << "TA : " << idx << " " << hexval(ta.first[0].a1.phaddr) << " " << ta.first[0].a1.bits[0] << " " << ta.first[0].eq << " ";
+            //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
+            if (ta.first.size() > 1) {
+                fPHNLP << " " << hexval(ta.first.back().a1.phaddr) << " " << ta.first.back().a1.bits[0];
+            }
+            fPHNLP << "\n";
+        }
     }
     for (auto ta : statistics) {
         if (ta.first >= ta_numbers) {
             sum_flag += ta.second;
             unique_flag += ta.second > 0;
         } else {
-            sum_ta += ta.second;
-            unique_ta += ta.second > 0;
+            for (auto nlpph : nlp_mmio) {
+                auto tmp = allFlags[ta.first - ta_numbers].a.phaddr;
+                if (tmp >= nlpph.first && tmp <= nlpph.second) {
+                    sum_ta += ta.second;
+                    unique_ta += ta.second > 0;
+                    break;
+                }
+            }
         }
         fPHNLP << "TA id: " << ta.first << " cnt: " << ta.second << "\n";
     }
@@ -871,7 +878,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
             // Flush here just in case ~S2E() is not called (e.g., if atexit()
             // shutdown handler was not called properly).
-	    onStatistics(state, NULL ,pc);
+            onStatistics(state, NULL, pc);
             g_s2e->flushOutputStreams();
             exit(0);
         }
