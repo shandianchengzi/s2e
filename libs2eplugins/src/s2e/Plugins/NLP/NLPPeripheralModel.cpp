@@ -91,6 +91,7 @@ bool NLPPeripheralModel::parseConfig(void) {
     hw::PeripheralMmioRanges nlpphs;
     std::stringstream ss;
     ss << getConfigKey();
+    getDebugStream()<<"config "<<ss.str()<<"\n";
     if (!parseRangeList(cfg, ss.str() + ".nlp_mmio", nlpphs)) {
         return false;
     }
@@ -538,7 +539,7 @@ bool NLPPeripheralModel::extractFlag(std::string peripheralcache, Flag &flag) {
     flag.freq = std::stoull(v[3].c_str(), NULL, 10);
     // flag.value = std::stoi(v[4].c_str(), NULL, 16);
     SplitStringToInt(v[4], flag.value, "/", 16);
-    getInfoStream() << "extractFlag  " << hexval(flag.a.phaddr) << " " << flag.a.bits[0] << "\n";
+    getDebugStream() << "extractFlag  " << hexval(flag.a.phaddr) << " " << flag.a.bits[0] << "\n";
     return true;
 }
 
@@ -744,20 +745,21 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
         }
     }
     for (auto ta : statistics) {
-        if (ta.first >= ta_numbers) {
-            sum_flag += ta.second;
-            unique_flag += ta.second > 0;
+        if (ta.first < ta_numbers) {
+                    sum_ta += ta.second;
+                    unique_ta += ta.second > 0;
+        fPHNLP << "TA id: " << ta.first << " cnt: " << ta.second << "\n";
         } else {
             for (auto nlpph : nlp_mmio) {
                 auto tmp = allFlags[ta.first - ta_numbers].a.phaddr;
                 if (tmp >= nlpph.first && tmp <= nlpph.second) {
-                    sum_ta += ta.second;
-                    unique_ta += ta.second > 0;
+            sum_flag += ta.second;
+            unique_flag += ta.second > 0;
+        fPHNLP << "Flag id: " << ta.first <<" reg: "<< hexval(tmp) << " cnt: " << ta.second << "\n";
                     break;
                 }
             }
         }
-        fPHNLP << "TA id: " << ta.first << " cnt: " << ta.second << "\n";
     }
     for (auto interrupt : interrupt_freq) {
         fPHNLP << "interrupt id:" << interrupt.first << " freq: " << interrupt.second << "\n";
@@ -781,7 +783,7 @@ std::pair<uint32_t, uint32_t> NLPPeripheralModel::AddressCorrection(S2EExecution
     uint32_t new_phaddr = uppper_node->first;
     uint32_t offset = (phaddr - new_phaddr) * 8;
     if (offset != 0)
-        getDebugStream() << "correction " << hexval(phaddr) << " new correction " << hexval(new_phaddr) << " \n";
+        getWarningsStream() << "correction " << hexval(phaddr) << " new correction " << hexval(new_phaddr) << " \n";
     return {new_phaddr, offset};
 }
 
