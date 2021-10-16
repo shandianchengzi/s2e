@@ -55,7 +55,7 @@ typedef struct peripheralReg {
 
 typedef struct flag {
     Field a;
-    uint32_t freq;
+    int freq;
     std::vector<int32_t> value;
     // int32_t value;
 } Flag;

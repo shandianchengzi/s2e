@@ -274,16 +274,21 @@ void NLPPeripheralModel::UpdateFlag() {
                 // getDebugStream() << "Flag "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
             } else {
                 auto old_value = get_reg_value(state_map, c.a);
-                auto tmp = 0;
-                if (c.freq > 0) {
-                    tmp = old_value << 1 + 0xf;
-                    if (tmp > c.value)
-                        tmp = 0;
-                } else {
-                    tmp = old_value >> 1;
-                    if (tmp > c.value)
-                        tmp = c.value;
-                }
+                uint32_t tmp = 0;
+		tmp = (old_value << 1) + 1;
+		if (tmp > c.value[0])
+			tmp = 0;
+                //if (c.freq > 0) {
+                //    tmp = (old_value << 1) + 1;
+                //    if (tmp > c.value[0])
+                //        tmp = 0;
+                //} else {
+                //    tmp = old_value >> 1;
+                //    if (tmp < c.value[0])
+                //        tmp = c.value[0];
+                //}
+		set_reg_value(state_map, c.a, tmp);
+		statistics[++_idx] += 1;
             }
 
             plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
@@ -747,6 +752,7 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
     for (auto loc : TA_range) {
         for (auto ta : loc.second) {
             idx += 1;
+	    if (statistics[idx] == 0) continue;
             fPHNLP << "TA : " << idx << " " << hexval(ta.first[0].a1.phaddr) << " " << ta.first[0].a1.bits[0] << " " << ta.first[0].eq << " ";
             //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
             if (ta.first.size() > 1) {
@@ -771,7 +777,7 @@ void NLPPeripheralModel::onStatistics(S2EExecutionState *state, bool *actual_end
                     }
                     sum_flag += ta.second;
                     unique_flag += ta.second > 0;
-                    fPHNLP << "Flag uncertain? " << uncertain << " id: " << ta.first << " reg: " << hexval(tmp) << " cnt: " << ta.second << "\n";
+                    fPHNLP << "Flag uncertain? " << uncertain << " id: " << ta.first << " reg: " << hexval(tmp) << " bit: " << allFlags[ta.first - ta_numbers].a.bits[0] << " cnt: " << ta.second << "\n";
                     break;
                 }
             }
