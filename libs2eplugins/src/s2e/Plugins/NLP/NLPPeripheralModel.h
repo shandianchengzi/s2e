@@ -16,6 +16,7 @@
 #include <s2e/S2EExecutionState.h>
 #include <s2e/SymbolicHardwareHook.h>
 #include <utility>
+#include <queue>
 
 namespace s2e {
 // type address reset

@@ -52,6 +52,7 @@ public:
     RegMap get_state_map() {
         return state_map;
     }
+
     void insert_reg_map(uint32_t phaddr, PeripheralReg reg) {
         state_map[phaddr] = reg;
     }
@@ -72,6 +73,10 @@ public:
     uint8_t get_dr_value(uint32_t phaddr, uint32_t width) {
         width *= 8;
         state_map[phaddr].r_size -= width;
+	if (state_map[phaddr].r_value.empty()) {
+           state_map[phaddr].r_size = 0;
+	   return 0;
+	}
         uint8_t cur_value = state_map[phaddr].r_value.front();
         state_map[phaddr].r_value.pop();
         return cur_value;
@@ -266,7 +271,7 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // Write a value to DR
     if (!enable_fuzzing) {
-        getWarningsStream() << " write init dr value 0xA! phaddr =  \n";
+        getWarningsStream() << " write init dr value 0x2D! phaddr =  \n";
 
         for (auto phaddr : data_register) {
             std::queue<uint8_t> tmp;
@@ -466,7 +471,7 @@ bool NLPPeripheralModel::getMemo(std::string peripheralcache, PeripheralReg &reg
     reg.t_size = 0;
     reg.r_size = 0;
     reg.t_value = 0;
-    reg.r_value = 0;
+    //reg.r_value = new std::queue<uint8_t>();
     getDebugStream() << "type = " << reg.type << " phaddr = " << reg.phaddr << " reset value = " << reg.reset << "\n";
     return true;
 }
@@ -754,7 +759,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.interrupt == -1)
                 continue;
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
-            if (!enable_fuzzing && type == Rx && interrupt_freq[equ.interrupt] > 1) {
+            if (!enable_fuzzing  && interrupt_freq[equ.interrupt] > 2) {
                 getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << "\n";
                 continue;
             }
@@ -773,7 +778,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
 
             //all mode, if the irq is not triggered, emit the irq. if successful emited, record the irq and wait for exiting
-            getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << " exit_interrupt = " << plgState->get_exit_interrupt(equ.interrupt) << "\n";
+            getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << " exit_interrupt = " << plgState->get_exit_interrupt(equ.interrupt) <<" irq = "<<equ.interrupt<< "\n";
             if (!plgState->get_exit_interrupt(equ.interrupt)) {
                 //interrupt_freq[equ.interrupt] += 1;
                 //getWarningsStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
@@ -869,13 +874,13 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     rw_count++;
     if (rw_count == 1) {
         readNLPModelfromFile(state, NLPfileName);
-        getWarningsStream() << " write init dr value 0xA!  \n";
         if (!enable_fuzzing) {
             // Write a value to DR
+            getWarningsStream() << " write init dr value 0xA!  \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
                 tmp.push(0xA);
-                plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
+                plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
             UpdateGraph(g_s2e_state, Rx, 0);
         }
@@ -889,7 +894,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
         *NLPsymbolicvalue = plgState->get_dr_value(phaddr, size);
-        getDebugStream() << "Read data register " << hexval(phaddr) << " width " << size << " value " << *NLPsymbolicvalue << "\n";
+        getWarningsStream() << "Read data register " << hexval(phaddr) << " width " << size << " value " << *NLPsymbolicvalue << "\n";
         if (enable_fuzzing) {
             std::queue<uint8_t> return_value;
             bool empty_flag = false;
@@ -902,7 +907,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
-    UpdateGraph(state, Read, phaddr);
+    UpdateGraph(g_s2e_state, Read, phaddr);
     getDebugStream() << "correction " << hexval(phaddr) << " value " << *NLPsymbolicvalue << " \n";
     if (correction.second != 0) {
         *NLPsymbolicvalue = *NLPsymbolicvalue >> correction.second;
@@ -922,7 +927,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
                 tmp.push(0xA);
-                plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
+                plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
             UpdateGraph(g_s2e_state, Rx, 0);
         }
@@ -941,7 +946,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         plgState->write_ph_value(phaddr, writeconcretevalue);
         getDebugStream() << "Write to phaddr " << hexval(phaddr) << " value: " << writeconcretevalue << " \n";
     }
-    UpdateGraph(state, Write, phaddr);
+    UpdateGraph(g_s2e_state, Write, phaddr);
 }
 
 void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
@@ -986,7 +991,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
                 //TODO Not sure what this for
                 plgState->hardware_write_to_receive_buffer(data_register[i], return_value, 1);
             }
-            getInfoStream() << "Read data register " << hexval(data_register[i]) << " return value: " << return_value
+            getInfoStream() << "Read data register " << hexval(data_register[i]) << " return value: " << return_value.front()
                             << "\n";
         }
         UpdateGraph(state, Rx, 0);
