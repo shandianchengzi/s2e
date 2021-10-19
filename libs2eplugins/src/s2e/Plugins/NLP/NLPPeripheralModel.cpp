@@ -226,7 +226,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 
     getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
                      << "\n";
-    if (plgState->get_exit_interrupt(irq_no)) {
+    if (plgState->get_exit_interrupt(irq_no) && enable_fuzzing) {
         interrupt_freq[irq_no] += 1;
         getDebugStream() << "IRQ Action restart = " << irq_no << "\n";
         onExternalInterruptEvent.emit(state, irq_no);
@@ -242,8 +242,8 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // Write a value to DR
     if (!enable_fuzzing) {
+            getWarningsStream() << " write init dr value 0xA! phaddr = "<< "\n";
         for (auto phaddr : data_register) {
-            getWarningsStream() << " write init dr value 0xA! phaddr = " << hexval(phaddr) << "\n";
             plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 4);
         }
     }
@@ -731,7 +731,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
                 onExternalInterruptEvent.emit(state, equ.interrupt);
                 plgState->set_exit_interrupt(equ.interrupt, true);
-            } else if (equ.interrupt != -1) {
+            } else if (equ.interrupt != -1 && enable_fuzzing) {
                 plgState->set_exit_interrupt(equ.interrupt, true);
             }
         }
@@ -817,8 +817,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
+                getWarningsStream() << " write init dr value 0xA! " << "\n";
             for (auto _phaddr : data_register) {
-                getWarningsStream() << " write init dr value 0xA! " << hexval(_phaddr) << "\n";
                 plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 4);
             }
             UpdateGraph(g_s2e_state, Write, 0);
@@ -863,8 +863,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
+                getWarningsStream() << " write init dr value 0xA! " << "\n";
             for (auto _phaddr : data_register) {
-                getWarningsStream() << " write init dr value 0xA! " << hexval(_phaddr) << "\n";
                 plgState->hardware_write_to_receive_buffer(_phaddr, 0xA, 4);
             }
             UpdateGraph(g_s2e_state, Write, 0);
