@@ -50,7 +50,8 @@ typedef struct peripheralReg {
     uint32_t t_size;
     uint32_t r_size;
     uint32_t t_value;
-    uint32_t r_value;
+    //int front_left;
+    std::queue<uint8_t> r_value;
 } PeripheralReg;
 
 typedef struct flag {
@@ -67,7 +68,8 @@ typedef std::vector<TA> TAMap;
 typedef std::vector<Flag> FlagList;
 
 enum RWType { Write,
-              Read };
+              Read,
+              Rx };
 // std::map<std::string, uint32_t> symbol_list = {
 //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
 //};
@@ -81,7 +83,7 @@ public:
     }
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */> onExternalInterruptEvent;
     sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* size */,
-                 uint32_t * /* return value */, bool * /* real all test case or not*/>
+                 std::queue<uint8_t> * /* return value */, bool * /* real all test case or not*/>
         onBufferInput;
 
 private:
@@ -96,7 +98,6 @@ private:
     int read_numbers = 0;
     int write_numbers = 0;
     std::map<uint32_t, uint32_t> interrupt_freq;
-    std::map<uint32_t, uint32_t> interrupt_record; // unit_test only
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     FlagList allFlags;
     std::vector<uint32_t> data_register;
@@ -109,7 +110,8 @@ private:
 
     bool parseConfig();
     void initialize();
-    template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
+    template <typename T>
+    bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
     bool getMemo(std::string peripheralcache, PeripheralReg &reg);
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
