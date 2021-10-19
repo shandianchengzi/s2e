@@ -79,7 +79,7 @@ public:
     NLPPeripheralModel(S2E *s2e) :
         Plugin(s2e) {
     }
-    sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */> onExternalInterruptEvent;
+    sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */> onExternalInterruptEvent;
     sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* size */,
                  uint32_t * /* return value */, bool * /* real all test case or not*/>
         onBufferInput;
@@ -96,6 +96,7 @@ private:
     int read_numbers = 0;
     int write_numbers = 0;
     std::map<uint32_t, uint32_t> interrupt_freq;
+    std::map<uint32_t, uint32_t> interrupt_record; // unit_test only
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     FlagList allFlags;
     std::vector<uint32_t> data_register;

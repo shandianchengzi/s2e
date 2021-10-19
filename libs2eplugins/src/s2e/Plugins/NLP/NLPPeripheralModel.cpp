@@ -229,7 +229,8 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     if (plgState->get_exit_interrupt(irq_no) && enable_fuzzing) {
         interrupt_freq[irq_no] += 1;
         getDebugStream() << "IRQ Action restart = " << irq_no << "\n";
-        onExternalInterruptEvent.emit(state, irq_no);
+        bool irq_triggered = false;
+        onExternalInterruptEvent.emit(state, irq_no, &irq_triggered);
     }
 }
 
@@ -242,9 +243,9 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // Write a value to DR
     if (!enable_fuzzing) {
-            getWarningsStream() << " write init dr value 0xA! phaddr = "<< "\n";
         for (auto phaddr : data_register) {
-            plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 4);
+            getWarningsStream() << " write init dr value 0xA! phaddr = "<< hexval(phaddr)<< "\n";
+            plgState->hardware_write_to_receive_buffer(phaddr, 0x2D, 4);
         }
     }
     UpdateGraph(g_s2e_state, Write, 0);
@@ -581,6 +582,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     RegMap state_map = plgState->get_state_map();
     TAMap allTAs;
     int _idx = 0;
+    bool DR_RE_IRQ = false;
     for (auto loc : TA_range) {
         auto range = loc.first;
         auto TA = loc.second;
@@ -613,14 +615,15 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.a1.type == "*") {
                 trigger_res.push_back(true);
             } else if (equ.type_a2 == "*" && equ.a1.type == "R") {
-                if (type == Read && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
+                if (type == Read && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
                     trigger_res.push_back(true);
-                else
+                } else
                     trigger_res.push_back(false);
             } else if (equ.type_a2 == "*" && equ.a1.type == "T") {
-                if (type == Write && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end())
+                if (type == Write && std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
+                    DR_RE_IRQ = true;
                     trigger_res.push_back(true);
-                else
+                } else
                     trigger_res.push_back(false);
             } else if (equ.a1.type == "F" && (type != Write || phaddr != equ.a1.phaddr)) {
                 trigger_res.push_back(false);
@@ -728,9 +731,23 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 
             if (equ.interrupt != -1 && !plgState->get_exit_interrupt(equ.interrupt)) {
                 interrupt_freq[equ.interrupt] += 1;
-                getDebugStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
-                onExternalInterruptEvent.emit(state, equ.interrupt);
-                plgState->set_exit_interrupt(equ.interrupt, true);
+                getWarningsStream() << "IRQ Action trigger interrupt equ.interrupt = " << equ.interrupt << "\n";
+                bool irq_triggered = false;
+                if (DR_RE_IRQ) {
+                    getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_record[equ.interrupt] << "\n";
+                    if (interrupt_record[equ.interrupt] < 2) {
+                        getWarningsStream() << " 1 DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_record[equ.interrupt] << "\n";
+                        onExternalInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
+                        plgState->set_exit_interrupt(equ.interrupt, true);
+                        if (irq_triggered) {
+                            getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_record[equ.interrupt] << "\n";
+                            interrupt_record[equ.interrupt] ++;
+                        }
+                    }
+                } else {
+                    onExternalInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
+                    plgState->set_exit_interrupt(equ.interrupt, true);
+                }
             } else if (equ.interrupt != -1 && enable_fuzzing) {
                 plgState->set_exit_interrupt(equ.interrupt, true);
             }

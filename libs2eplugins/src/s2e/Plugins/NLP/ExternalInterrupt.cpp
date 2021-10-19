@@ -117,8 +117,6 @@ public:
 void ExternalInterrupt::initialize() {
     // tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 2000, &ok);
     // tb_scale = s2e()->getConfig()->getInt(getConfigKey() + ".BBScale", 30000, &ok);
-    s2e()->getCorePlugin()->onTranslateBlockStart.connect(
-        sigc::mem_fun(*this, &ExternalInterrupt::onTranslateBlockStart));
     bool ok;
     /*if (!ok) {*/
         //getWarningsStream()
@@ -142,6 +140,8 @@ void ExternalInterrupt::initialize() {
     systick_disable_flag = s2e()->getConfig()->getBool(getConfigKey() + ".disableSystickInterrupt", false);
     if (systick_disable_flag) {
         systick_begin_point = s2e()->getConfig()->getInt(getConfigKey() + ".systickBeginPoint", 0x0, &ok);
+        s2e()->getCorePlugin()->onTranslateBlockStart.connect(
+            sigc::mem_fun(*this, &ExternalInterrupt::onTranslateBlockStart));
         if (!ok) {
             getWarningsStream() << " systick begin point should be set!\n";
             return;
@@ -181,7 +181,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         }
     }
 }
-void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no) {
+void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool * irq_triggered) {
     DECLARE_PLUGINSTATE(ExternalInterruptState, state);
     std::vector<uint32_t> irqs_bitmap;
     std::vector<uint32_t> last_irqs_bitmap;
@@ -214,6 +214,7 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
 
     if (std::find(active_irqs.begin(), active_irqs.end(), irq_no) != active_irqs.end()) {
         if (std::find(disable_irqs.begin(), disable_irqs.end(), irq_no - 16) == disable_irqs.end()) {
+            *irq_triggered = true;
             getInfoStream() << " trigger external irq " << irq_no << "\n";
             s2e()->getExecutor()->setExternalInterrupt(irq_no);
         }
