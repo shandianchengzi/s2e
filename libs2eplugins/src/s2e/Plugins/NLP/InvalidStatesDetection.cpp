@@ -417,7 +417,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
 
     // we should make sure new tb in normal mode will be executed after interrupt
     // in case too frequent interrupts
-    if (state->regs()->getInterruptFlag()) {
+    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() < 16) {
         disable_interrupt_count = cache_tb_num;
     } else {
         if (disable_interrupt_count > 0) {
@@ -460,7 +460,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     // we should make sure new tb in normal mode will be executed after interrupt
     // in case too frequent interrupts
     if (state->regs()->getInterruptFlag()) {
-        disable_interrupt_count = cache_tb_num*5;
+        disable_interrupt_count = cache_tb_num*25;
     } else {
         if (disable_interrupt_count > 0) {
             disable_interrupt_count--;

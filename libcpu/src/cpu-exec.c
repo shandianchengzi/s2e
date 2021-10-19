@@ -454,7 +454,7 @@ static bool process_interrupt_request(CPUArchState *env) {
         if ((armv7m_nvic_can_take_pending_exception(env->nvic, &irq_num))) {
 #ifdef CONFIG_SYMBEX
             if (likely(*g_sqi.mode.fast_concrete_invocation && *g_sqi.mode.allow_interrupt)
-                || unlikely(*g_sqi.mode.allow_interrupt == 2) || unlikely(irq_num != 15)) {
+                || unlikely(*g_sqi.mode.allow_interrupt == 2) || (unlikely(irq_num != 15) && *g_sqi.mode.allow_interrupt)) {
 #endif
                 env->exception_index = EXCP_IRQ;
                 do_interrupt(env);
