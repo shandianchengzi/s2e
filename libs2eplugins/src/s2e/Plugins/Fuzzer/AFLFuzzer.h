@@ -95,7 +95,7 @@ private:
     std::map<uint32_t /* phaddr */, uint32_t /* size */> disable_input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
-    uint32_t cur_read;
+    //uint32_t cur_read;
     bool fork_flag;
     uint32_t fork_point;
     std::vector<uint32_t> crash_points;
@@ -109,7 +109,7 @@ private:
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
     void onInvalidPCAccess(S2EExecutionState *state, uint64_t addr);
-    void onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size, std::queue<uint8_t> *value, bool *empty_flag);
+    void onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t *testcase_size, std::queue<uint8_t> *value);
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onForkPoints(S2EExecutionState *state, uint64_t pc);
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,

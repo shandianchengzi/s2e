@@ -83,8 +83,8 @@ public:
         Plugin(s2e) {
     }
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */> onExternalInterruptEvent;
-    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* size */,
-                 std::queue<uint8_t> * /* return value */, bool * /* real all test case or not*/>
+    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t* /* size */,
+                 std::queue<uint8_t> * /* return value */>
         onBufferInput;
 
 private:

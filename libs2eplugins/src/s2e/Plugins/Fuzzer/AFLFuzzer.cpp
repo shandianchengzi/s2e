@@ -217,7 +217,6 @@ void AFLFuzzer::initialize() {
     bitmap = (uint8_t *) malloc(MAP_SIZE);
     afl_start_code = 0;
     afl_end_code = 0xffffffff;
-    cur_read = 0;
     unique_tb_num = 0;
 }
 
@@ -382,50 +381,69 @@ void AFLFuzzer::onTimer() {
     //}
 /*}*/
 
-void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size,
-                            std::queue<uint8_t> *value, bool *empty_flag) {
+/*void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size,*/
+                            //std::queue<uint8_t> *value, bool *empty_flag) {
 
+    //bool doFuzz;
+    //doFuzz = true;
+    ////TODO
+    //memset(value, 0, 4 * sizeof(char));
+    //for (auto disable_input_peripheral : disable_input_peripherals) {
+        //if (disable_input_peripheral.first == phaddr) {
+            //doFuzz = false;
+            //size = disable_input_peripherals[phaddr];
+            //break;
+        //}
+    //}
+
+    //if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
+        //doFuzz = true;
+        //size = 1;
+        //Ethernet.pos++;
+        //if (Ethernet.pos == Ethernet.size) {
+            //Ethernet.pos = 0;
+        //}
+    //}
+
+    //if (doFuzz) {
+        //timer_ticks = 0;
+        //if (cur_read >= afl_con->AFL_size) {
+            //cur_read = 0;
+            //*empty_flag = true;
+            //return;
+        //}
+
+        //if (afl_con->AFL_input) {
+            //getInfoStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
+                             //<< " cur_read = " << cur_read << "\n";
+            //memcpy(value, testcase + cur_read, size);
+            //cur_read += size;
+        //} else {
+            //getWarningsStream() << "AFL testcase is not ready!! return 0\n";
+            //memset(value, 0, 4 * sizeof(char));
+            //cur_read = 0;
+        //}
+    //}
+/*}*/
+
+void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t *testcase_size,
+                            std::queue<uint8_t> *value) {
     bool doFuzz;
     doFuzz = true;
-    //TODO
-    memset(value, 0, 4 * sizeof(char));
-    for (auto disable_input_peripheral : disable_input_peripherals) {
-        if (disable_input_peripheral.first == phaddr) {
-            doFuzz = false;
-            size = disable_input_peripherals[phaddr];
-            break;
-        }
-    }
-
-    if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
-        doFuzz = true;
-        size = 1;
-        Ethernet.pos++;
-        if (Ethernet.pos == Ethernet.size) {
-            Ethernet.pos = 0;
-        }
-    }
-
     if (doFuzz) {
         timer_ticks = 0;
-        if (cur_read >= afl_con->AFL_size) {
-            cur_read = 0;
-            *empty_flag = true;
-            return;
-        }
-
+        *testcase_size = afl_con->AFL_size;
         if (afl_con->AFL_input) {
-            getInfoStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
-                             << " cur_read = " << cur_read << "\n";
-            memcpy(value, testcase + cur_read, size);
-            cur_read += size;
+            getInfoStream() << "AFL_input = " << afl_con->AFL_input
+                            << " AFL_size = " << afl_con->AFL_size << "\n";
+            memcpy(value, testcase, afl_con->AFL_size);
         } else {
             getWarningsStream() << "AFL testcase is not ready!! return 0\n";
-            memset(value, 0, 4 * sizeof(char));
-            cur_read = 0;
+            memset(value, 0, afl_con->AFL_size*sizeof(char));
         }
     }
 }
+
 
 void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
     uint32_t pc = state->regs()->getPc();
@@ -589,7 +607,6 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             fork_flag = true;
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
             afl_con->AFL_input = 0;
-            cur_read = 0;
             Ethernet.pos = 0;
             afl_con->AFL_return = 0;
             timer_ticks = 0;

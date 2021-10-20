@@ -181,7 +181,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         }
     }
 }
-void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool * irq_triggered) {
+void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool *irq_triggered) {
     DECLARE_PLUGINSTATE(ExternalInterruptState, state);
     std::vector<uint32_t> irqs_bitmap;
     std::vector<uint32_t> last_irqs_bitmap;
