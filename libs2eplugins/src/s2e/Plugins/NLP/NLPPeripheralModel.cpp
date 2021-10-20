@@ -243,7 +243,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
         irq_no -= 16;
     plgState->set_exit_interrupt(irq_no, -1);
 
-    getDebugStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
+    getInfoStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
                      << "\n";
     // fuzzing mode, if exit irq, check out if the rx is still empty
     if (enable_fuzzing) {
@@ -784,7 +784,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 
                 bool irq_triggered = false;
                 onExternalInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
-                getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << " exit_interrupt = " << plgState->get_exit_interrupt(equ.interrupt) <<" irq = "<<equ.interrupt<< "\n";
+                getInfoStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << " exit_interrupt = " << plgState->get_exit_interrupt(equ.interrupt) <<" irq = "<<equ.interrupt<< "\n";
                 if (irq_triggered) {
                     interrupt_freq[equ.interrupt]++;
                     plgState->set_exit_interrupt(equ.interrupt, true);
@@ -991,7 +991,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
                 plgState->hardware_write_to_receive_buffer(data_register[i], return_value, AFL_size);
             }
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
-                            << " return value: " << return_value.front() << "\n";
+                            << " return value: " << hexval(return_value.front()) << "\n";
         }
         UpdateGraph(state, Rx, 0);
         init_dr_flag = false;

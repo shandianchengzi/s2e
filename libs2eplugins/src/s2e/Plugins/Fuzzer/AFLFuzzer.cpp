@@ -436,10 +436,18 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
         if (afl_con->AFL_input) {
             getInfoStream() << "AFL_input = " << afl_con->AFL_input
                             << " AFL_size = " << afl_con->AFL_size << "\n";
-            memcpy(value, testcase, afl_con->AFL_size);
+            for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
+                uint8_t fuzz_value;
+                memcpy(&fuzz_value, testcase + cur_read, 1);
+                value->push(fuzz_value);
+                getInfoStream() << " " << hexval(fuzz_value);
+            }
+            getInfoStream() << "\n";
         } else {
             getWarningsStream() << "AFL testcase is not ready!! return 0\n";
-            memset(value, 0, afl_con->AFL_size*sizeof(char));
+            for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
+                value->push(0);
+            }
         }
     }
 }
