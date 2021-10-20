@@ -383,10 +383,11 @@ void AFLFuzzer::onTimer() {
 /*}*/
 
 void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size,
-                            uint32_t *value, bool *empty_flag) {
+                            std::queue<uint8_t> *value, bool *empty_flag) {
 
     bool doFuzz;
     doFuzz = true;
+    //TODO
     memset(value, 0, 4 * sizeof(char));
     for (auto disable_input_peripheral : disable_input_peripherals) {
         if (disable_input_peripheral.first == phaddr) {
