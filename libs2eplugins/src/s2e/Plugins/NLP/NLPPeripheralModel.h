@@ -98,7 +98,6 @@ private:
     int ta_numbers = 0;
     int read_numbers = 0;
     int write_numbers = 0;
-    std::map<uint32_t, uint32_t> interrupt_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     FlagList allFlags;
     std::vector<uint32_t> data_register;
@@ -121,7 +120,7 @@ private:
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
-    void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
+    void onStatistics();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
     // void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
