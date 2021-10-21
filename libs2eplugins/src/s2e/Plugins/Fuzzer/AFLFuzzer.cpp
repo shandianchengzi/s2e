@@ -444,8 +444,8 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
             }
             getInfoStream() << "\n";
         } else {
-            getWarningsStream() << "AFL testcase is not ready!! return 0\n";
-            for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
+            getWarningsStream() << "AFL testcase is not ready!! return 0 "<< afl_con->AFL_size << "\n";
+            for (uint32_t cur_read = 0; cur_read < 4; cur_read++) {
                 value->push(0);
             }
         }
@@ -537,13 +537,15 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     if (all_tb_map[cur_loc] < 1) {
         ++unique_tb_num;
         ++all_tb_map[cur_loc];
+        getWarningsStream() << "The unqiue number of the executed basic blocks in current state is "
+                            << unique_tb_num << " pc = " << hexval(cur_loc) << "\n";
     }
 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
         recordTBMap();
         getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
-        getInfoStream() << "==== Testing aborted by user via Fuzzer ====\n";
+        getWarningsStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
         // Flush here just in case ~S2E() is not called (e.g., if atexit()
         // shutdown handler was not called properly).
@@ -565,7 +567,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     // Do not map external interrupt
-    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
+    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 14) {
         return;
     }
 
