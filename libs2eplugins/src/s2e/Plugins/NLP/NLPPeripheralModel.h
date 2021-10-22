@@ -105,7 +105,6 @@ private:
     std::map<uint32_t, bool> disable_init_dr_value_flag;
     bool enable_fuzzing;
     uint32_t fork_point;
-    uint32_t fork_point_count;
     bool init_dr_flag;
 
     bool parseConfig();

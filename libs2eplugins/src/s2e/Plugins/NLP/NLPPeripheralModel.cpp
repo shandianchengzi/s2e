@@ -24,10 +24,12 @@ private:
     RegMap state_map;
     std::map<int, int> exit_interrupt; // interrupt id, num
     std::map<uint32_t, uint32_t> interrupt_freq;
+    uint32_t fork_point_count;
     // std::map<int, bool> exit_interrupt;
 public:
     NLPPeripheralModelState() {
         interrupt_freq.clear();
+        fork_point_count = 0;
     }
 
     virtual ~NLPPeripheralModelState() {
@@ -118,6 +120,14 @@ public:
         return interrupt_freq;
     }
 
+    void inc_fork_count() {
+        fork_point_count++;
+    }
+
+    uint32_t get_fork_point_count() {
+        return fork_point_count;
+    }
+
 };
 
 bool NLPPeripheralModel::parseConfig(void) {
@@ -204,7 +214,6 @@ void NLPPeripheralModel::initialize() {
     }
 
     bool ok;
-    fork_point_count = 0;
     fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
     getWarningsStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
@@ -719,11 +728,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             continue;
         statistics[_idx] += 1;
         for (auto equ : trigger) {
-            auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
-            if (prev_action.find(_tmp) != prev_action.end()) {
-                chain_freq[{prev_action[_tmp], _idx}] += 1;
-                getDebugStream() << "chain a1 " << prev_action[_tmp] << " a2 " << _idx << " \n";
-            }
+            //auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
+            /*if (prev_action.find(_tmp) != prev_action.end()) {*/
+                //chain_freq[{prev_action[_tmp], _idx}] += 1;
+                //getDebugStream() << "chain a1 " << prev_action[_tmp] << " a2 " << _idx << " \n";
+            /*}*/
             getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
                              << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
         }
@@ -773,17 +782,17 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.interrupt == -1)
                 continue;
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
-            if (!enable_fuzzing) {
+            //if (!enable_fuzzing) {
                 /*if (plgState->get_irq_freq(equ.interrupt) > 2) {*/
                     //getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(equ.interrupt) << "\n";
                     //continue;
                 /*}*/
-            } else {
-                if (plgState->get_irq_freq(equ.interrupt) > 10) {
-                    getWarningsStream() << " only trigger at most ten times DATA IRQ Action interrupt in fuzzing mode equ.interrupt = " << equ.interrupt << "\n";
-                    continue;
-                }
-            }
+            //} else {
+                /*if (plgState->get_irq_freq(equ.interrupt) > 10) {*/
+                    //getInfoStream() << " only trigger at most ten times DATA IRQ Action interrupt in fuzzing mode equ.interrupt = " << equ.interrupt << "\n";
+                    //continue;
+                /*}*/
+            //}
             //no fuzzing mode, skip if the irq is triggered by the phaddr that is in nlp_mmio
             if (!enable_fuzzing) {
                 uint32_t tmp = equ.a1.phaddr;
@@ -978,11 +987,12 @@ void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecu
 }
 
 void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     if (pc == fork_point) {
         init_dr_flag = true;
-        fork_point_count++;
+        plgState->inc_fork_count();
         if (!enable_fuzzing) {
-            getWarningsStream() << "already go though Main Loop Point Count = " << fork_point_count << "\n";
+            getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
             getWarningsStream() << "===========unit test pass============\n";
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
             // Flush here just in case ~S2E() is not called (e.g., if atexit()
@@ -1002,12 +1012,12 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     if (init_dr_flag == true) {
         std::queue<uint8_t> return_value;
-        // Write a value to DR
         uint32_t AFL_size = 0;
+        // Write a value to DR
         for (uint32_t i = 0; i < data_register.size(); ++i) {
             if (i == 0) {
                 onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
-                plgState->hardware_write_to_receive_buffer(data_register[i], return_value, AFL_size);
+                plgState->hardware_write_to_receive_buffer(data_register[i], return_value, return_value.size());
             } else {
                 plgState->hardware_write_to_receive_buffer(data_register[i], return_value, AFL_size);
             }
