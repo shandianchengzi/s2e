@@ -200,6 +200,7 @@ void AFLFuzzer::initialize() {
 
     fork_flag = true;
     timer_ticks = 0;
+    timer_exec_ticks = 0;
     timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
 
@@ -281,6 +282,7 @@ void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
 
 void AFLFuzzer::onTimer() {
     ++timer_ticks;
+    ++timer_exec_ticks;
 }
 
 /*void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {*/
@@ -533,6 +535,11 @@ void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *
 void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     static __thread uint64_t prev_loc;
 
+    ++tb_num;
+    if (tb_num % 1000000 == 0) {
+        getWarningsStream(state) << "execute 1,000,000 tb use time is " << timer_exec_ticks << "\n";
+        timer_exec_ticks = 0;
+    }
     // record total bb number
     if (all_tb_map[cur_loc] < 1) {
         ++unique_tb_num;
