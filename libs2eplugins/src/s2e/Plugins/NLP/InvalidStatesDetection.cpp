@@ -359,7 +359,6 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
         (state->regs()->getInterruptFlag() == 0)) {
         getInfoStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
         bool actual_end = true;
-        onLearningTerminationEvent2.emit(state, &actual_end, plgState->getnewtbnum());
         onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
         if (actual_end) {
             getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
@@ -432,9 +431,8 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
     }
 
     if (!state->regs()->getInterruptFlag()) {
-        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 1000 == 0) {
+        if (plgState->gettbnum() != 0 && plgState->gettbnum() % 10000 == 0) {
             getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
-            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
             g_s2e_allow_interrupt = 1;
             s2e()->getExecutor()->setCpuExitRequest();
         }

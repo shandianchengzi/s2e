@@ -1783,7 +1783,7 @@ void SymbolicPeripherals::onWritePeripheral(S2EExecutionState *state, uint64_t p
     if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc) {
         bit_loc = ((phaddr - 0x42000000) % 32) / 4;
         phaddr = (phaddr - 0x42000000) / 32 + 0x40000000;
-	bool flag = false;
+        bool flag = false;
         onSymbolicNLPRegisterReadEvent.emit(state, SYMB_MMIO, phaddr, 0x4, &temp_value, &flag);
         getDebugStream() << "write bit band alias address = " << hexval(phaddr)
                          << " bit loc = " << hexval(bit_loc) << " nlp value =" << hexval(temp_value) <<"\n";
