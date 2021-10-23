@@ -198,9 +198,8 @@ void AFLFuzzer::initialize() {
         getInfoStream() << "fork point = " << hexval(fork_point) << "\n";
     }
 
-    fork_flag = true;
-    timer_ticks = 0;
-    timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
+    fork_flag = false;
+    total_time = 0;
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
 
     auto crash_keys = cfg->getIntegerList(getConfigKey() + ".crashPoints");
@@ -257,7 +256,7 @@ static void PrintRegs(S2EExecutionState *state) {
         target_ulong concreteData;
 
         if (getConcolicValue(state, offset, &concreteData)) {
-            g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+            g_s2e->getWarningsStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
         } else {
             g_s2e->getWarningsStream() << "Sym Regs " << i << " = " << hexval(concreteData) << "\n";
         }
@@ -272,6 +271,7 @@ void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
     } else {
         afl_con->AFL_return = FAULT_TMOUT;
     }
+    fork_flag = false;
     std::string s;
     llvm::raw_string_ostream ss(s);
     ss << "Kill path due to Crash/Hang\n";
@@ -279,9 +279,9 @@ void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
     s2e()->getExecutor()->terminateState(*state, s);
 }
 
-void AFLFuzzer::onTimer() {
-    ++timer_ticks;
-}
+/*void AFLFuzzer::onTimer() {*/
+    //++timer_ticks;
+/*}*/
 
 /*void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {*/
     //DECLARE_PLUGINSTATE(AFLFuzzerState, state);
@@ -431,15 +431,22 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
     bool doFuzz;
     doFuzz = true;
     if (doFuzz) {
-        timer_ticks = 0;
         *testcase_size = afl_con->AFL_size;
         if (afl_con->AFL_input) {
             getInfoStream() << "AFL_input = " << afl_con->AFL_input
                             << " AFL_size = " << afl_con->AFL_size << "\n";
-            memcpy(value, testcase, afl_con->AFL_size);
+            for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
+                uint8_t fuzz_value;
+                memcpy(&fuzz_value, testcase + cur_read, 1);
+                value->push(fuzz_value);
+                getInfoStream() << " " << hexval(fuzz_value);
+            }
+            getInfoStream() << "\n";
         } else {
-            getWarningsStream() << "AFL testcase is not ready!! return 0\n";
-            memset(value, 0, afl_con->AFL_size*sizeof(char));
+            getWarningsStream() << "AFL testcase is not ready!! return 0 "<< afl_con->AFL_size << "\n";
+            for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
+                value->push(0);
+            }
         }
     }
 }
@@ -515,6 +522,19 @@ void AFLFuzzer::recordTBMap() {
     fTBmap.close();
 }
 
+void AFLFuzzer::recordTBNum() {
+    std::string fileName;
+    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_num.txt";
+    std::ofstream fTBNum;
+    fTBNum.open(fileName, std::ios::out | std::ios::trunc);
+
+    for (auto ittbnum : total_time_tbnum) {
+        fTBNum << ittbnum.first * 15 << "," << ittbnum.second << std::endl;;
+    }
+
+    fTBNum.close();
+}
+
 void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                  TranslationBlock *tb, uint64_t pc, bool staticTarget,
                                                  uint64_t staticTargetPc) {
@@ -525,17 +545,28 @@ void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *
 void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     static __thread uint64_t prev_loc;
 
+    ++tb_num;
+    end_time = time(NULL);
+    if ((end_time - init_time)/60 > 15) {
+        init_time = time(NULL);
+        total_time++;
+        total_time_tbnum[total_time] = unique_tb_num;
+        getWarningsStream() << 15 * total_time << "min," << unique_tb_num << "\n";
+    }
     // record total bb number
     if (all_tb_map[cur_loc] < 1) {
         ++unique_tb_num;
         ++all_tb_map[cur_loc];
+        getWarningsStream() << "The unqiue number of the executed basic blocks in current state is "
+                            << unique_tb_num << " pc = " << hexval(cur_loc) << "\n";
     }
 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
         recordTBMap();
+        recordTBNum();
         getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
-        getInfoStream() << "==== Testing aborted by user via Fuzzer ====\n";
+        getWarningsStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
         // Flush here just in case ~S2E() is not called (e.g., if atexit()
         // shutdown handler was not called properly).
@@ -543,7 +574,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         exit(0);
     }
 
-    if (timer_ticks > (hang_timeout - 1)) {
+    if (fork_flag && unlikely((end_time - start_time) > hang_timeout * 4)) {
         getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = "
                             << hexval(cur_loc) << ", maybe add it as a crash point\n";
     }
@@ -557,7 +588,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     // Do not map external interrupt
-    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
+    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 14) {
         return;
     }
 
@@ -583,8 +614,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     // getDebugStream() << "count bitmap = " << count_bytes(bitmap) << "\n";
 
     // crash/hang
-    if (timer_ticks > hang_timeout) {
-        timer_ticks = 0;
+    if (fork_flag && unlikely((end_time - start_time) > hang_timeout * 5)) {
         getWarningsStream() << "Kill Fuzz State due to Timeout\n";
         onCrashHang(state, 0);
     }
@@ -603,24 +633,36 @@ void AFLFuzzer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState
 
 void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     if (pc == fork_point) {
-        if (fork_flag == false) {
-            fork_flag = true;
+        //if (fork_flag == false) {
+        if (fork_flag) {
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
             afl_con->AFL_input = 0;
             Ethernet.pos = 0;
             afl_con->AFL_return = 0;
-            timer_ticks = 0;
-            std::string s;
-            llvm::raw_string_ostream ss(s);
-            ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
-            ss.flush();
-            s2e()->getExecutor()->terminateState(*state, s);
+            usleep(10000);
+            start_time = time(NULL);
         } else {
             getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            init_time = time(NULL);
             forkPoint(state);
-            //PrintRegs(state);
-            fork_flag = false;
+            PrintRegs(state);
+            start_time = time(NULL);
+            fork_flag = true;
         }
+            /*if (fork_point_count) {*/
+                //fork_flag = true;
+                //std::string s;
+                //llvm::raw_string_ostream ss(s);
+                //ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
+                //ss.flush();
+                //s2e()->getExecutor()->terminateState(*state, s);
+            /*}*/
+        /*} else {*/
+            //getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            //forkPoint(state);
+            ////PrintRegs(state);
+            //fork_flag = false;
+        /*}*/
     }
 }
 

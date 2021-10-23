@@ -96,9 +96,9 @@ private:
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
     std::map<uint32_t, uint32_t> statistics;
     int ta_numbers = 0;
+    int flags_numbers = 0;
     int read_numbers = 0;
     int write_numbers = 0;
-    std::map<uint32_t, uint32_t> interrupt_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::map<std::pair<uint32_t, uint32_t>, FlagList> Flags_range;
     std::vector<uint32_t> data_register;
@@ -106,7 +106,6 @@ private:
     std::map<uint32_t, bool> disable_init_dr_value_flag;
     bool enable_fuzzing;
     uint32_t fork_point;
-    uint32_t fork_point_count;
     bool init_dr_flag;
 
     bool parseConfig();
@@ -121,7 +120,7 @@ private:
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
 
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
-    void onStatistics(S2EExecutionState *state, bool *actual_end, uint64_t tb_num);
+    void onStatistics();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
     // void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
