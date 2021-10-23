@@ -83,7 +83,7 @@ public:
         Plugin(s2e) {
     }
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */> onExternalInterruptEvent;
-    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t* /* size */,
+    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t * /* size */,
                  std::queue<uint8_t> * /* return value */>
         onBufferInput;
 
@@ -100,7 +100,7 @@ private:
     int write_numbers = 0;
     std::map<uint32_t, uint32_t> interrupt_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
-    FlagList allFlags;
+    std::map<std::pair<uint32_t, uint32_t>, FlagList> Flags_range;
     std::vector<uint32_t> data_register;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;

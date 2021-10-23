@@ -74,8 +74,8 @@ public:
         width *= 8;
         state_map[phaddr].r_size -= width;
         if (state_map[phaddr].r_value.empty()) {
-               state_map[phaddr].r_size = 0;
-           return 0;
+            state_map[phaddr].r_size = 0;
+            return 0;
         }
         uint8_t cur_value = state_map[phaddr].r_value.front();
         state_map[phaddr].r_value.pop();
@@ -402,11 +402,24 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     }
 
     ta_numbers = _idx;
-
+    start = 0xFFFFFFFF;
+    end = 0;
+    FlagList allFlags;
     while (getline(fNLP, peripheralcache)) {
+        if (peripheralcache == "--") {
+            Flags_range[std::make_pair(start, end)] = allFlags;
+            allFlags.clear();
+            start = 0xFFFFFFFF;
+            end = 0;
+            continue;
+        }
         Flag count;
         if (extractFlag(peripheralcache, count)) {
             allFlags.push_back(count);
+            for (auto equ : allFlags) {
+                start = std::min(start, equ.a.phaddr);
+                end = std::max(end, equ.a.phaddr);
+            }
             statistics[++_idx] = 0;
         } else {
             return false;
@@ -759,7 +772,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.interrupt == -1)
                 continue;
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
-            if (!enable_fuzzing  && interrupt_freq[equ.interrupt] > 2) {
+            if (!enable_fuzzing && interrupt_freq[equ.interrupt] > 2) {
                 getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << "\n";
                 continue;
             }
@@ -784,7 +797,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 
                 bool irq_triggered = false;
                 onExternalInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
-                getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << " exit_interrupt = " << plgState->get_exit_interrupt(equ.interrupt) <<" irq = "<<equ.interrupt<< "\n";
+                getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << " exit_interrupt = " << plgState->get_exit_interrupt(equ.interrupt) << " irq = " << equ.interrupt << "\n";
                 if (irq_triggered) {
                     interrupt_freq[equ.interrupt]++;
                     plgState->set_exit_interrupt(equ.interrupt, true);
@@ -898,9 +911,9 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
             data.push_back(plgState->get_dr_value(phaddr, 1));
         }
         if (size == 4) {
-            *NLPsymbolicvalue = data[0] | ((uint32_t) data[1] << 8) | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
+            *NLPsymbolicvalue = data[0] | ((uint32_t)data[1] << 8) | ((uint32_t)data[2] << 16) | ((uint32_t)data[3] << 24);
         } else if (size == 2) {
-            *NLPsymbolicvalue = data[0] | ((uint32_t) data[1] << 8);
+            *NLPsymbolicvalue = data[0] | ((uint32_t)data[1] << 8);
         } else {
             *NLPsymbolicvalue = data[0];
         }
