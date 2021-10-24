@@ -213,7 +213,7 @@ void NLPPeripheralModel::initialize() {
     }
 
     bool ok;
-    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
+    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x2D, &ok);
     getWarningsStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockStart));
@@ -377,8 +377,8 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
 // getDebugStream() << "Force IRQ Check "<< hexval(re_tb_num) << "\n";
 // for (auto phaddr: data_register) {
 // if (disable_init_dr_value_flag[phaddr] != 1) {
-// getWarningsStream() << " write init dr value 0xA! phaddr = "<< hexval(phaddr) << "\n";
-// plgState->hardware_write_to_receive_buffer(phaddr, 0xA, 4);
+// getWarningsStream() << " write init dr value 0x2D! phaddr = "<< hexval(phaddr) << "\n";
+// plgState->hardware_write_to_receive_buffer(phaddr, 0x2D, 4);
 //}
 //}
 // UpdateGraph(state, Write, 0);
@@ -811,11 +811,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.interrupt == -1)
                 continue;
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
-            //if (!enable_fuzzing) {
-            /*if (plgState->get_irq_freq(equ.interrupt) > 2) {*/
-            //getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(equ.interrupt) << "\n";
-            //continue;
-            /*}*/
+            if (!enable_fuzzing) {
+            if (plgState->get_irq_freq(equ.interrupt) > 2) {
+            getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(equ.interrupt) << "\n";
+            continue;
+            }
+	    }
             //} else {
             /*if (plgState->get_irq_freq(equ.interrupt) > 10) {*/
             //getInfoStream() << " only trigger at most ten times DATA IRQ Action interrupt in fuzzing mode equ.interrupt = " << equ.interrupt << "\n";
@@ -937,10 +938,10 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
-            getWarningsStream() << " write init dr value 0xA!  \n";
+            getWarningsStream() << " write init dr value 0x2D!  \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
-                tmp.push(0xA);
+                tmp.push(0x2D);
                 plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
             UpdateGraph(g_s2e_state, Rx, 0);
@@ -985,10 +986,10 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
-            getWarningsStream() << " write init dr value 0xA! \n";
+            getWarningsStream() << " write init dr value 0x2D! \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
-                tmp.push(0xA);
+                tmp.push(0x2D);
                 plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
             UpdateGraph(g_s2e_state, Rx, 0);
