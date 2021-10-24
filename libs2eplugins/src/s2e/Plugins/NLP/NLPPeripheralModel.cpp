@@ -324,7 +324,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
         }
         if (phaddr == 0) {
             int total_sz = flags_numbers;
-
+            _idx = ta_numbers+1;
             allFlags.reserve(total_sz); // preallocate memory
             for (auto loc : Flags_range) {
                 allFlags.insert(allFlags.end(), loc.second.begin(), loc.second.end());
@@ -332,6 +332,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
         }
 
         for (auto c : allFlags) {
+            ++_idx;
             if (c.a.type == "O") {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
@@ -340,9 +341,9 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 set_reg_value(state_map, c.a, tmp);
                 if (state_map[c.a.phaddr].cur_value == old_value)
                     continue;
-                statistics[++_idx] += 1;
+                statistics[_idx] += 1;
                 // set_reg_value(state_map, c.a, c.value);
-                //getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << tmp << " size " << c.value.size()
+                //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
                 // getDebugStream() << "Flag "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
             } else {
@@ -351,6 +352,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 tmp = (old_value << 1) + 1;
                 if (tmp > c.value[0])
                     tmp = 0;
+                statistics[_idx] += 1;
                 //if (c.freq > 0) {
                 //    tmp = (old_value << 1) + 1;
                 //    if (tmp > c.value[0])
@@ -361,7 +363,6 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //        tmp = c.value[0];
                 //}
                 set_reg_value(state_map, c.a, tmp);
-                statistics[++_idx] += 1;
             }
 
             plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
@@ -448,7 +449,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     FlagList allFlags;
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "--") {
-            Flags_range[std::make_pair(start, end)] = allFlags;
+            Flags_range.push_back(std::make_pair(std::make_pair(start, end), allFlags));
             allFlags.clear();
             start = 0xFFFFFFFF;
             end = 0;
@@ -879,26 +880,27 @@ void NLPPeripheralModel::onStatistics() {
             fPHNLP << "\n";
         }
     }
+    int _tmp1 = 0, _tmp2 = 0;
     for (auto ta : statistics) {
-        if (ta.first < ta_numbers) {
+        if (ta.first <= ta_numbers) {
             sum_ta += ta.second;
             unique_ta += ta.second > 0;
             fPHNLP << "TA id: " << ta.first << " cnt: " << ta.second << "\n";
         } else {
-            for (auto nlpph : nlp_mmio) {
-                auto tmp = allFlags[ta.first - ta_numbers].a.phaddr;
-                if (tmp >= nlpph.first && tmp <= nlpph.second) {
-                    bool uncertain = allFlags[ta.first - ta_numbers].value.size() > 1;
-                    if (uncertain) {
-                        unique_uncertain_flag += ta.second > 0;
-                        uncertain_flag += ta.second;
-                    }
-                    sum_flag += ta.second;
-                    unique_flag += ta.second > 0;
-                    fPHNLP << "Flag uncertain? " << uncertain << " id: " << ta.first << " reg: " << hexval(tmp) << " bit: " << allFlags[ta.first - ta_numbers].a.bits[0] << " cnt: " << ta.second << "\n";
-                    break;
-                }
-            }
+	    if (_tmp2 >= Flags_range[_tmp1].second.size()) {
+	        _tmp1++;
+	        _tmp2 = 0;
+	    }
+	    auto tmp = Flags_range[_tmp1].second[_tmp2].a.phaddr;
+            bool uncertain = Flags_range[_tmp1].second[_tmp2].value.size() > 1;
+	    if (uncertain) {
+                unique_uncertain_flag += ta.second > 0;
+                uncertain_flag += ta.second;
+	    }
+            sum_flag += ta.second;
+            unique_flag += ta.second > 0;
+            fPHNLP << "Flag uncertain? " << uncertain << " id: " << ta.first << " reg: " << hexval(tmp) << " bit: " << Flags_range[_tmp1].second[_tmp2].a.bits[0] << " cnt: " << ta.second << "\n";
+	    _tmp2++;
         }
     }
     for (auto interrupt : plgState->get_irqs_freq()) {

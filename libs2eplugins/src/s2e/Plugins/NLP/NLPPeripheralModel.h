@@ -100,7 +100,7 @@ private:
     int read_numbers = 0;
     int write_numbers = 0;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
-    std::map<std::pair<uint32_t, uint32_t>, FlagList> Flags_range;
+    std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
     std::vector<uint32_t> data_register;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
@@ -124,7 +124,7 @@ private:
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
     void onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num);
     // void onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type, uint64_t tb_num);
-    void UpdateFlag();
+    void UpdateFlag(uint32_t phaddr);
     void onForkPoints(S2EExecutionState *state, uint64_t pc);
     // void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
     uint32_t get_reg_value(RegMap &state_map, Field a);
