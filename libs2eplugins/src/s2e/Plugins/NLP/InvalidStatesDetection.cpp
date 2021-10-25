@@ -219,9 +219,6 @@ public:
 
 void InvalidStatesDetection::initialize() {
 
-    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-        sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockEnd));
-
     cache_mode = s2e()->getConfig()->getBool(getConfigKey() + ".usePeripheralCache", false);
     init_cache_mode = cache_mode;
     bool ok;
@@ -259,6 +256,8 @@ void InvalidStatesDetection::initialize() {
         return;
     }
 
+    s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
+        sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockEnd));
     // use for user-defined invlid pc and alive pc
     blockStartConnection = s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockStart));
