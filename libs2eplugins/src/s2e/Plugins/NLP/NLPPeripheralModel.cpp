@@ -333,7 +333,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
 
         for (auto c : allFlags) {
             ++_idx;
-	    if (c.a.type == 'S' && phaddr == 0) {
+	    if (c.a.type == "S" && phaddr == 0) {
                     statistics[_idx] += 1;
                     set_reg_value(state_map, c.a, c.value[0]);
             } else if (c.a.type == "O" && phaddr != 0) {
