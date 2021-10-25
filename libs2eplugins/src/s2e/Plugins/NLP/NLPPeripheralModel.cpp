@@ -43,6 +43,14 @@ public:
         return new NLPPeripheralModelState(*this);
     }
 
+    bool pending_interrupt() {
+	    for (auto irq: exit_interrupt) {
+		    if (irq.second > 0 && interrupt_freq[irq.first] < 2) {
+			    return true;
+		    }
+	    }
+	    return false;
+    }
     bool get_exit_interrupt(uint32_t num) {
         return exit_interrupt[num] > 0;
         // return exit_interrupt[num];
@@ -300,8 +308,8 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
             tmp.push(0x2D);
             plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
         }
+        UpdateFlag(0);
     }
-    UpdateFlag(0);
     UpdateGraph(g_s2e_state, Rx, 0);
 }
 
@@ -835,6 +843,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 bool check = false;
                 for (auto nlpph : nlp_mmio) {
                     if (tmp >= nlpph.first && tmp <= nlpph.second) {
+                        getInfoStream() << " skip not in mmio equ.interrupt = " << equ.interrupt << "\n";
                         check = true;
                         break;
                     }
@@ -1034,6 +1043,10 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         init_dr_flag = true;
         plgState->inc_fork_count();
         if (!enable_fuzzing) {
+            UpdateFlag(0);
+            UpdateGraph(state, Rx, 0);
+	    if (plgState->pending_interrupt())
+		    return;
             getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
             getWarningsStream() << "===========unit test pass============\n";
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
@@ -1066,8 +1079,8 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value: " << hexval(return_value.front()) << "\n";
         }
-        UpdateGraph(state, Rx, 0);
 	UpdateFlag(0);
+        UpdateGraph(state, Rx, 0);
         init_dr_flag = false;
     }
 }
