@@ -101,6 +101,7 @@ private:
     int write_numbers = 0;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
+    std::map<uint32_t, uint32_t> untriggered_irq;
     std::vector<uint32_t> data_register;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;

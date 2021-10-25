@@ -324,7 +324,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
         }
         if (phaddr == 0) {
             int total_sz = flags_numbers;
-            _idx = ta_numbers+1;
+            _idx = ta_numbers;
             allFlags.reserve(total_sz); // preallocate memory
             for (auto loc : Flags_range) {
                 allFlags.insert(allFlags.end(), loc.second.begin(), loc.second.end());
@@ -333,7 +333,10 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
 
         for (auto c : allFlags) {
             ++_idx;
-            if (c.a.type == "O") {
+	    if (c.a.type == 'S' && phaddr == 0) {
+                    statistics[_idx] += 1;
+                    set_reg_value(state_map, c.a, c.value[0]);
+            } else if (c.a.type == "O" && phaddr != 0) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
                 int tmp = c.value[std::rand() % c.value.size()];
@@ -346,7 +349,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
                 // getDebugStream() << "Flag "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
-            } else {
+            } else if (c.a.type == "F" && phaddr != 0) {
                 auto old_value = get_reg_value(state_map, c.a);
                 uint32_t tmp = 0;
                 tmp = (old_value << 1) + 1;
@@ -363,7 +366,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //        tmp = c.value[0];
                 //}
                 set_reg_value(state_map, c.a, tmp);
-            }
+	    }
 
             plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
             auto tmp = plgState->get_state_map();
@@ -811,12 +814,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.interrupt == -1)
                 continue;
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
-            if (!enable_fuzzing) {
-            if (plgState->get_irq_freq(equ.interrupt) > 2) {
-            getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(equ.interrupt) << "\n";
-            continue;
-            }
-	    }
+            //if (!enable_fuzzing) {
+            //if (plgState->get_irq_freq(equ.interrupt) > 2) {
+            //getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(equ.interrupt) << "\n";
+            //continue;
+            //}
+	    //}
             //} else {
             /*if (plgState->get_irq_freq(equ.interrupt) > 10) {*/
             //getInfoStream() << " only trigger at most ten times DATA IRQ Action interrupt in fuzzing mode equ.interrupt = " << equ.interrupt << "\n";
@@ -848,7 +851,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 if (irq_triggered) {
                     plgState->inc_irq_freq(equ.interrupt);
                     plgState->set_exit_interrupt(equ.interrupt, true);
-                }
+                } else {
+			untriggered_irq[equ.interrupt]++;
+		}
             }
             //else if (enable_fuzzing) {
             //    plgState->set_exit_interrupt(equ.interrupt, true);
@@ -1055,6 +1060,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value: " << hexval(return_value.front()) << "\n";
         }
+	UpdateFlag(0);
         UpdateGraph(state, Rx, 0);
         init_dr_flag = false;
     }
