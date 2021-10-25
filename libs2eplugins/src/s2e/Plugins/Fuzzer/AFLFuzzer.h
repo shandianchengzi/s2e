@@ -92,6 +92,7 @@ private:
     std::string firmwareName;
     TBCounts all_tb_map;
     uint64_t unique_tb_num; // new tb number
+    uint64_t tb_num;
     bool enable_fuzzing;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> disable_input_peripherals;
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
@@ -106,7 +107,10 @@ private:
     uint64_t afl_start_code; /* .text start pointer      */
     uint64_t afl_end_code;   /* .text end pointer        */
     uint64_t hang_timeout;
-    uint64_t timer_ticks;
+    //uint64_t timer_ticks;
+    time_t init_time, start_time, end_time;
+    std::map<uint32_t /* time */, uint32_t /* tb number */> total_time_tbnum;
+    uint32_t total_time;
 
     void onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t vaddr, uint64_t value, uint8_t size,
                                     unsigned flags);
@@ -119,8 +123,9 @@ private:
     void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
     void onCrashHang(S2EExecutionState *state, uint32_t flag);
     void forkPoint(S2EExecutionState *state);
-    void onTimer();
+    //void onTimer();
     void recordTBMap();
+    void recordTBNum();
 };
 
 } // namespace plugins

@@ -258,7 +258,7 @@ static void PrintRegs(S2EExecutionState *state) {
         target_ulong concreteData;
 
         if (getConcolicValue(state, offset, &concreteData)) {
-            g_s2e->getInfoStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+            g_s2e->getWarningsStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
         } else {
             g_s2e->getWarningsStream() << "Sym Regs " << i << " = " << hexval(concreteData) << "\n";
         }
@@ -273,6 +273,7 @@ void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
     } else {
         afl_con->AFL_return = FAULT_TMOUT;
     }
+    fork_flag = false;
     std::string s;
     llvm::raw_string_ostream ss(s);
     ss << "Kill path due to Crash/Hang\n";
@@ -280,9 +281,9 @@ void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
     s2e()->getExecutor()->terminateState(*state, s);
 }
 
-void AFLFuzzer::onTimer() {
-    ++timer_ticks;
-}
+/*void AFLFuzzer::onTimer() {*/
+    //++timer_ticks;
+/*}*/
 
 /*void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {*/
     //DECLARE_PLUGINSTATE(AFLFuzzerState, state);
@@ -432,7 +433,6 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
     bool doFuzz;
     doFuzz = true;
     if (doFuzz) {
-        timer_ticks = 0;
         *testcase_size = afl_con->AFL_size;
         if (afl_con->AFL_input) {
             getWarningsStream() << "AFL_input = " << afl_con->AFL_input
@@ -575,6 +575,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
         recordTBMap();
+        recordTBNum();
         getInfoStream() << "The total number of unique executed tb is " << unique_tb_num << "\n";
         getWarningsStream() << "==== Testing aborted by user via Fuzzer ====\n";
         g_s2e->getCorePlugin()->onEngineShutdown.emit();
@@ -673,25 +674,22 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     if (pc == fork_point) {
         //if (fork_flag == false) {
         if (fork_flag) {
-            getWarningsStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
             afl_con->AFL_input = 0;
             Ethernet.pos = 0;
             afl_con->AFL_return = 0;
-            timer_ticks = 0;
-            std::string s;
-            llvm::raw_string_ostream ss(s);
-            ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
-            ss.flush();
-            s2e()->getExecutor()->terminateState(*state, s);
+            usleep(10000);
+            start_time = time(NULL);
         } else {
             memset(afl_area_ptr, 0, MAP_SIZE);
             getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            init_time = time(NULL);
             forkPoint(state);
-            //PrintRegs(state);
-            fork_flag = false;
+            PrintRegs(state);
+            start_time = time(NULL);
+            fork_flag = true;
         }
-
     }
 }
 

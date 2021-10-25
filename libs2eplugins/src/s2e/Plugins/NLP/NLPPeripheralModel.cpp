@@ -345,7 +345,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
             if (c.a.type == "S" && phaddr == 0) {
                 statistics[_idx] += 1;
                 set_reg_value(state_map, c.a, c.value[0]);
-                getWarningsStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
+                getInfoStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                     << "\n";
             } else if (c.a.type == "O" && phaddr != 0) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
@@ -1045,8 +1045,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         if (!enable_fuzzing) {
             UpdateFlag(0);
             UpdateGraph(state, Rx, 0);
-	    if (plgState->pending_interrupt())
-		    return;
+            if (plgState->pending_interrupt())
+                return;
             getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
             getWarningsStream() << "===========unit test pass============\n";
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
@@ -1074,12 +1074,12 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
                 onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
                 plgState->hardware_write_to_receive_buffer(data_register[i], return_value, return_value.size());
             } else {
-                plgState->hardware_write_to_receive_buffer(data_register[i], return_value, AFL_size);
+                plgState->hardware_write_to_receive_buffer(data_register[i], return_value, return_value.size());
             }
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value: " << hexval(return_value.front()) << "\n";
         }
-	UpdateFlag(0);
+        UpdateFlag(0);
         UpdateGraph(state, Rx, 0);
         init_dr_flag = false;
     }
