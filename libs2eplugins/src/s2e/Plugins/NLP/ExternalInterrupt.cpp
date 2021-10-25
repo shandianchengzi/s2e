@@ -175,7 +175,7 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
     if (plgState->get_systick_flag() == true && systick_disable_flag) {
         s2e()->getExecutor()->disableSystickInterrupt(0);
         if (state->regs()->getPc() == systick_begin_point) {
-            getDebugStream() << "enable systick at " << hexval(state->regs()->getPc()) << "\n";
+            getWarningsStream() << "enable systick at " << hexval(state->regs()->getPc()) << "\n";
             plgState->set_systick_flag(false);
             s2e()->getExecutor()->disableSystickInterrupt(7);
         }
@@ -212,14 +212,14 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
         }
     }
 
-    if (std::find(active_irqs.begin(), active_irqs.end(), irq_no) != active_irqs.end()) {
-        if (std::find(disable_irqs.begin(), disable_irqs.end(), irq_no - 16) == disable_irqs.end()) {
+    if (std::find(disable_irqs.begin(), disable_irqs.end(), irq_no) == disable_irqs.end()) {
+        if (std::find(active_irqs.begin(), active_irqs.end(), irq_no) != active_irqs.end()) {
             *irq_triggered = true;
             getInfoStream() << " trigger external irq " << irq_no << "\n";
             s2e()->getExecutor()->setExternalInterrupt(irq_no);
+        } else {
+            getWarningsStream() << "cannot trigger nlp interrupt no = " << irq_no << ", since it is not active\n";
         }
-    } else {
-        getWarningsStream() << "cannot trigger nlp interrupt no = " << irq_no << ", since it is not active\n";
     }
 
     // each exteranl irq trigger
