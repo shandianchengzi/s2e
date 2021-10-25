@@ -301,6 +301,7 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
             plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
         }
     }
+    UpdateFlag(0);
     UpdateGraph(g_s2e_state, Rx, 0);
 }
 
@@ -336,7 +337,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
             if (c.a.type == "S" && phaddr == 0) {
                 statistics[_idx] += 1;
                 set_reg_value(state_map, c.a, c.value[0]);
-                getWarningsStream() << "new Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
+                getWarningsStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                     << "\n";
             } else if (c.a.type == "O" && phaddr != 0) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
@@ -350,7 +351,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 // set_reg_value(state_map, c.a, c.value);
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
-                getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value << "\n";
+                getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value[0] << "\n";
             } else if (c.a.type == "F" && phaddr != 0) {
                 auto old_value = get_reg_value(state_map, c.a);
                 uint32_t tmp = 0;
@@ -1065,8 +1066,8 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value: " << hexval(return_value.front()) << "\n";
         }
-        UpdateFlag(0);
         UpdateGraph(state, Rx, 0);
+	UpdateFlag(0);
         init_dr_flag = false;
     }
 }
