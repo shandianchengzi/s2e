@@ -94,6 +94,7 @@ void AFLFuzzer::initialize() {
     }
 
     int disable_input_peripheral_size = g_s2e->getConfig()->getListSize(getConfigKey() + ".disableInputPeripherals", &ok);
+    firmwareName = s2e()->getConfig()->getString(getConfigKey() + ".firmwareName2", "x.elf");
 
     for (unsigned i = 0; i < disable_input_peripheral_size; i++) {
         uint32_t phaddr, size;
@@ -200,6 +201,7 @@ void AFLFuzzer::initialize() {
 
     fork_flag = false;
     total_time = 0;
+    disable_interrupt_count = 0;
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
 
     auto crash_keys = cfg->getIntegerList(getConfigKey() + ".crashPoints");
@@ -433,7 +435,7 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
     if (doFuzz) {
         *testcase_size = afl_con->AFL_size;
         if (afl_con->AFL_input) {
-            getInfoStream() << "AFL_input = " << afl_con->AFL_input
+            getWarningsStream() << "AFL_input = " << afl_con->AFL_input
                             << " AFL_size = " << afl_con->AFL_size << "\n";
             for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
                 uint8_t fuzz_value;
@@ -441,11 +443,16 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
                 value->push(fuzz_value);
                 getInfoStream() << " " << hexval(fuzz_value);
             }
+            if (afl_con->AFL_size < 54) {
+                for (uint32_t i = 0; i < 54 - afl_con->AFL_size; i++) {
+                    value->push(0x0);
+                }
+            }
             getInfoStream() << "\n";
         } else {
             getWarningsStream() << "AFL testcase is not ready!! return 0 "<< afl_con->AFL_size << "\n";
-            for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
-                value->push(0);
+            for (uint32_t i = 0; i < 54; i++) {
+                value->push(0x0);
             }
         }
     }
@@ -510,7 +517,8 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
 
 void AFLFuzzer::recordTBMap() {
     std::string fileName;
-    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_map.txt";
+    std::size_t index = firmwareName.find_last_of("/\\");
+    fileName = s2e()->getOutputDirectory() + "/" + firmwareName.substr(index + 1) + "fuzz_tb_map.txt";
     std::ofstream fTBmap;
     fTBmap.open(fileName, std::ios::out | std::ios::trunc);
 
@@ -524,7 +532,8 @@ void AFLFuzzer::recordTBMap() {
 
 void AFLFuzzer::recordTBNum() {
     std::string fileName;
-    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_num.txt";
+    std::size_t index = firmwareName.find_last_of("/\\");
+    fileName = s2e()->getOutputDirectory() + "/" + firmwareName.substr(index + 1) + "fuzz_tb_num.csv";
     std::ofstream fTBNum;
     fTBNum.open(fileName, std::ios::out | std::ios::trunc);
 
@@ -544,14 +553,15 @@ void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *
 
 void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     static __thread uint64_t prev_loc;
+    static __thread uint64_t prev_loc2;
 
     ++tb_num;
     end_time = time(NULL);
-    if ((end_time - init_time)/60 > 15) {
+    if (fork_flag && ((end_time - init_time) / 60 > 14)) {
         init_time = time(NULL);
         total_time++;
         total_time_tbnum[total_time] = unique_tb_num;
-        getWarningsStream() << 15 * total_time << "min," << unique_tb_num << "\n";
+        getWarningsStream() << 15 * total_time << "min: " << unique_tb_num << "unique tb number\n";
     }
     // record total bb number
     if (all_tb_map[cur_loc] < 1) {
@@ -574,9 +584,26 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         exit(0);
     }
 
-    if (fork_flag && unlikely((end_time - start_time) > hang_timeout * 4)) {
-        getWarningsStream() << g_s2e_allow_interrupt << " what happen when we are hang at pc = "
-                            << hexval(cur_loc) << ", maybe add it as a crash point\n";
+    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() < 16) {
+        disable_interrupt_count = 100;
+    } else {
+        if (disable_interrupt_count > 0) {
+            disable_interrupt_count--;
+        }
+    }
+
+    if (disable_interrupt_count == 0) {
+        g_s2e_allow_interrupt = 1;
+    } else {
+        g_s2e_allow_interrupt = 0;
+    }
+
+    if (!state->regs()->getInterruptFlag()) {
+        if (fork_flag && tb_num % 1000 == 0) {
+            getDebugStream() << " force exit every max loop tb num " << tb_num << "\n";
+            g_s2e_allow_interrupt = 1;
+            s2e()->getExecutor()->setCpuExitRequest();
+        }
     }
 
     // user-defined crash points
@@ -587,9 +614,10 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         }
     }
 
-    // Do not map external interrupt
-    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 14) {
-        return;
+    // crash/hang
+    if (fork_flag && unlikely((end_time - start_time) > hang_timeout * 2)) {
+        getWarningsStream() << "Kill Fuzz State due to Timeout at pc = " << hexval(cur_loc) <<"\n";
+        onCrashHang(state, 0);
     }
 
     // path bitmap
@@ -599,6 +627,24 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     /* Looks like QEMU always maps to fixed locations, so ASAN is not a
      concern. Phew. But instruction addresses may be aligned. Let's mangle
      the value to get something quasi-uniform. */
+
+    // Do not map external interrupt
+    if (state->regs()->getInterruptFlag()) {
+        if (state->regs()->getExceptionIndex() > 15) {
+            return;
+        } else if (state->regs()->getExceptionIndex() == 15) {
+            cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
+            cur_loc &= MAP_SIZE - 1;
+            if (cur_loc >= afl_inst_rms)
+                return;
+            if (bitmap[cur_loc ^ prev_loc2]) // only count once for systick irq
+                return;
+            bitmap[cur_loc ^ prev_loc2]++;
+            prev_loc2 = cur_loc >> 1;
+            return;
+        }
+    }
+
 
     cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
     cur_loc &= MAP_SIZE - 1;
@@ -612,12 +658,6 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     prev_loc = cur_loc >> 1;
 
     // getDebugStream() << "count bitmap = " << count_bytes(bitmap) << "\n";
-
-    // crash/hang
-    if (fork_flag && unlikely((end_time - start_time) > hang_timeout * 5)) {
-        getWarningsStream() << "Kill Fuzz State due to Timeout\n";
-        onCrashHang(state, 0);
-    }
 
     if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() < 10) {
         getWarningsStream() << "Kill Fuzz State due to Fault interrupt = " << state->regs()->getExceptionIndex()
@@ -635,6 +675,7 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     if (pc == fork_point) {
         //if (fork_flag == false) {
         if (fork_flag) {
+            getWarningsStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
             afl_con->AFL_input = 0;
             Ethernet.pos = 0;
@@ -642,6 +683,7 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             usleep(10000);
             start_time = time(NULL);
         } else {
+            memset(afl_area_ptr, 0, MAP_SIZE);
             getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             init_time = time(NULL);
             forkPoint(state);
@@ -649,14 +691,14 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             start_time = time(NULL);
             fork_flag = true;
         }
-            /*if (fork_point_count) {*/
-                //fork_flag = true;
-                //std::string s;
-                //llvm::raw_string_ostream ss(s);
-                //ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
-                //ss.flush();
-                //s2e()->getExecutor()->terminateState(*state, s);
-            /*}*/
+        /*if (fork_point_count) {*/
+            //fork_flag = true;
+            //std::string s;
+            //llvm::raw_string_ostream ss(s);
+            //ss << "One Round Finish Fork point at " << hexval(pc) << "\n";
+            //ss.flush();
+            //s2e()->getExecutor()->terminateState(*state, s);
+        /*}*/
         /*} else {*/
             //getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             //forkPoint(state);

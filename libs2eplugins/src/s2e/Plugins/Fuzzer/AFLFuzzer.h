@@ -89,6 +89,7 @@ private:
     sigc::connection blockEndConnection;
     sigc::connection timerConnection;
 
+    std::string firmwareName;
     TBCounts all_tb_map;
     uint64_t unique_tb_num; // new tb number
     uint64_t tb_num;
@@ -97,6 +98,7 @@ private:
     std::map<uint32_t /* phaddr */, uint32_t /* size */> additional_writeable_ranges;
     Fuzz_Buffer Ethernet;
     //uint32_t cur_read;
+    uint64_t disable_interrupt_count;
     bool fork_flag;
     uint32_t fork_point;
     std::vector<uint32_t> crash_points;
