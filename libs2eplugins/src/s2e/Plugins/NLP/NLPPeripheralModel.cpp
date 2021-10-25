@@ -917,6 +917,9 @@ void NLPPeripheralModel::onStatistics() {
     for (auto chain : chain_freq) {
         fPHNLP << "chain id1:" << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
     }
+    for (auto irq : untriggered_irq) {
+        fPHNLP << "untriggered_irq" << irq.first << " freq: " << irq.second << "\n";
+    }
     fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << "\n";
     fPHNLP.close();
 }
