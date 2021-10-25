@@ -333,9 +333,11 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
 
         for (auto c : allFlags) {
             ++_idx;
-	    if (c.a.type == "S" && phaddr == 0) {
-                    statistics[_idx] += 1;
-                    set_reg_value(state_map, c.a, c.value[0]);
+            if (c.a.type == "S" && phaddr == 0) {
+                statistics[_idx] += 1;
+                set_reg_value(state_map, c.a, c.value[0]);
+                getWarningsStream() << "new Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
+                                    << "\n";
             } else if (c.a.type == "O" && phaddr != 0) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
@@ -348,7 +350,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 // set_reg_value(state_map, c.a, c.value);
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
-                // getDebugStream() << "Flag "<< hexval(c.a.phaddr)<<" value "<<c.value << "\n";
+                getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value << "\n";
             } else if (c.a.type == "F" && phaddr != 0) {
                 auto old_value = get_reg_value(state_map, c.a);
                 uint32_t tmp = 0;
@@ -366,7 +368,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //        tmp = c.value[0];
                 //}
                 set_reg_value(state_map, c.a, tmp);
-	    }
+            }
 
             plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
             auto tmp = plgState->get_state_map();
@@ -819,7 +821,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             //getWarningsStream() << " 0 DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(equ.interrupt) << "\n";
             //continue;
             //}
-	    //}
+            //}
             //} else {
             /*if (plgState->get_irq_freq(equ.interrupt) > 10) {*/
             //getInfoStream() << " only trigger at most ten times DATA IRQ Action interrupt in fuzzing mode equ.interrupt = " << equ.interrupt << "\n";
@@ -852,8 +854,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     plgState->inc_irq_freq(equ.interrupt);
                     plgState->set_exit_interrupt(equ.interrupt, true);
                 } else {
-			untriggered_irq[equ.interrupt]++;
-		}
+                    untriggered_irq[equ.interrupt]++;
+                }
             }
             //else if (enable_fuzzing) {
             //    plgState->set_exit_interrupt(equ.interrupt, true);
@@ -893,20 +895,20 @@ void NLPPeripheralModel::onStatistics() {
             unique_ta += ta.second > 0;
             fPHNLP << "TA id: " << ta.first << " cnt: " << ta.second << "\n";
         } else {
-	    if (_tmp2 >= Flags_range[_tmp1].second.size()) {
-	        _tmp1++;
-	        _tmp2 = 0;
-	    }
-	    auto tmp = Flags_range[_tmp1].second[_tmp2].a.phaddr;
+            if (_tmp2 >= Flags_range[_tmp1].second.size()) {
+                _tmp1++;
+                _tmp2 = 0;
+            }
+            auto tmp = Flags_range[_tmp1].second[_tmp2].a.phaddr;
             bool uncertain = Flags_range[_tmp1].second[_tmp2].value.size() > 1;
-	    if (uncertain) {
+            if (uncertain) {
                 unique_uncertain_flag += ta.second > 0;
                 uncertain_flag += ta.second;
-	    }
+            }
             sum_flag += ta.second;
             unique_flag += ta.second > 0;
             fPHNLP << "Flag uncertain? " << uncertain << " id: " << ta.first << " reg: " << hexval(tmp) << " bit: " << Flags_range[_tmp1].second[_tmp2].a.bits[0] << " cnt: " << ta.second << "\n";
-	    _tmp2++;
+            _tmp2++;
         }
     }
     for (auto interrupt : plgState->get_irqs_freq()) {
@@ -1060,7 +1062,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value: " << hexval(return_value.front()) << "\n";
         }
-	UpdateFlag(0);
+        UpdateFlag(0);
         UpdateGraph(state, Rx, 0);
         init_dr_flag = false;
     }
