@@ -106,6 +106,7 @@ private:
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
     bool enable_fuzzing;
+    uint32_t begin_point;
     uint32_t fork_point;
     bool init_dr_flag;
 

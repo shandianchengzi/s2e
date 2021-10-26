@@ -213,16 +213,23 @@ void NLPPeripheralModel::initialize() {
         sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
 
+    bool ok;
+    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
+    getWarningsStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     enable_fuzzing = s2e()->getConfig()->getBool(getConfigKey() + ".useFuzzer", false);
     if (enable_fuzzing) {
         init_dr_flag = false;
         s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
             sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
+        begin_point = s2e()->getConfig()->getInt(getConfigKey() + ".beginPoint", 0x0, &ok);
+        if (!ok || begin_point == 0x0) {
+            getWarningsStream() << " begin_point will be same as fork_point!\n";
+            begin_point = fork_point;
+        } else {
+            getInfoStream() << "begin point = " << hexval(begin_point) << "\n";
+        }
     }
 
-    bool ok;
-    fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x2D, &ok);
-    getWarningsStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockStart));
     s2e()->getCorePlugin()->onExceptionExit.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onExceptionExit));
@@ -986,7 +993,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         } else {
             *NLPsymbolicvalue = data[0];
         }
-        getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size << " value " << hexval(*NLPsymbolicvalue) << "\n";
+        getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size
+            << "pc = " << hexval(state->regs()->getPc()) << " value " << hexval(*NLPsymbolicvalue) << "\n";
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
@@ -1039,7 +1047,33 @@ void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecu
 
 void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    if (pc == fork_point) {
+    if (pc == begin_point && begin_point != fork_point) {
+        plgState->inc_fork_count();
+        std::queue<uint8_t> return_value;
+        std::queue<uint8_t> return_value2;
+        uint32_t AFL_size = 0;
+        if (plgState->get_fork_point_count() < 3) {
+            for (uint32_t i = 0; i < data_register.size(); ++i) {
+                if (i == 0) {
+                    onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
+                        for (int j = 0; j< return_value.size(); j++) {
+                            return_value2.push(return_value.front());
+                            return_value2.push(return_value.front());
+                            return_value2.push(return_value.front());
+                            return_value.pop();
+                        }
+                        plgState->hardware_write_to_receive_buffer(data_register[i], return_value2, return_value2.size());
+                } else {
+                        plgState->hardware_write_to_receive_buffer(data_register[i], return_value2, return_value2.size());
+                }
+                UpdateGraph(state, Rx, 0);
+                getInfoStream() << "write to init receiver buffer 56B " << hexval(data_register[i])
+                                << " return value: " << return_value2.size() << "\n";
+            }
+        } else {
+            init_dr_flag = true;
+        }
+    } else if (pc == fork_point) {
         init_dr_flag = true;
         plgState->inc_fork_count();
         if (!enable_fuzzing) {
