@@ -108,6 +108,7 @@ private:
     bool enable_fuzzing;
     uint32_t begin_point;
     uint32_t fork_point;
+    bool begin_irq_flag;
     bool init_dr_flag;
 
     bool parseConfig();
