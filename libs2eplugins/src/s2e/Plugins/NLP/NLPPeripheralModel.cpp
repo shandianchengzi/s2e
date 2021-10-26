@@ -286,6 +286,8 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     if (enable_fuzzing) {
         UpdateGraph(g_s2e_state, Write, 0);
     }
+    // flip timer flag
+    UpdateFlag(-1);
     /*
     if (plgState->get_exit_interrupt(irq_no) && enable_fuzzing) {
         getWarningsStream() << "IRQ Action restart = " << irq_no << "\n";
@@ -338,7 +340,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
             }
             _idx += flags.size();
         }
-        if (phaddr == 0) {
+        if (phaddr <= 0) {
             int total_sz = flags_numbers;
             _idx = ta_numbers;
             allFlags.reserve(total_sz); // preallocate memory
@@ -354,7 +356,12 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 set_reg_value(state_map, c.a, c.value[0]);
                 getInfoStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                     << "\n";
-            } else if (c.a.type == "O" && phaddr != 0) {
+            } else if (c.a.type == "S" && phaddr == -1) {
+                statistics[_idx] += 1;
+                set_reg_value(state_map, c.a, 0);
+                getInfoStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
+                                    << "\n";
+            } else if (c.a.type == "O" && phaddr > 0) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
                 int tmp = c.value[std::rand() % c.value.size()];
@@ -367,7 +374,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
                 getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value[0] << "\n";
-            } else if (c.a.type == "F" && phaddr != 0) {
+            } else if (c.a.type == "F" && phaddr > 0) {
                 auto old_value = get_reg_value(state_map, c.a);
                 uint32_t tmp = 0;
                 tmp = (old_value << 1) + 1;
