@@ -186,19 +186,19 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
     std::vector<uint32_t> irqs_bitmap;
     std::vector<uint32_t> last_irqs_bitmap;
     irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(0));
-    getDebugStream() << "external bit map = " << hexval(irqs_bitmap[0]) << "\n";
+    getInfoStream() << "external bit map = " << hexval(irqs_bitmap[0]) << "\n";
     irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(4));
-    getDebugStream() << "external bit map 2 = " << hexval(irqs_bitmap[1]) << "\n";
+    getInfoStream() << "external bit map 2 = " << hexval(irqs_bitmap[1]) << "\n";
     irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(8));
-    getDebugStream() << "external bit map 3 = " << hexval(irqs_bitmap[2]) << "\n";
+    getInfoStream() << "external bit map 3 = " << hexval(irqs_bitmap[2]) << "\n";
 
     last_irqs_bitmap = plgState->get_lastirqs_bitmap();
     for (int k = 0; k < irqs_bitmap.size(); k++) {
         if (last_irqs_bitmap[k] != irqs_bitmap[k]) {
-            getInfoStream() << "active irq has changed\n";
-            getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[0]) << "\n";
-            getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[1]) << "\n";
-            getInfoStream() << "external irq bit map = " << hexval(irqs_bitmap[2]) << "\n";
+            getWarningsStream() << "active irq has changed\n";
+            getWarningsStream() << "external irq bit map = " << hexval(irqs_bitmap[0]) << "\n";
+            getWarningsStream() << "external irq bit map = " << hexval(irqs_bitmap[1]) << "\n";
+            getWarningsStream() << "external irq bit map = " << hexval(irqs_bitmap[2]) << "\n";
             plgState->insert_lastirqs_bitmap(irqs_bitmap);
             plgState->update_activeirqs(setActiveIrqs(irqs_bitmap));
             break;
@@ -208,6 +208,7 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
     std::vector<uint32_t> active_irqs;
     for (auto it : plgState->get_activeirqs()) {
         if (it.second == true) {
+            getInfoStream() << " enable external irq " << it.first << "\n";
             active_irqs.push_back(it.first);
         }
     }
@@ -215,7 +216,7 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
     if (std::find(disable_irqs.begin(), disable_irqs.end(), irq_no) == disable_irqs.end()) {
         if (std::find(active_irqs.begin(), active_irqs.end(), irq_no) != active_irqs.end()) {
             *irq_triggered = true;
-            getInfoStream() << " trigger external irq " << irq_no << "\n";
+            getWarningsStream() << " trigger external irq " << irq_no << "\n";
             s2e()->getExecutor()->setExternalInterrupt(irq_no);
         } else {
             getWarningsStream() << "cannot trigger nlp interrupt no = " << irq_no << ", since it is not active\n";
