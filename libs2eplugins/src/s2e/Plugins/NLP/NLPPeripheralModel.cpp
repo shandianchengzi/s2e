@@ -1079,10 +1079,11 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
                 } else {
                         plgState->hardware_write_to_receive_buffer(data_register[i], return_value2, return_value2.size());
                 }
-                UpdateGraph(state, Rx, 0);
                 getInfoStream() << "write to init receiver buffer 56B " << hexval(data_register[i])
-                                << " return value: " << return_value2.size() << "\n";
+                                    << " return value: " << return_value2.size() << "\n";
             }
+            UpdateFlag(0);
+            UpdateGraph(state, Rx, 0);
         } else {
             begin_irq_flag = true;
             init_dr_flag = true;
@@ -1125,7 +1126,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             } else {
                 plgState->hardware_write_to_receive_buffer(data_register[i], return_value, return_value.size());
             }
-            getWarningsStream() << "write to receiver buffer " << hexval(data_register[i])
+            getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value: " << hexval(return_value.front()) << "\n";
         }
         UpdateFlag(0);
