@@ -788,14 +788,16 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         if (!check)
             continue;
         statistics[_idx] += 1;
-        for (auto equ : trigger) {
-            //auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
-            /*if (prev_action.find(_tmp) != prev_action.end()) {*/
-            //chain_freq[{prev_action[_tmp], _idx}] += 1;
-            //getDebugStream() << "chain a1 " << prev_action[_tmp] << " a2 " << _idx << " \n";
-            /*}*/
-            getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
+	if (!enable_fuzzing) {
+            for (auto equ : trigger) {
+                auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
+                if (prev_action.find(_tmp) != prev_action.end()) {
+                    chain_freq[{prev_action[_tmp], _idx}] += 1;
+                    getDebugStream() << "chain a1 " << prev_action[_tmp] << " a2 " << _idx << " \n";
+                }
+                getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
                              << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
+            }
         }
 
         EquList action = ta.second;
@@ -880,6 +882,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                         return;
                     }
                 }
+		getDebugStream() << "add irqs "<<equ.interrupt<<"\n";
                 irqs.push_back(equ.interrupt);
             }
             //else if (enable_fuzzing) {
@@ -892,9 +895,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         std::shuffle(std::begin(irqs), std::end(irqs), std::default_random_engine());
     }
     for (auto interrupt : irqs) {
+        if (plgState->get_exit_interrupt(interrupt)) continue;
         bool irq_triggered = false;
         onExternalInterruptEvent.emit(state, interrupt, &irq_triggered);
-        getInfoStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(interrupt) << " exit_interrupt = " << plgState->get_exit_interrupt(interrupt) << " irq = " << interrupt << "\n";
+        getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(interrupt) << " exit_interrupt = " << plgState->get_exit_interrupt(interrupt) << " irq = " << interrupt << "\n";
         if (irq_triggered) {
             plgState->inc_irq_freq(interrupt);
             plgState->set_exit_interrupt(interrupt, true);
