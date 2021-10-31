@@ -173,6 +173,10 @@ public:
         }
     }
 
+    TBCounts get_tb_map() {
+        return new_tb_map;
+    }
+
     uint64_t getnewtbnum() {
         return new_tb_num;
     }
@@ -264,6 +268,7 @@ void InvalidStatesDetection::initialize() {
     // use for invaild pc
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
+    s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &InvalidStatesDetection::recordTBMap));
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -312,6 +317,21 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
     }
 
     return conregs;
+}
+
+void InvalidStatesDetection::recordTBMap() {
+    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, g_s2e_state);
+    std::string fileName;
+    fileName = s2e()->getOutputDirectory() + "/fuzz_tb_map.txt";
+    std::ofstream fTBmap;
+    fTBmap.open(fileName, std::ios::out | std::ios::trunc);
+
+    for (auto ittb : plgState->get_tb_map()) {
+        if (ittb.second > 0)
+            fTBmap << hexval(ittb.first) << std::endl;;
+    }
+
+    fTBmap.close();
 }
 
 void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint64_t pc, InvalidStatesType type,

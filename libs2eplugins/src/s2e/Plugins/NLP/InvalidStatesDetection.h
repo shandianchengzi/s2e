@@ -73,6 +73,7 @@ private:
     std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
     uint32_t last_loop_pc;
 
+    void recordTBMap();
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
 
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
