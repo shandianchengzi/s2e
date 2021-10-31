@@ -129,6 +129,8 @@ void ExternalInterrupt::initialize() {
     onNLPPeripheralModelConnection = s2e()->getPlugin<NLPPeripheralModel>();
     onNLPPeripheralModelConnection->onExternalInterruptEvent.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onExternelInterruptTrigger));
+    onNLPPeripheralModelConnection->onEnableISER.connect(
+        sigc::mem_fun(*this, &ExternalInterrupt::onGetISERIRQ));
 
     ConfigFile *cfg = s2e()->getConfig();
     auto disableirqs = cfg->getIntegerList(getConfigKey() + ".disableIrqs");
@@ -181,6 +183,18 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
         }
     }
 }
+
+void ExternalInterrupt::onGetISERIRQ(S2EExecutionState *state, std::vector<uint32_t> *irq_no) {
+    DECLARE_PLUGINSTATE(ExternalInterruptState, state);
+    for (auto it : plgState->get_activeirqs()) {
+        if (it.second == true) {
+            getInfoStream() << " insert enabled external irq " << it.first << "\n";
+            irq_no->push_back(it.first);
+        }
+    }
+}
+
+
 void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool *irq_triggered) {
     DECLARE_PLUGINSTATE(ExternalInterruptState, state);
     std::vector<uint32_t> irqs_bitmap;

@@ -86,6 +86,8 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t * /* size */,
                  std::queue<uint8_t> * /* return value */>
         onBufferInput;
+    sigc::signal<void, S2EExecutionState *, std::vector<uint32_t> * /* enable IRQ vector */>
+        onEnableISER;
 
 private:
     InvalidStatesDetection *onInvalidStateDectionConnection;

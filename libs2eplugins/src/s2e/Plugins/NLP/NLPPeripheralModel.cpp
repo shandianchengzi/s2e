@@ -1115,6 +1115,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             UpdateGraph(state, Rx, 0);
             if (plgState->pending_interrupt())
                 return;
+            std::vector<uint32_t> irq_no;
+            onEnableISER.emit(state, &irq_no);
             getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
             getWarningsStream() << "===========unit test pass============\n";
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
