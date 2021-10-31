@@ -1094,16 +1094,17 @@ void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecu
     signal->connect(sigc::mem_fun(*this, &NLPPeripheralModel::onForkPoints));
 }
 
-void NLPPeripheralModel::CheckEnable(std::vector<uint32_t> &irq_no) {
+void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     std::map<uint32_t, uint32_t> interrupt_freq = plgState->get_irqs_freq();
     for (auto irq : irq_no) {
         if (interrupt_freq.find(irq) == interrupt_freq.end()) {
-            unenabled_flag[irq] = {};
+            std::vector<int> tmp;
+            unenabled_flag[irq] = tmp;
         }
     }
     int _idx = 0;
     for (auto loc : TA_range) {
-        auto range = loc.first;
         auto allTAs = loc.second;
         for (auto ta : allTAs) {
             _idx += 1;
@@ -1113,7 +1114,6 @@ void NLPPeripheralModel::CheckEnable(std::vector<uint32_t> &irq_no) {
                 bool check = false;
                 for (auto nlpph : nlp_mmio) {
                     if (tmp >= nlpph.first && tmp <= nlpph.second) {
-                        getInfoStream() << " keep in mmio equ.interrupt = " << equ.interrupt << "\n";
                         check = true;
                         break;
                     }
@@ -1123,7 +1123,7 @@ void NLPPeripheralModel::CheckEnable(std::vector<uint32_t> &irq_no) {
             }
             auto interrupt = action.back().interrupt;
             if (std::find(unenabled_flag.begin(), unenabled_flag.end(), interrupt) == unenabled_flag.end()) {
-                unenabled_flag[irq_no].push_back(_idx);
+                unenabled_flag[interrupt].push_back(_idx);
             }
         }
     }

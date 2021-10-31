@@ -39,7 +39,7 @@ typedef struct equation {
     std::string type_a2; // V:value; R: receive; T: transmit; F: field
     uint32_t value;
     Field a2;
-    int interrupt;
+    uint32_t interrupt;
     bool rel;
 } Equation;
 
@@ -102,7 +102,8 @@ private:
     int read_numbers = 0;
     int write_numbers = 0;
     bool checked_SR = false;
-    map<uint32_t, vector<int>> unenabled_flag;
+    std::map<uint32_t, std::vector<int>> unenabled_flag;
+    void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
     int unauthorized_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
