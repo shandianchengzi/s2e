@@ -377,12 +377,12 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
                 getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value[0] << "\n";
-            } 
-	    if (c.a.type == "F") {
+            }
+            if (c.a.type == "F") {
                 auto old_value = get_reg_value(state_map, c.a);
                 uint32_t tmp = 0;
                 tmp = (old_value << 1) + 1;
-		getDebugStream() << "count value old  "<<old_value<<" new "<<tmp<<"\n";
+                getDebugStream() << "count value old  " << old_value << " new " << tmp << "\n";
                 if (tmp > c.value[0] || tmp == old_value)
                     tmp = 0;
                 statistics[_idx] += 1;
@@ -790,7 +790,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         if (!check)
             continue;
         statistics[_idx] += 1;
-	if (!enable_fuzzing) {
+        if (!enable_fuzzing) {
             for (auto equ : trigger) {
                 auto _tmp = std::make_pair(equ.a1.phaddr, equ.a1.bits[0]);
                 if (prev_action.find(_tmp) != prev_action.end()) {
@@ -798,7 +798,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     getDebugStream() << "chain a1 " << prev_action[_tmp] << " a2 " << _idx << " \n";
                 }
                 getDebugStream() << "trigger a1 " << hexval(equ.a1.phaddr) << " bit: " << equ.a1.bits[0] << " eq " << equ.eq
-                             << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
+                                 << " a2 " << equ.value << "statistics:" << _idx << " " << statistics[_idx] << " \n";
             }
         }
 
@@ -865,7 +865,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 bool check = false;
                 for (auto nlpph : nlp_mmio) {
                     if (tmp >= nlpph.first && tmp <= nlpph.second) {
-                        getInfoStream() << " skip not in mmio equ.interrupt = " << equ.interrupt << "\n";
+                        getInfoStream() << " keep in mmio equ.interrupt = " << equ.interrupt << "\n";
                         check = true;
                         break;
                     }
@@ -884,7 +884,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                         return;
                     }
                 }
-		getDebugStream() << "add irqs "<<equ.interrupt<<"\n";
+                getDebugStream() << "add irqs " << equ.interrupt << "\n";
                 irqs.push_back(equ.interrupt);
             }
             //else if (enable_fuzzing) {
@@ -958,17 +958,24 @@ void NLPPeripheralModel::onStatistics() {
         }
     }
     for (auto interrupt : plgState->get_irqs_freq()) {
-        fPHNLP << "interrupt id:" << interrupt.first << " freq: " << interrupt.second << "\n";
+        fPHNLP << "interrupt id: " << interrupt.first << " freq: " << interrupt.second << "\n";
     }
     int chain_num = 0;
     for (auto chain : chain_freq) {
-        fPHNLP << "chain id1:" << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
+        fPHNLP << "chain id1: " << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
         chain_num += chain.second;
     }
     for (auto irq : untriggered_irq) {
-        fPHNLP << "untriggered_irq" << irq.first << " freq: " << irq.second << "\n";
+        fPHNLP << "untriggered_irq: " << irq.first << " freq: " << irq.second << "\n";
     }
-    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
+    for (auto irq : unenabled_flag) {
+        fPHNLP << "unenabled_flag: " << irq.first;
+        for (auto idx : irq.second) {
+            fPHNLP << " ; " << idx << "\n";
+        }
+        fPHNLP << "\n";
+    }
+    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << " unauthorized freq: " << unauthorized_freq << "\n";
     fPHNLP.close();
 }
 
@@ -1011,6 +1018,10 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     phaddr = correction.first;
     *flag = false;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
+        if (checked_SR == false) {
+            getWarningsStream() << "unauthorized access to data register: " << hexval(phaddr) << "\n";
+            unauthorized_freq += 1;
+        }
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
         std::vector<unsigned char> data;
@@ -1029,6 +1040,13 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
+
+    RegMap state_map = plgState->get_state_map();
+    checked_SR = false;
+    if (state_map[phaddr].type == "S") {
+        checked_SR = true;
+    }
+
     UpdateGraph(g_s2e_state, Read, phaddr);
     getDebugStream() << "correction " << hexval(phaddr) << " value " << *NLPsymbolicvalue << " \n";
     if (correction.second != 0) {
@@ -1076,6 +1094,41 @@ void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecu
     signal->connect(sigc::mem_fun(*this, &NLPPeripheralModel::onForkPoints));
 }
 
+void NLPPeripheralModel::CheckEnable(std::vector<uint32_t> &irq_no) {
+    std::map<uint32_t, uint32_t> interrupt_freq = plgState->get_irqs_freq();
+    for (auto irq : irq_no) {
+        if (interrupt_freq.find(irq) == interrupt_freq.end()) {
+            unenabled_flag[irq] = {};
+        }
+    }
+    int _idx = 0;
+    for (auto loc : TA_range) {
+        auto range = loc.first;
+        auto allTAs = loc.second;
+        for (auto ta : allTAs) {
+            _idx += 1;
+            EquList action = ta.second;
+            if (!enable_fuzzing) {
+                uint32_t tmp = action.back().a1.phaddr;
+                bool check = false;
+                for (auto nlpph : nlp_mmio) {
+                    if (tmp >= nlpph.first && tmp <= nlpph.second) {
+                        getInfoStream() << " keep in mmio equ.interrupt = " << equ.interrupt << "\n";
+                        check = true;
+                        break;
+                    }
+                }
+                if (!check)
+                    continue;
+            }
+            auto interrupt = action.back().interrupt;
+            if (std::find(unenabled_flag.begin(), unenabled_flag.end(), interrupt) == unenabled_flag.end()) {
+                unenabled_flag[irq_no].push_back(_idx);
+            }
+        }
+    }
+}
+
 void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     if (pc == begin_point && begin_point != fork_point) {
@@ -1098,7 +1151,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
                     plgState->hardware_write_to_receive_buffer(data_register[i], return_value2, return_value2.size());
                 }
                 getInfoStream() << "write to init receiver buffer 56B " << hexval(data_register[i])
-                                    << " return value: " << return_value2.size() << "\n";
+                                << " return value: " << return_value2.size() << "\n";
             }
             UpdateFlag(0);
             UpdateGraph(state, Rx, 0);
@@ -1117,6 +1170,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
                 return;
             std::vector<uint32_t> irq_no;
             onEnableISER.emit(state, &irq_no);
+
             getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
             getWarningsStream() << "===========unit test pass============\n";
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
