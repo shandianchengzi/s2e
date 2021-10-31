@@ -417,6 +417,17 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
 // UpdateGraph(state, Write, 0);
 /*}*/
 
+bool NLPPeripheralModel::ExistInMMIO(uint32_t tmp) {
+    bool check = false;
+    for (auto nlpph : nlp_mmio) {
+        if (tmp >= nlpph.first && tmp <= nlpph.second) {
+            check = true;
+            break;
+        }
+    }
+    return check;
+}
+
 bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::string fileName) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     std::ifstream fNLP;
@@ -862,15 +873,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             //no fuzzing mode, skip if the irq is triggered by the phaddr that is in nlp_mmio
             if (!enable_fuzzing) {
                 uint32_t tmp = equ.a1.phaddr;
-                bool check = false;
-                for (auto nlpph : nlp_mmio) {
-                    if (tmp >= nlpph.first && tmp <= nlpph.second) {
-                        getInfoStream() << " keep in mmio equ.interrupt = " << equ.interrupt << "\n";
-                        check = true;
-                        break;
-                    }
-                }
-                if (!check)
+                if (!ExistInMMIO(tmp))
                     continue;
             }
 
@@ -1018,7 +1021,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     phaddr = correction.first;
     *flag = false;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
-        if (checked_SR == false) {
+        if (ExistInMMIO(phaddr) && checked_SR == false) {
             getWarningsStream() << "unauthorized access to data register: " << hexval(phaddr) << "\n";
             unauthorized_freq += 1;
         }
@@ -1111,18 +1114,11 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
             EquList action = ta.second;
             if (!enable_fuzzing) {
                 uint32_t tmp = action.back().a1.phaddr;
-                bool check = false;
-                for (auto nlpph : nlp_mmio) {
-                    if (tmp >= nlpph.first && tmp <= nlpph.second) {
-                        check = true;
-                        break;
-                    }
-                }
-                if (!check)
+                if (!ExistInMMIO(tmp))
                     continue;
             }
             auto interrupt = action.back().interrupt;
-            if (std::find(unenabled_flag.begin(), unenabled_flag.end(), interrupt) == unenabled_flag.end()) {
+            if (unenabled_flag.find(interrupt) == unenabled_flag.end()) {
                 unenabled_flag[interrupt].push_back(_idx);
             }
         }

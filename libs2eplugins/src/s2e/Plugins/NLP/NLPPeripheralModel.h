@@ -103,8 +103,7 @@ private:
     int write_numbers = 0;
     bool checked_SR = false;
     std::map<uint32_t, std::vector<int>> unenabled_flag;
-    void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
-    int unauthorized_freq;
+    int unauthorized_freq = 0;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
     std::map<uint32_t, uint32_t> untriggered_irq;
@@ -119,6 +118,8 @@ private:
 
     bool parseConfig();
     void initialize();
+    void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
+    bool ExistInMMIO(uint32_t tmp);
     template <typename T>
     bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
