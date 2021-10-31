@@ -377,11 +377,13 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
                 getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value[0] << "\n";
-            } else if (c.a.type == "F" && phaddr > 1) {
+            } 
+	    if (c.a.type == "F") {
                 auto old_value = get_reg_value(state_map, c.a);
                 uint32_t tmp = 0;
                 tmp = (old_value << 1) + 1;
-                if (tmp > c.value[0])
+		getDebugStream() << "count value old  "<<old_value<<" new "<<tmp<<"\n";
+                if (tmp > c.value[0] || tmp == old_value)
                     tmp = 0;
                 statistics[_idx] += 1;
                 //if (c.freq > 0) {
