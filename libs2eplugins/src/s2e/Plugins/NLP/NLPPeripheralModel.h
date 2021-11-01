@@ -104,11 +104,11 @@ private:
     int write_numbers = 0;
     bool checked_SR = false;
     std::map<uint32_t, std::set<uint32_t>> unenabled_flag;
-    std::map<uint32_t, std::vector<uint64_t>> read_unauthorized_freq;
-    std::map<uint32_t, std::vector<uint64_t>> write_unauthorized_freq;
+    std::map<uint32_t, std::set<uint32_t>> untriggered_irq;
+    std::map<uint32_t, std::set<uint64_t>> read_unauthorized_freq;
+    std::map<uint32_t, std::set<uint64_t>> write_unauthorized_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
-    std::map<uint32_t, std::set<uint32_t>> untriggered_irq;
     std::vector<uint32_t> data_register;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;

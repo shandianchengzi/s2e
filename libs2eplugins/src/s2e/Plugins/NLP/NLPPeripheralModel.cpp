@@ -449,23 +449,24 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             if ((reg.type == "R" || reg.type == "T") && std::find(data_register.begin(), data_register.end(), reg.phaddr) == data_register.end()) {
                 data_register.push_back(reg.phaddr);
                 disable_init_dr_value_flag[reg.phaddr] = 0;
-		curDR.push_back(reg.phaddr);
+                curDR.push_back(reg.phaddr);
             }
-	    if (reg.type == "S") {
-		    SR = reg.phaddr;
-	    }
-	    if (start == 0x40000000)
-		    start = reg.phaddr;
-	    
-            getDebugStream() <<"current start:" << hexval(start)<< " "<<hexval(reg.phaddr)<<"\n";
-	    if (reg.phaddr >= start + 0x100 || reg.phaddr <= start - 0x100) {
-		    for (auto dr: curDR)
-			    DR2SR[dr] = SR;
-		    SR = 0;
-		    start = reg.phaddr;
-		    curDR.clear();
-		    getDebugStream()<<"update start address"<<"\n";
-	    }
+            if (reg.type == "S") {
+                SR = reg.phaddr;
+            }
+            if (start == 0x40000000)
+                start = reg.phaddr;
+
+            getDebugStream() << "current start:" << hexval(start) << " " << hexval(reg.phaddr) << "\n";
+            if (reg.phaddr >= start + 0x100 || reg.phaddr <= start - 0x100) {
+                for (auto dr : curDR)
+                    DR2SR[dr] = SR;
+                SR = 0;
+                start = reg.phaddr;
+                curDR.clear();
+                getDebugStream() << "update start address"
+                                 << "\n";
+            }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
             return false;
@@ -908,10 +909,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     }
                 }
                 getDebugStream() << "add irqs " << equ.interrupt << "\n";
-		for (auto tequ : trigger) {
-		    if (tequ.a1.phaddr != equ.a1.phaddr)
-      		        missed_enabled[equ.interrupt].insert(tequ.a1.phaddr);
-		}
+                for (auto tequ : trigger) {
+                    if (tequ.a1.phaddr != equ.a1.phaddr)
+                        missed_enabled[equ.interrupt].insert(tequ.a1.phaddr);
+                }
                 irqs.push_back(equ.interrupt);
             }
             //else if (enable_fuzzing) {
@@ -984,7 +985,8 @@ void NLPPeripheralModel::onStatistics() {
             _tmp2++;
         }
     }
-    for (auto interrupt : plgState->get_irqs_freq()) {
+    auto interrupt_freq = plgState->get_irqs_freq();
+    for (auto interrupt : interrupt_freq) {
         fPHNLP << "interrupt id: " << interrupt.first << " freq: " << interrupt.second << "\n";
     }
     int chain_num = 0;
@@ -995,21 +997,22 @@ void NLPPeripheralModel::onStatistics() {
     for (auto irq : unenabled_flag) {
         fPHNLP << "type one unenabled_flag: " << irq.first;
         for (auto idx : irq.second) {
-            fPHNLP << " ; " << hexval(idx) ;
+            fPHNLP << " ; " << hexval(idx);
         }
         fPHNLP << "\n";
     }
     for (auto irq : untriggered_irq) {
+        if (interrupt_freq.find(irq.first) != interrupt_freq.end()) continue;
         fPHNLP << "type two untriggered_irq: " << irq.first;
         for (auto idx : irq.second) {
-            fPHNLP << " ; " << hexval(idx) ;
+            fPHNLP << " ; " << hexval(idx);
         }
         fPHNLP << "\n";
     }
     for (auto phaddr : read_unauthorized_freq) {
-	if (DR2SR[phaddr.first] == 0)
-		continue;
-        fPHNLP << "type three read unauthorized_freq: " << hexval(phaddr.first)<< " corresponding SR: " << hexval(DR2SR[phaddr.first]) << " at pc: ";
+        if (DR2SR[phaddr.first] == 0)
+            continue;
+        fPHNLP << "type three read unauthorized_freq: " << hexval(phaddr.first) << " corresponding SR: " << hexval(DR2SR[phaddr.first]) << " at pc: ";
         for (auto pc : phaddr.second) {
             fPHNLP << " ; " << hexval(pc);
         }
@@ -1017,8 +1020,8 @@ void NLPPeripheralModel::onStatistics() {
     }
 
     for (auto phaddr : write_unauthorized_freq) {
-	if (DR2SR[phaddr.first] == 0)
-                continue;
+        if (DR2SR[phaddr.first] == 0)
+            continue;
         fPHNLP << "type four write unauthorized_freq: " << hexval(phaddr.first) << " corresponding SR: " << hexval(DR2SR[phaddr.first]) << " at pc: ";
         for (auto pc : phaddr.second) {
             fPHNLP << " ; " << hexval(pc);
@@ -1070,11 +1073,13 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr)
-                << "pc = " << hexval(state->regs()->getPc()) << "\n";
-            if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end())
-                read_unauthorized_freq[phaddr] = {state->regs()->getPc()};
-            else
-                read_unauthorized_freq[phaddr].push_back(state->regs()->getPc());
+                                << "pc = " << hexval(state->regs()->getPc()) << "\n";
+            if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end()) {
+                std::set<uint32_t> tmp;
+                tmp.insert(state->regs()->getPc());
+                read_unauthorized_freq[phaddr] = tmp;
+            } else
+                read_unauthorized_freq[phaddr].insert(state->regs()->getPc());
         }
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
@@ -1135,11 +1140,13 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
-                <<" pc = " << hexval(state->regs()->getPc())<< "\n";
-            if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end())
-                write_unauthorized_freq[phaddr] = {state->regs()->getPc()};
-            else
-                write_unauthorized_freq[phaddr].push_back(state->regs()->getPc());
+                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
+            if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end()) {
+                std::set<uint32_t> tmp;
+                tmp.insert(state->regs()->getPc());
+                write_unauthorized_freq[phaddr] = tmp;
+            } else
+                write_unauthorized_freq[phaddr].insert(state->regs()->getPc());
         }
         plgState->write_dr_value(phaddr, writeconcretevalue, 32);
         getDebugStream() << "Write to data register " << phaddr << " " << hexval(phaddr)
@@ -1160,7 +1167,7 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     std::map<uint32_t, uint32_t> interrupt_freq = plgState->get_irqs_freq();
     for (auto irq : irq_no) {
-        getInfoStream() << "received irq: "<<irq<<"\n";
+        getInfoStream() << "received irq: " << irq << "\n";
         if (interrupt_freq.find(irq) == interrupt_freq.end()) {
             std::set<uint32_t> tmp;
             unenabled_flag[irq] = tmp;
@@ -1180,10 +1187,10 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
             auto interrupt = action.back().interrupt;
             if (unenabled_flag.find(interrupt) != unenabled_flag.end()) {
                 EquList triggers = ta.first;
-	        for (auto trigger : triggers) {
-		    if (action.back().a1.phaddr != trigger.a1.phaddr)
-     		        unenabled_flag[interrupt].insert(trigger.a1.phaddr);
-	        }
+                for (auto trigger : triggers) {
+                    if (action.back().a1.phaddr != trigger.a1.phaddr)
+                        unenabled_flag[interrupt].insert(trigger.a1.phaddr);
+                }
             }
         }
     }
