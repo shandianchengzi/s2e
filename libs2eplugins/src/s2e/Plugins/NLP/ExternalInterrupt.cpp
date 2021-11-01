@@ -214,18 +214,7 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
     irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(8));
     getInfoStream() << "external bit map 3 = " << hexval(irqs_bitmap[2]) << "\n";
 
-    last_irqs_bitmap = plgState->get_lastirqs_bitmap();
-    for (int k = 0; k < irqs_bitmap.size(); k++) {
-        if (last_irqs_bitmap[k] != irqs_bitmap[k]) {
-            getWarningsStream() << "active irq has changed\n";
-            getWarningsStream() << "external irq bit map = " << hexval(irqs_bitmap[0]) << "\n";
-            getWarningsStream() << "external irq bit map = " << hexval(irqs_bitmap[1]) << "\n";
-            getWarningsStream() << "external irq bit map = " << hexval(irqs_bitmap[2]) << "\n";
-            plgState->insert_lastirqs_bitmap(irqs_bitmap);
-            plgState->update_activeirqs(setActiveIrqs(irqs_bitmap));
-            break;
-        }
-    }
+    plgState->update_activeirqs(setActiveIrqs(irqs_bitmap));
 
     std::vector<uint32_t> active_irqs;
     for (auto it : plgState->get_activeirqs()) {
