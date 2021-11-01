@@ -439,6 +439,8 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     }
 
     std::string peripheralcache;
+    uint32_t start = 0x40000000, SR = 0;
+    std::vector<uint32_t> curDR;
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==")
             break;
@@ -447,14 +449,31 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             if ((reg.type == "R" || reg.type == "T") && std::find(data_register.begin(), data_register.end(), reg.phaddr) == data_register.end()) {
                 data_register.push_back(reg.phaddr);
                 disable_init_dr_value_flag[reg.phaddr] = 0;
+		curDR.push_back(reg.phaddr);
             }
+	    if (reg.type == "S") {
+		    SR = reg.phaddr;
+	    }
+	    if (start == 0x40000000)
+		    start = reg.phaddr;
+	    
+            getDebugStream() <<"current start:" << hexval(start)<< " "<<hexval(reg.phaddr)<<"\n";
+	    if (reg.phaddr >= start + 0x100 || reg.phaddr <= start - 0x100) {
+		    for (auto dr: curDR)
+			    DR2SR[dr] = SR;
+		    SR = 0;
+		    start = reg.phaddr;
+		    curDR.clear();
+		    getDebugStream()<<"update start address"<<"\n";
+	    }
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
             return false;
         }
     }
 
-    uint32_t start = 0xFFFFFFFF, end = 0;
+    start = 0xFFFFFFFF;
+    uint32_t end = 0;
     TAMap allTAs;
     int _idx = 0;
     while (getline(fNLP, peripheralcache)) {
@@ -730,6 +749,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
     std::map<std::pair<uint32_t, int>, uint32_t> prev_action;
     std::vector<uint32_t> irqs;
+    std::map<uint32_t, std::set<uint32_t>> missed_enabled;
     for (auto ta : allTAs) {
         _idx += 1;
         EquList trigger = ta.first;
@@ -888,6 +908,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     }
                 }
                 getDebugStream() << "add irqs " << equ.interrupt << "\n";
+		for (auto tequ : trigger) {
+		    if (tequ.a1.phaddr != equ.a1.phaddr)
+      		        missed_enabled[equ.interrupt].insert(tequ.a1.phaddr);
+		}
                 irqs.push_back(equ.interrupt);
             }
             //else if (enable_fuzzing) {
@@ -908,7 +932,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             plgState->inc_irq_freq(interrupt);
             plgState->set_exit_interrupt(interrupt, true);
         } else {
-            untriggered_irq[interrupt]++;
+            untriggered_irq[interrupt] = missed_enabled[interrupt];
         }
     }
 }
@@ -928,7 +952,7 @@ void NLPPeripheralModel::onStatistics() {
     for (auto loc : TA_range) {
         for (auto ta : loc.second) {
             idx += 1;
-            if (statistics[idx] == 0) continue;
+            //if (statistics[idx] == 0) continue;
             fPHNLP << "TA : " << idx << " " << hexval(ta.first[0].a1.phaddr) << " " << ta.first[0].a1.bits[0] << " " << ta.first[0].eq << " ";
             //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
             if (ta.first.size() > 1) {
@@ -968,20 +992,36 @@ void NLPPeripheralModel::onStatistics() {
         fPHNLP << "chain id1: " << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
         chain_num += chain.second;
     }
-    for (auto irq : untriggered_irq) {
-        fPHNLP << "untriggered_irq: " << irq.first << " freq: " << irq.second << "\n";
-    }
     for (auto irq : unenabled_flag) {
-        fPHNLP << "unenabled_flag: " << irq.first;
+        fPHNLP << "type one unenabled_flag: " << irq.first;
         for (auto idx : irq.second) {
-            fPHNLP << " ; " << idx << "\n";
+            fPHNLP << " ; " << hexval(idx) ;
         }
         fPHNLP << "\n";
     }
-    for (auto phaddr : unauthorized_freq) {
-        fPHNLP << "unauthorized_freq: " << phaddr.first;
+    for (auto irq : untriggered_irq) {
+        fPHNLP << "type two untriggered_irq: " << irq.first;
+        for (auto idx : irq.second) {
+            fPHNLP << " ; " << hexval(idx) ;
+        }
+        fPHNLP << "\n";
+    }
+    for (auto phaddr : read_unauthorized_freq) {
+	if (DR2SR[phaddr.first] == 0)
+		continue;
+        fPHNLP << "type three read unauthorized_freq: " << hexval(phaddr.first)<< " corresponding SR: " << hexval(DR2SR[phaddr.first]) << " at pc: ";
         for (auto pc : phaddr.second) {
-            fPHNLP << " ; " << pc << "\n";
+            fPHNLP << " ; " << hexval(pc);
+        }
+        fPHNLP << "\n";
+    }
+
+    for (auto phaddr : write_unauthorized_freq) {
+	if (DR2SR[phaddr.first] == 0)
+                continue;
+        fPHNLP << "type four write unauthorized_freq: " << hexval(phaddr.first) << " corresponding SR: " << hexval(DR2SR[phaddr.first]) << " at pc: ";
+        for (auto pc : phaddr.second) {
+            fPHNLP << " ; " << hexval(pc);
         }
         fPHNLP << "\n";
     }
@@ -1030,10 +1070,10 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             //getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr) << "\n";
-            if (unauthorized_freq.find(phaddr) == unauthorized_freq.end())
-                unauthorized_freq[phaddr] = {State->regs()->getPc()};
+            if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end())
+                read_unauthorized_freq[phaddr] = {state->regs()->getPc()};
             else
-                unauthorized_freq[phaddr].push_back(State->regs()->getPc());
+                read_unauthorized_freq[phaddr].push_back(state->regs()->getPc());
         }
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
@@ -1094,10 +1134,10 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             //getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr) << "\n";
-            if (unauthorized_freq.find(phaddr) == unauthorized_freq.end())
-                unauthorized_freq[phaddr] = {State->regs()->getPc()};
+            if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end())
+                write_unauthorized_freq[phaddr] = {state->regs()->getPc()};
             else
-                unauthorized_freq[phaddr].push_back(State->regs()->getPc());
+                write_unauthorized_freq[phaddr].push_back(state->regs()->getPc());
         }
         plgState->write_dr_value(phaddr, writeconcretevalue, 32);
         getDebugStream() << "Write to data register " << phaddr << " " << hexval(phaddr)
@@ -1118,8 +1158,9 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     std::map<uint32_t, uint32_t> interrupt_freq = plgState->get_irqs_freq();
     for (auto irq : irq_no) {
+        getInfoStream() << "received irq: "<<irq<<"\n";
         if (interrupt_freq.find(irq) == interrupt_freq.end()) {
-            std::vector<int> tmp;
+            std::set<uint32_t> tmp;
             unenabled_flag[irq] = tmp;
         }
     }
@@ -1135,8 +1176,12 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
                     continue;
             }
             auto interrupt = action.back().interrupt;
-            if (unenabled_flag.find(interrupt) == unenabled_flag.end()) {
-                unenabled_flag[interrupt].push_back(_idx);
+            if (unenabled_flag.find(interrupt) != unenabled_flag.end()) {
+                EquList triggers = ta.first;
+	        for (auto trigger : triggers) {
+		    if (action.back().a1.phaddr != trigger.a1.phaddr)
+     		        unenabled_flag[interrupt].insert(trigger.a1.phaddr);
+	        }
             }
         }
     }
@@ -1183,7 +1228,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
                 return;
             std::vector<uint32_t> irq_no;
             onEnableISER.emit(state, &irq_no);
-
+            CheckEnable(state, irq_no);
             getWarningsStream() << "already go though Main Loop Point Count = " << plgState->get_fork_point_count() << "\n";
             getWarningsStream() << "===========unit test pass============\n";
             g_s2e->getCorePlugin()->onEngineShutdown.emit();
