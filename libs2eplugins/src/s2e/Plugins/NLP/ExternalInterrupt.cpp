@@ -186,6 +186,14 @@ void ExternalInterrupt::onBlockStart(S2EExecutionState *state, uint64_t pc) {
 
 void ExternalInterrupt::onGetISERIRQ(S2EExecutionState *state, std::vector<uint32_t> *irq_no) {
     DECLARE_PLUGINSTATE(ExternalInterruptState, state);
+    std::vector<uint32_t> irqs_bitmap;
+    irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(0));
+    getInfoStream() << "external bit map = " << hexval(irqs_bitmap[0]) << "\n";
+    irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(4));
+    getInfoStream() << "external bit map 2 = " << hexval(irqs_bitmap[1]) << "\n";
+    irqs_bitmap.push_back(s2e()->getExecutor()->getActiveExternalInterrupt(8));
+    getInfoStream() << "external bit map 3 = " << hexval(irqs_bitmap[2]) << "\n";
+    plgState->update_activeirqs(setActiveIrqs(irqs_bitmap));
     for (auto it : plgState->get_activeirqs()) {
         if (it.second == true) {
             getInfoStream() << " insert enabled external irq " << it.first << "\n";
