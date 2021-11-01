@@ -978,7 +978,14 @@ void NLPPeripheralModel::onStatistics() {
         }
         fPHNLP << "\n";
     }
-    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << " unauthorized freq: " << unauthorized_freq << "\n";
+    for (auto phaddr : unauthorized_freq) {
+        fPHNLP << "unauthorized_freq: " << phaddr.first;
+        for (auto pc : phaddr.second) {
+            fPHNLP << " ; " << pc << "\n";
+        }
+        fPHNLP << "\n";
+    }
+    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
     fPHNLP.close();
 }
 
@@ -1022,8 +1029,11 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     *flag = false;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
-            getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr) << "\n";
-            unauthorized_freq += 1;
+            //getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr) << "\n";
+            if (unauthorized_freq.find(phaddr) == unauthorized_freq.end())
+                unauthorized_freq[phaddr] = {State->regs()->getPc()};
+            else
+                unauthorized_freq[phaddr].push_back(State->regs()->getPc());
         }
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
@@ -1083,8 +1093,11 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
-            getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr) << "\n";
-            unauthorized_freq += 1;
+            //getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr) << "\n";
+            if (unauthorized_freq.find(phaddr) == unauthorized_freq.end())
+                unauthorized_freq[phaddr] = {State->regs()->getPc()};
+            else
+                unauthorized_freq[phaddr].push_back(State->regs()->getPc());
         }
         plgState->write_dr_value(phaddr, writeconcretevalue, 32);
         getDebugStream() << "Write to data register " << phaddr << " " << hexval(phaddr)

@@ -103,7 +103,7 @@ private:
     int write_numbers = 0;
     bool checked_SR = false;
     std::map<uint32_t, std::vector<int>> unenabled_flag;
-    int unauthorized_freq = 0;
+    std::map<uint32_t, std::vector<uint32_t>> unauthorized_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
     std::map<uint32_t, uint32_t> untriggered_irq;
