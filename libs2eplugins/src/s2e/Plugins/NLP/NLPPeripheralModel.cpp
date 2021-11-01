@@ -1069,7 +1069,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     *flag = false;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
-            //getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr) << "\n";
+            getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr)
+                << "pc = " << hexval(state->regs()->getPc()) << "\n";
             if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end())
                 read_unauthorized_freq[phaddr] = {state->regs()->getPc()};
             else
@@ -1133,7 +1134,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
-            //getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr) << "\n";
+            getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
+                <<" pc = " << hexval(state->regs()->getPc())<< "\n";
             if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end())
                 write_unauthorized_freq[phaddr] = {state->regs()->getPc()};
             else
