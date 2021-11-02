@@ -217,7 +217,7 @@ void NLPPeripheralModel::initialize() {
 
     bool ok;
     fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
-    getWarningsStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
+    getInfoStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     enable_fuzzing = s2e()->getConfig()->getBool(getConfigKey() + ".useFuzzer", false);
     if (enable_fuzzing) {
         init_dr_flag = false;
@@ -928,7 +928,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         if (plgState->get_exit_interrupt(interrupt)) continue;
         bool irq_triggered = false;
         onExternalInterruptEvent.emit(state, interrupt, &irq_triggered);
-        getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(interrupt) << " exit_interrupt = " << plgState->get_exit_interrupt(interrupt) << " irq = " << interrupt << "\n";
+        getInfoStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(interrupt) << " exit_interrupt = " << plgState->get_exit_interrupt(interrupt) << " irq = " << interrupt << "\n";
         if (irq_triggered) {
             plgState->inc_irq_freq(interrupt);
             plgState->set_exit_interrupt(interrupt, true);
@@ -994,6 +994,9 @@ void NLPPeripheralModel::onStatistics() {
         fPHNLP << "chain id1: " << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
         chain_num += chain.second;
     }
+
+    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
+    fPHNLP << "-------Verification Results-------\n";
     for (auto irq : unenabled_flag) {
         fPHNLP << "type one unenabled_flag: " << irq.first;
         for (auto idx : irq.second) {
@@ -1028,7 +1031,6 @@ void NLPPeripheralModel::onStatistics() {
         }
         fPHNLP << "\n";
     }
-    fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
     fPHNLP.close();
 }
 
@@ -1056,7 +1058,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
-            getWarningsStream() << " write init dr value 0x0!  \n";
+            getInfoStream() << " write init dr value 0x0!  \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
                 tmp.push(0x0);
@@ -1072,7 +1074,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     *flag = false;
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
-            getWarningsStream() << "unauthorized READ access to data register: " << hexval(phaddr)
+            getInfoStream() << "unauthorized READ access to data register: " << hexval(phaddr)
                                 << "pc = " << hexval(state->regs()->getPc()) << "\n";
             if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end()) {
                 std::set<uint64_t> tmp;
@@ -1122,7 +1124,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
-            getWarningsStream() << " write init dr value 0x0! \n";
+            getInfoStream() << " write init dr value 0x0! \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
                 tmp.push(0x0);
@@ -1139,7 +1141,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
-            getWarningsStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
+            getInfoStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
                                 << " pc = " << hexval(state->regs()->getPc()) << "\n";
             if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end()) {
                 std::set<uint64_t> tmp;
