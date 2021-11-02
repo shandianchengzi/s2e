@@ -1005,7 +1005,7 @@ void NLPPeripheralModel::onStatistics() {
         fPHNLP << "\n";
     }
     for (auto irq : untriggered_irq) {
-        if (interrupt_freq.find(irq.first) != interrupt_freq.end()) continue;
+        if (interrupt_freq.find(irq.first) != interrupt_freq.end() && interrupt_freq[irq.first] != 0) continue;
         fPHNLP << "type two untriggered_irq: " << irq.first;
         for (auto idx : irq.second) {
             fPHNLP << " ; " << hexval(idx);
@@ -1075,7 +1075,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getInfoStream() << "unauthorized READ access to data register: " << hexval(phaddr)
-                                << "pc = " << hexval(state->regs()->getPc()) << "\n";
+                            << "pc = " << hexval(state->regs()->getPc()) << "\n";
             if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end()) {
                 std::set<uint64_t> tmp;
                 tmp.insert(state->regs()->getPc());
@@ -1142,7 +1142,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getInfoStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
-                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
+                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
             if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end()) {
                 std::set<uint64_t> tmp;
                 tmp.insert(state->regs()->getPc());
