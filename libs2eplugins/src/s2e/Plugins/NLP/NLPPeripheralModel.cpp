@@ -1276,11 +1276,14 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
                 plgState->hardware_write_to_receive_buffer(data_register[i], return_value, return_value.size());
             }
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
-                            << " return value: " << hexval(return_value.front()) << "\n";
+                            << " return value size: " << return_value.size() << "\n";
         }
         UpdateFlag(0);
         UpdateGraph(state, Rx, 0);
         init_dr_flag = false;
+        std::vector<uint32_t> irq_no;
+        onEnableISER.emit(state, &irq_no);
+        CheckEnable(state, irq_no);
     }
 }
 }
