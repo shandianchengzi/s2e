@@ -357,17 +357,23 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
             if (c.a.type == "S" && phaddr == 0) {
                 statistics[_idx] += 1;
                 set_reg_value(state_map, c.a, c.value[0]);
-                getInfoStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
+                getDebugStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                 << "\n";
             } else if (c.a.type == "S" && phaddr == 1) {
                 statistics[_idx] += 1;
                 set_reg_value(state_map, c.a, 0);
-                getInfoStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
+                getDebugStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                 << "\n";
             } else if (c.a.type == "O" && phaddr > 1) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
-                int tmp = c.value[std::rand() % c.value.size()];
+                int tmp = 0;
+                if (c.value.size() > 1 && c.value[1] > 0xf) {
+                    tmp = rand() % 0xffffffff;
+                    getInfoStream() << c.value.size() <<"mutiple bits values!!" << c.value[1] << "\n";
+                } else {
+                    tmp = c.value[std::rand() % c.value.size()];
+                }
                 auto old_value = state_map[c.a.phaddr].cur_value;
                 set_reg_value(state_map, c.a, tmp);
                 if (state_map[c.a.phaddr].cur_value == old_value)
@@ -548,7 +554,7 @@ void NLPPeripheralModel::SplitString(const std::string &s, std::vector<std::stri
         v.push_back(s.substr(pos1));
 }
 
-void NLPPeripheralModel::SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c, int dtype) {
+void NLPPeripheralModel::SplitStringToInt(const std::string &s, std::vector<long> &v, const std::string &c, int dtype) {
     std::string::size_type pos1, pos2;
     getDebugStream() << s << "\n";
     pos2 = s.find(c);

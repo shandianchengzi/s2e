@@ -30,7 +30,7 @@ namespace plugins {
 typedef struct field {
     std::string type; // R: receive; T: transmit; O: other
     uint32_t phaddr;
-    std::vector<int> bits;
+    std::vector<long> bits;
 } Field;
 
 typedef struct equation {
@@ -58,7 +58,7 @@ typedef struct peripheralReg {
 typedef struct flag {
     Field a;
     int freq;
-    std::vector<int32_t> value;
+    std::vector<long> value;
     // int32_t value;
 } Flag;
 
@@ -142,7 +142,7 @@ private:
     uint32_t get_reg_value(RegMap &state_map, Field a);
     void set_reg_value(RegMap &state_map, Field a, uint32_t value);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
-    void SplitStringToInt(const std::string &s, std::vector<int> &v, const std::string &c, int dtype);
+    void SplitStringToInt(const std::string &s, std::vector<long> &v, const std::string &c, int dtype);
     bool compare(uint32_t a1, std::string sym, uint32_t a2);
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size,
                           uint32_t *NLPsymbolicvalue, bool *flag);
