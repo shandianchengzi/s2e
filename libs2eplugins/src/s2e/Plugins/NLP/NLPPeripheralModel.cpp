@@ -358,19 +358,19 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 statistics[_idx] += 1;
                 set_reg_value(state_map, c.a, c.value[0]);
                 getDebugStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
-                                << "\n";
+                                 << "\n";
             } else if (c.a.type == "S" && phaddr == 1) {
                 statistics[_idx] += 1;
                 set_reg_value(state_map, c.a, 0);
                 getDebugStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
-                                << "\n";
+                                 << "\n";
             } else if (c.a.type == "O" && phaddr > 1) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
                 int tmp = 0;
                 if (c.value.size() > 1 && c.value[1] > 0xf) {
                     tmp = rand() % 0xffffffff;
-                    getInfoStream() << c.value.size() <<"mutiple bits values!!" << c.value[1] << "\n";
+                    getInfoStream() << c.value.size() << "mutiple bits values!!" << c.value[1] << "\n";
                 } else {
                     tmp = c.value[std::rand() % c.value.size()];
                 }
@@ -518,6 +518,8 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     end = 0;
     FlagList allFlags;
     while (getline(fNLP, peripheralcache)) {
+        if (peripheralcache == "==")
+            break;
         if (peripheralcache == "--") {
             Flags_range.push_back(std::make_pair(std::make_pair(start, end), allFlags));
             allFlags.clear();
@@ -538,6 +540,16 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         }
     }
     flags_numbers = _idx - ta_numbers;
+
+    while (getline(fNLP, peripheralcache)) {
+        if (peripheralcache == "==")
+            break;
+        Field field;
+        if (!extractConstraints(peripheralcache, field)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -682,6 +694,32 @@ bool NLPPeripheralModel::extractEqu(std::string peripheralcache, EquList &vec, b
         vec.push_back(equ);
         peripheralcache = what.suffix();
     }
+    return true;
+}
+
+bool NLPPeripheralModel::extractConstraints(std::string peripheralcache, Field &field) {
+    boost::smatch what;
+    getDebugStream() << peripheralcache << "\n";
+    if (!boost::regex_match(peripheralcache, what, FlagEx)) {
+        getWarningsStream() << "extractFlag match false" << peripheralcache << "\n";
+        exit(0);
+        return false;
+    }
+    if (what.size() != 2) {
+        getWarningsStream() << "extractFlag wrong size = " << what.size() << "\n";
+        exit(0);
+        return false;
+    }
+    std::vector<std::string> v;
+    SplitString(what[1], v, ",");
+    field.type = v[0];
+    field.phaddr = std::stoull(v[1].c_str(), NULL, 16);
+    if (v[2] == "*")
+        field.bits = {-1};
+    else {
+        SplitStringToInt(v[2], field.bits, "/", 10);
+    }
+    constraints[field.a.phaddr] = field;
     return true;
 }
 
@@ -1078,16 +1116,24 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
     *flag = false;
+    if (constraints.find(phaddr) != constraints.end()) {
+        if (constraints[phaddr].type == "W" && constraints[phaddr].bits[0] == -1) {
+            if (read_access_freq.find(phaddr) == read_access_freq.end()) {
+                std::set<uint64_t> tmp;
+                read_access_freq[phaddr] = tmp;
+            }
+            read_access_freq[phaddr].insert(state->regs()->getPc());
+        }
+    }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getInfoStream() << "unauthorized READ access to data register: " << hexval(phaddr)
                             << "pc = " << hexval(state->regs()->getPc()) << "\n";
             if (read_unauthorized_freq.find(phaddr) == read_unauthorized_freq.end()) {
                 std::set<uint64_t> tmp;
-                tmp.insert(state->regs()->getPc());
                 read_unauthorized_freq[phaddr] = tmp;
-            } else
-                read_unauthorized_freq[phaddr].insert(state->regs()->getPc());
+            }
+            read_unauthorized_freq[phaddr].insert(state->regs()->getPc());
         }
         *flag = true;
         disable_init_dr_value_flag[phaddr] = 1;
@@ -1144,6 +1190,29 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     phaddr = correction.first;
     if (correction.second != 0) {
         writeconcretevalue = writeconcretevalue << correction.second;
+    }
+    if (constraints.find(phaddr) != constraints.end()) {
+        if (constraints[phaddr].type == "R" && constraints[phaddr].bits[0] == -1) {
+            if (write_access_freq.find(phaddr) == write_access_freq.end()) {
+                std::set<uint64_t> tmp;
+                write_access_freq[phaddr] = tmp;
+            }
+            write_access_freq[phaddr].insert(state->regs()->getPc());
+        } else if (constraints[phaddr].type == "R") {
+            RegMap state_map = plgState->get_state_map();
+            auto diff = state_map[phaddr].cur_value ^ writeconcretevalue;
+            for (int i = 0; i < 32; ++i) {
+                if (diff >> i & 1) {
+                    if (std::find(constraints[phaddr].bits.begin(), constraints[phaddr].bits.end(), i) != constraints[phaddr].bits.end()) {
+                        if (write_access_freq.find(phaddr) == write_access_freq.end()) {
+                            std::set<uint64_t> tmp;
+                            write_access_freq[phaddr] = tmp;
+                        }
+                        write_access_freq[phaddr].insert(state->regs()->getPc());
+                    }
+                }
+            }
+        }
     }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
