@@ -719,7 +719,9 @@ bool NLPPeripheralModel::extractConstraints(std::string peripheralcache, Field &
     else {
         SplitStringToInt(v[2], field.bits, "/", 10);
     }
-    constraints[field.phaddr] = field;
+    if (constraints.find(field.phaddr) == constraints.end())
+        constraints[field.phaddr] = {};
+    constraints[field.phaddr].push_back(field);
     return true;
 }
 
@@ -1077,7 +1079,7 @@ void NLPPeripheralModel::onStatistics() {
     }
 
     for (auto read : read_access_freq) {
-        fPHNLP << "type five read access_freq: " << hexval(read.first) << " corresponding bit: " << constraints[read.first].bits[0] << " at pc: ";
+        fPHNLP << "type five read access_freq: " << hexval(read.first.first) << " corresponding bit: " << read.first.second << " at pc: ";
         for (auto pc : read.second) {
             fPHNLP << " ; " << hexval(pc);
         }
@@ -1085,7 +1087,7 @@ void NLPPeripheralModel::onStatistics() {
     }
 
     for (auto write : write_access_freq) {
-        fPHNLP << "type six write access_freq: " << hexval(write.first) << " corresponding bit: " << constraints[write.first].bits[0] << " at pc: ";
+        fPHNLP << "type six write access_freq: " << hexval(write.first.first) << " corresponding bit: " << write.first.second << " at pc: ";
         for (auto pc : write.second) {
             fPHNLP << " ; " << hexval(pc);
         }
@@ -1132,15 +1134,24 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
     *flag = false;
-    if (constraints.find(phaddr) != constraints.end()) {
-        if (constraints[phaddr].type == "W" && constraints[phaddr].bits[0] == -1) {
-            if (read_access_freq.find(phaddr) == read_access_freq.end()) {
-                std::set<uint64_t> tmp;
-                read_access_freq[phaddr] = tmp;
+    if (correction.second == 0 && constraints.find(phaddr) != constraints.end()) {
+        int bit = -2;
+        for (auto constraint : constraints[phaddr]) {
+            if (constraint.type == "W" && constraint.bits[0] == -1) {
+                bit = -1;
+            } else if (constraint.type == "W" && size >= constraint.bits.back()) {
+                bit = constraint.bits.back();
             }
-	    getInfoStream() << "unavailable write access to reg: " <<hexval(phaddr) 
-                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
-            read_access_freq[phaddr].insert(state->regs()->getPc());
+            if (bit != -2) {
+                if (read_access_freq.find({phaddr, bit}) == read_access_freq.end()) {
+                    std::set<uint64_t> tmp;
+                    read_access_freq[{phaddr, bit}] = tmp;
+                }
+                getInfoStream() << "unavailable read access to reg: " << hexval(phaddr)
+                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
+                read_access_freq[{phaddr, bit}].insert(state->regs()->getPc());
+                break;
+            }
         }
     }
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
@@ -1209,31 +1220,33 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     if (correction.second != 0) {
         writeconcretevalue = writeconcretevalue << correction.second;
     }
-    if (constraints.find(phaddr) != constraints.end()) {
-        if (constraints[phaddr].type == "R" && constraints[phaddr].bits[0] == -1) {
-            if (write_access_freq.find(phaddr) == write_access_freq.end()) {
-                std::set<uint64_t> tmp;
-                write_access_freq[phaddr] = tmp;
-            }
-	    getInfoStream() << "unavailable write access to reg: " <<hexval(phaddr) 
-                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
-            write_access_freq[phaddr].insert(state->regs()->getPc());
-        } else if (constraints[phaddr].type == "R") {
-            RegMap state_map = plgState->get_state_map();
-            auto diff = state_map[phaddr].cur_value ^ writeconcretevalue;
-            for (int i = 0; i < 32; ++i) {
-                if (diff >> i & 1) {
-                    if (std::find(constraints[phaddr].bits.begin(), constraints[phaddr].bits.end(), i) != constraints[phaddr].bits.end()) {
-                        if (write_access_freq.find(phaddr) == write_access_freq.end()) {
-                            std::set<uint64_t> tmp;
-                            write_access_freq[phaddr] = tmp;
+
+    if (correction.second == 0 && constraints.find(phaddr) != constraints.end()) {
+        int bit = -2;
+        for (auto constraint : constraints[phaddr]) {
+            if (constraint.type == "R" && constraint.bits[0] == -1) {
+                bit = -1;
+            } else if (constraint.type == "R") {
+                RegMap state_map = plgState->get_state_map();
+                auto diff = state_map[phaddr].cur_value ^ writeconcretevalue;
+                for (int i = 0; i < 32; ++i) {
+                    if (diff >> i & 1) {
+                        if (std::find(constraint.bits.begin(), constraint.bits.end(), i) != constraint.bits.end()) {
+                            bit = i;
+                            break;
                         }
-			getInfoStream() << "unavailable write access to reg: " <<hexval(phaddr) << " old_value: " << hexval(state_map[phaddr].cur_value) <<" new value: "<<hexval(writeconcretevalue) <<" diff: "<<hexval(diff) 
-                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
-                        write_access_freq[phaddr].insert(state->regs()->getPc());
-			break;
                     }
                 }
+            }
+            if (bit != -2) {
+                if (write_access_freq.find({phaddr, bit}) == write_access_freq.end()) {
+                    std::set<uint64_t> tmp;
+                    write_access_freq[{phaddr, bit}] = tmp;
+                }
+                getInfoStream() << "unavailable write access to reg: " << hexval(phaddr) << " old_value: " << hexval(state_map[phaddr].cur_value) << " new value: " << hexval(writeconcretevalue) << " diff: " << hexval(diff)
+                                << " pc = " << hexval(state->regs()->getPc()) << "\n";
+                write_access_freq[{phaddr, bit}].insert(state->regs()->getPc());
+                break;
             }
         }
     }

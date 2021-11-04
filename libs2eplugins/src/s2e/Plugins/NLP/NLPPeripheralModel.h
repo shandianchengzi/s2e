@@ -96,7 +96,7 @@ private:
     uint32_t rw_count;
     std::string NLPfileName;
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
-    std::map<uint32_t, Field> constraints;
+    std::map<uint32_t, std::vector<Field>> constraints;
     std::map<uint32_t, uint32_t> DR2SR;
     std::map<uint32_t, uint32_t> statistics;
     int ta_numbers = 0;
@@ -108,8 +108,8 @@ private:
     std::map<uint32_t, std::set<uint32_t>> untriggered_irq;
     std::map<uint32_t, std::set<uint64_t>> read_unauthorized_freq;
     std::map<uint32_t, std::set<uint64_t>> write_unauthorized_freq;
-    std::map<uint32_t, std::set<uint64_t>> read_access_freq;
-    std::map<uint32_t, std::set<uint64_t>> write_access_freq;
+    std::map<std::pair<uint32_t, uint32_t>, std::set<uint64_t>> read_access_freq;
+    std::map<std::pair<uint32_t, uint32_t>, std::set<uint64_t>> write_access_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
     std::vector<uint32_t> data_register;
