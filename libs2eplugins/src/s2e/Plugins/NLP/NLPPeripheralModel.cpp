@@ -313,11 +313,11 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // Write a value to DR
     if (!enable_fuzzing) {
-        getWarningsStream() << " write init dr value 0x0! phaddr =  \n";
+        getWarningsStream() << " write init dr value 0x2D! phaddr =  \n";
 
         for (auto phaddr : data_register) {
             std::queue<uint8_t> tmp;
-            tmp.push(0x0);
+            tmp.push(0x2D);
             plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
         }
         UpdateFlag(0);
@@ -416,8 +416,8 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
 // getDebugStream() << "Force IRQ Check "<< hexval(re_tb_num) << "\n";
 // for (auto phaddr: data_register) {
 // if (disable_init_dr_value_flag[phaddr] != 1) {
-// getWarningsStream() << " write init dr value 0x0! phaddr = "<< hexval(phaddr) << "\n";
-// plgState->hardware_write_to_receive_buffer(phaddr, 0x0, 4);
+// getWarningsStream() << " write init dr value 0x2D! phaddr = "<< hexval(phaddr) << "\n";
+// plgState->hardware_write_to_receive_buffer(phaddr, 0x2D, 4);
 //}
 //}
 // UpdateGraph(state, Write, 0);
@@ -719,7 +719,7 @@ bool NLPPeripheralModel::extractConstraints(std::string peripheralcache, Field &
     else {
         SplitStringToInt(v[2], field.bits, "/", 10);
     }
-    constraints[field.a.phaddr] = field;
+    constraints[field.phaddr] = field;
     return true;
 }
 
@@ -1075,6 +1075,22 @@ void NLPPeripheralModel::onStatistics() {
         }
         fPHNLP << "\n";
     }
+
+    for (auto read : read_access_freq) {
+        fPHNLP << "type five read access_freq: " << hexval(read.first) << " corresponding bit: " << constraints[read.first].bits[0] << " at pc: ";
+        for (auto pc : read.second) {
+            fPHNLP << " ; " << hexval(pc);
+        }
+        fPHNLP << "\n";
+    }
+
+    for (auto write : write_access_freq) {
+        fPHNLP << "type six write access_freq: " << hexval(write.first) << " corresponding bit: " << constraints[write.first].bits[0] << " at pc: ";
+        for (auto pc : write.second) {
+            fPHNLP << " ; " << hexval(pc);
+        }
+        fPHNLP << "\n";
+    }
     fPHNLP.close();
 }
 
@@ -1102,10 +1118,10 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
-            getInfoStream() << " write init dr value 0x0!  \n";
+            getInfoStream() << " write init dr value 0x2D!  \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
-                tmp.push(0x0);
+                tmp.push(0x2D);
                 plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
             UpdateGraph(g_s2e_state, Rx, 0);
@@ -1122,6 +1138,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
                 std::set<uint64_t> tmp;
                 read_access_freq[phaddr] = tmp;
             }
+	    getInfoStream() << "unavailable write access to reg: " <<hexval(phaddr) 
+                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
             read_access_freq[phaddr].insert(state->regs()->getPc());
         }
     }
@@ -1176,10 +1194,10 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         readNLPModelfromFile(state, NLPfileName);
         if (!enable_fuzzing) {
             // Write a value to DR
-            getInfoStream() << " write init dr value 0x0! \n";
+            getInfoStream() << " write init dr value 0x2D! \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
-                tmp.push(0x0);
+                tmp.push(0x2D);
                 plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
             UpdateGraph(g_s2e_state, Rx, 0);
@@ -1197,6 +1215,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
                 std::set<uint64_t> tmp;
                 write_access_freq[phaddr] = tmp;
             }
+	    getInfoStream() << "unavailable write access to reg: " <<hexval(phaddr) 
+                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
             write_access_freq[phaddr].insert(state->regs()->getPc());
         } else if (constraints[phaddr].type == "R") {
             RegMap state_map = plgState->get_state_map();
@@ -1208,7 +1228,10 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
                             std::set<uint64_t> tmp;
                             write_access_freq[phaddr] = tmp;
                         }
+			getInfoStream() << "unavailable write access to reg: " <<hexval(phaddr) << " old_value: " << hexval(state_map[phaddr].cur_value) <<" new value: "<<hexval(writeconcretevalue) <<" diff: "<<hexval(diff) 
+                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
                         write_access_freq[phaddr].insert(state->regs()->getPc());
+			break;
                     }
                 }
             }

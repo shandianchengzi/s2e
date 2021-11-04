@@ -39,7 +39,7 @@ typedef struct equation {
     std::string type_a2; // V:value; R: receive; T: transmit; F: field
     uint32_t value;
     Field a2;
-    uint32_t interrupt;
+    int32_t interrupt;
     bool rel;
 } Equation;
 
@@ -125,6 +125,7 @@ private:
     void initialize();
     void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
     bool ExistInMMIO(uint32_t tmp);
+    bool extractConstraints(std::string peripheralcache, Field &field);
     template <typename T>
     bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool readNLPModelfromFile(S2EExecutionState *state, std::string fileName);
