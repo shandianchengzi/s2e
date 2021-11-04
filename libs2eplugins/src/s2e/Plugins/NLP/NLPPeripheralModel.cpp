@@ -27,6 +27,7 @@ private:
     std::map<int, int> exit_interrupt; // interrupt id, num
     std::map<uint32_t, uint32_t> interrupt_freq;
     uint32_t fork_point_count;
+    bool instruction = false;
     // std::map<int, bool> exit_interrupt;
 public:
     NLPPeripheralModelState() {
@@ -79,9 +80,28 @@ public:
         return state_map[phaddr].cur_value;
     }
 
+    bool check_instruction() {
+	    return instruction;
+    }
+    void receive_instruction(uint32_t phaddr) {
+	    if (instruction && state_map[phaddr].r_value.empty()) 
+   	        instruction = false;
+    }
+
     void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width) {
-        state_map[phaddr].t_value = value;
-        state_map[phaddr].t_size = 0; // width;
+        //state_map[phaddr].t_value = value;
+	state_map[phaddr].t_value = (state_map[phaddr].t_value << width*8) + value;
+	if (state_map[phaddr].t_value == 0xAAFA){
+   	   std::queue<uint8_t> tmp;
+           tmp.push(0x4F);
+           tmp.push(0x4B);
+           tmp.push(0x0D);
+           tmp.push(0x0A);
+           state_map[phaddr].r_value = tmp;
+	   state_map[phaddr].r_size = 32;
+	   instruction = true;
+	}
+	state_map[phaddr].t_size = 0; // width;
     }
 
     uint8_t get_dr_value(uint32_t phaddr, uint32_t width) {
@@ -312,7 +332,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
 void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, uint64_t tb_num) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // Write a value to DR
-    if (!enable_fuzzing) {
+    if (!enable_fuzzing && !plgState->check_instruction()) {
         getWarningsStream() << " write init dr value 0x2D! phaddr =  \n";
 
         for (auto phaddr : data_register) {
@@ -1177,6 +1197,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         } else {
             *NLPsymbolicvalue = data[0];
         }
+	plgState->receive_instruction(phaddr);
         getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size
                         << "pc = " << hexval(state->regs()->getPc()) << " value " << hexval(*NLPsymbolicvalue) << "\n";
     } else {
@@ -1221,14 +1242,15 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         writeconcretevalue = writeconcretevalue << correction.second;
     }
 
+    RegMap state_map = plgState->get_state_map();
     if (correction.second == 0 && constraints.find(phaddr) != constraints.end()) {
         int bit = -2;
+	uint32_t diff = 0;
         for (auto constraint : constraints[phaddr]) {
             if (constraint.type == "R" && constraint.bits[0] == -1) {
                 bit = -1;
             } else if (constraint.type == "R") {
-                RegMap state_map = plgState->get_state_map();
-                auto diff = state_map[phaddr].cur_value ^ writeconcretevalue;
+                diff = state_map[phaddr].cur_value ^ writeconcretevalue;
                 for (int i = 0; i < 32; ++i) {
                     if (diff >> i & 1) {
                         if (std::find(constraint.bits.begin(), constraint.bits.end(), i) != constraint.bits.end()) {
@@ -1261,9 +1283,9 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
             } else
                 write_unauthorized_freq[phaddr].insert(state->regs()->getPc());
         }
-        plgState->write_dr_value(phaddr, writeconcretevalue, 32);
+        plgState->write_dr_value(phaddr, writeconcretevalue, 1);
         getDebugStream() << "Write to data register " << phaddr << " " << hexval(phaddr)
-                         << " value: " << writeconcretevalue << " \n";
+                         << " value: " << hexval(writeconcretevalue) <<" cur dr: " << hexval(state_map[phaddr].t_value)<< " \n";
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);
         getDebugStream() << "Write to phaddr " << hexval(phaddr) << " value: " << writeconcretevalue << " \n";
