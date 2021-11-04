@@ -1,4 +1,4 @@
-///
+//
 /// Copyright (C) 2010-2015, Dependable Systems Laboratory, EPFL
 /// All rights reserved.
 ///
@@ -94,11 +94,23 @@ public:
 	if (state_map[phaddr].t_value == 0xAAFA){
    	   std::queue<uint8_t> tmp;
            tmp.push(0x4F);
+           tmp.push(0x0);
+           tmp.push(0x0);
+           tmp.push(0x0);
            tmp.push(0x4B);
+           tmp.push(0x0);
+           tmp.push(0x0);
+           tmp.push(0x0);
            tmp.push(0x0D);
+           tmp.push(0x0);
+           tmp.push(0x0);
+           tmp.push(0x0);
            tmp.push(0x0A);
+           tmp.push(0x0);
+           tmp.push(0x0);
+           tmp.push(0x0);
            state_map[phaddr].r_value = tmp;
-	   state_map[phaddr].r_size = 32;
+	   state_map[phaddr].r_size = 32*4;
 	   instruction = true;
 	}
 	state_map[phaddr].t_size = 0; // width;
