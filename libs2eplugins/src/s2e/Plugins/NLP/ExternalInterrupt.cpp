@@ -227,10 +227,10 @@ void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uin
     if (std::find(disable_irqs.begin(), disable_irqs.end(), irq_no) == disable_irqs.end()) {
         if (std::find(active_irqs.begin(), active_irqs.end(), irq_no) != active_irqs.end()) {
             *irq_triggered = true;
-            getWarningsStream() << " trigger external irq " << irq_no << "\n";
+            getInfoStream() << " trigger external irq " << irq_no << "\n";
             s2e()->getExecutor()->setExternalInterrupt(irq_no);
         } else {
-            getWarningsStream() << "cannot trigger nlp interrupt no = " << irq_no << ", since it is not active\n";
+            getInfoStream() << "cannot trigger nlp interrupt no = " << irq_no << ", since it is not active\n";
         }
     }
 
