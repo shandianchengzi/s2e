@@ -84,14 +84,17 @@ public:
         return instruction;
     }
     void receive_instruction(uint32_t phaddr) {
-        if (instruction && state_map[phaddr].r_value.empty())
+        if (instruction && state_map[phaddr].r_value.empty()) {
             instruction = false;
+            state_map[phaddr].t_value = 0;
+        }
     }
 
-    void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width) {
+    void write_dr_value(uint32_t phaddr, uint32_t value, uint32_t width, bool fork_point) {
         //state_map[phaddr].t_value = value;
         state_map[phaddr].t_value = (state_map[phaddr].t_value << width * 8) + value;
-        if (state_map[phaddr].t_value == 0xAAFA) {
+        state_map[phaddr].t_size = 0; // width;
+        if (state_map[phaddr].t_value == 0xAAFA && !fork_point) {
             std::queue<uint8_t> tmp;
             tmp.push(0x4F);
             tmp.push(0x0);
@@ -113,7 +116,6 @@ public:
             state_map[phaddr].r_size = 32 * 4;
             instruction = true;
         }
-        state_map[phaddr].t_size = 0; // width;
     }
 
     uint8_t get_dr_value(uint32_t phaddr, uint32_t width) {
@@ -242,18 +244,15 @@ void NLPPeripheralModel::initialize() {
         sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralRead));
     symbolicPeripheralConnection->onSymbolicNLPRegisterWriteEvent.connect(
         sigc::mem_fun(*this, &NLPPeripheralModel::onPeripheralWrite));
-    onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
-    onInvalidStateDectionConnection->onReceiveExternalDataEvent.connect(
-        sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &NLPPeripheralModel::onStatistics));
 
     bool ok;
     fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
     getInfoStream() << "set fork_point phaddr = " << hexval(fork_point) << "\n";
     enable_fuzzing = s2e()->getConfig()->getBool(getConfigKey() + ".useFuzzer", false);
+    begin_irq_flag = false;
     if (enable_fuzzing) {
         init_dr_flag = false;
-        begin_irq_flag = false;
         s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
             sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
         begin_point = s2e()->getConfig()->getInt(getConfigKey() + ".beginPoint", 0x0, &ok);
@@ -263,6 +262,10 @@ void NLPPeripheralModel::initialize() {
         } else {
             getInfoStream() << "begin point = " << hexval(begin_point) << "\n";
         }
+    } else {
+        onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
+        onInvalidStateDectionConnection->onReceiveExternalDataEvent.connect(
+            sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
     }
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
@@ -1186,6 +1189,8 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
             }
         }
     }
+
+    // unauthorized access check
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getInfoStream() << "unauthorized READ access to data register: " << hexval(phaddr)
@@ -1209,7 +1214,9 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         } else {
             *NLPsymbolicvalue = data[0];
         }
-        plgState->receive_instruction(phaddr);
+        if (!begin_irq_flag) {
+            plgState->receive_instruction(phaddr);
+        }
         getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size
                         << "pc = " << hexval(state->regs()->getPc()) << " value " << hexval(*NLPsymbolicvalue) << "\n";
     } else {
@@ -1284,6 +1291,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
             }
         }
     }
+
+    // unauthorized access check
     if (std::find(data_register.begin(), data_register.end(), phaddr) != data_register.end()) {
         if (ExistInMMIO(phaddr) && checked_SR == false) {
             getInfoStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
@@ -1295,8 +1304,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
             } else
                 write_unauthorized_freq[phaddr].insert(state->regs()->getPc());
         }
-        plgState->write_dr_value(phaddr, writeconcretevalue, 1);
-        getDebugStream() << "Write to data register " << phaddr << " " << hexval(phaddr)
+        plgState->write_dr_value(phaddr, writeconcretevalue, 1, begin_irq_flag);
+        getInfoStream() << "Write to data register " << hexval(phaddr) << " flag " << begin_irq_flag
                          << " value: " << hexval(writeconcretevalue) << " cur dr: " << hexval(state_map[phaddr].t_value) << " \n";
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);
@@ -1354,7 +1363,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             for (uint32_t i = 0; i < data_register.size(); ++i) {
                 if (i == 0) {
                     onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
-                    for (int j = 0; j < return_value.size(); j++) {
+                    int cnt = return_value.size();
+                    for (int j = 0; j < cnt; j++) {
                         return_value2.push(return_value.front());
                         return_value2.push(return_value.front());
                         return_value2.push(return_value.front());
