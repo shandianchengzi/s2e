@@ -191,6 +191,11 @@ void AFLFuzzer::initialize() {
     invalidPCAccessConnection =
         s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
 
+    min_input_length = s2e()->getConfig()->getInt(getConfigKey() + ".minInputLength", 64);
+    if (min_input_length < 8) {
+        getWarningsStream() << " testcase length should at least 32B!\n";
+        exit(-1);
+    }
     fork_point = s2e()->getConfig()->getInt(getConfigKey() + ".forkPoint", 0x0, &ok);
     if (!ok || fork_point == 0x0) {
         getWarningsStream() << " fork point should be set at the beginning of one basic block!\n";
@@ -199,10 +204,20 @@ void AFLFuzzer::initialize() {
         getInfoStream() << "fork point = " << hexval(fork_point) << "\n";
     }
 
+    begin_point = s2e()->getConfig()->getInt(getConfigKey() + ".beginPoint", 0x0, &ok);
+    if (!ok || begin_point == 0x0) {
+        getWarningsStream() << " begin_point will be same as fork_point!\n";
+        begin_point = fork_point;
+    } else {
+        getInfoStream() << "begin point = " << hexval(begin_point) << "\n";
+    }
+
     fork_flag = false;
     total_time = 0;
     disable_interrupt_count = 0;
     hang_timeout = s2e()->getConfig()->getInt(getConfigKey() + ".hangTimeout", 10);
+    init_time = time(NULL);
+    start_time = time(NULL);
 
     auto crash_keys = cfg->getIntegerList(getConfigKey() + ".crashPoints");
     foreach2 (it, crash_keys.begin(), crash_keys.end()) {
@@ -435,7 +450,7 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
     if (doFuzz) {
         *testcase_size = afl_con->AFL_size;
         if (afl_con->AFL_input) {
-            getWarningsStream() << "AFL_input = " << afl_con->AFL_input
+            getInfoStream() << "AFL_input = " << afl_con->AFL_input
                             << " AFL_size = " << afl_con->AFL_size << "\n";
             for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
                 uint8_t fuzz_value;
@@ -443,15 +458,15 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
                 value->push(fuzz_value);
                 getInfoStream() << " " << hexval(fuzz_value);
             }
-            if (afl_con->AFL_size < 54) {
-                for (uint32_t i = 0; i < 54 - afl_con->AFL_size; i++) {
+            if (afl_con->AFL_size < min_input_length) {
+                for (uint32_t i = 0; i < min_input_length - afl_con->AFL_size; i++) {
                     value->push(0x0);
                 }
             }
             getInfoStream() << "\n";
         } else {
             getWarningsStream() << "AFL testcase is not ready!! return 0 "<< afl_con->AFL_size << "\n";
-            for (uint32_t i = 0; i < 54; i++) {
+            for (uint32_t i = 0; i < min_input_length; i++) {
                 value->push(0x0);
             }
         }
@@ -551,10 +566,10 @@ void AFLFuzzer::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *
         sigc::bind(sigc::mem_fun(*this, &AFLFuzzer::onBlockEnd), (unsigned) tb->se_tb_type));
 }
 
+static __thread uint64_t prev_loc;
 void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
-    static __thread uint64_t prev_loc;
-    static __thread uint64_t prev_loc2;
 
+    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(cur_loc) <<  "\n";
     ++tb_num;
     end_time = time(NULL);
     if (fork_flag && ((end_time - init_time) / 60 > 14)) {
@@ -622,7 +637,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     // crash/hang
-    if (fork_flag && unlikely((end_time - start_time) > hang_timeout * 20)) {
+    if (unlikely((end_time - start_time) > hang_timeout)) {
         getWarningsStream() << "Kill Fuzz State due to Timeout at pc = " << hexval(cur_loc) <<"\n";
         onCrashHang(state, 0);
     }
@@ -640,21 +655,21 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         if (state->regs()->getExceptionIndex() > 15) {
             return;
         } else if (state->regs()->getExceptionIndex() == 15) {
-            cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
+            cur_loc = (cur_loc >> 8) ^ (cur_loc << 4);
             cur_loc &= MAP_SIZE - 1;
+            cur_loc |= 0x8000;
             if (cur_loc >= afl_inst_rms)
                 return;
-            if (bitmap[cur_loc ^ prev_loc2]) // only count once for systick irq
+            if (bitmap[cur_loc]) // only count once for systick irq
                 return;
-            bitmap[cur_loc ^ prev_loc2]++;
-            prev_loc2 = cur_loc >> 1;
+            bitmap[cur_loc]++;
             return;
         }
     }
 
 
-    cur_loc = (cur_loc >> 4) ^ (cur_loc << 8);
-    cur_loc &= MAP_SIZE - 1;
+    cur_loc = (cur_loc >> 8) ^ (cur_loc << 4);
+    cur_loc &= MAP_SIZE/2 - 1;
 
     /* Implement probabilistic instrumentation by looking at scrambled block
      address. This keeps the instrumented locations stable across runs. */
@@ -671,23 +686,64 @@ void AFLFuzzer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState
 }
 
 void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
+    DECLARE_PLUGINSTATE(AFLFuzzerState, state);
     if (pc == fork_point) {
         //if (fork_flag == false) {
         if (fork_flag) {
-            getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            getInfoStream() << "3 fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
             afl_con->AFL_input = 0;
             Ethernet.pos = 0;
             afl_con->AFL_return = 0;
+            start_time = time(NULL);
+            plgState->inc_hit_count();
+            prev_loc = 0;
+            if (plgState->get_hit_count() == 1000) {
+                fork_flag = false;
+                std::string s;
+                llvm::raw_string_ostream ss(s);
+                ss << "Kill path due to one thousand\n";
+                ss.flush();
+                s2e()->getExecutor()->terminateState(*state, s);
+            }
             usleep(10000);
-            start_time = time(NULL);
         } else {
+            prev_loc = 0;
             memset(afl_area_ptr, 0, MAP_SIZE);
-            getInfoStream() << "fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
-            init_time = time(NULL);
-            forkPoint(state);
-            PrintRegs(state);
+            if (begin_point == fork_point) {
+                forkPoint(state);
+                //PrintRegs(state);
+            }
+            getWarningsStream() << " 4 fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             start_time = time(NULL);
+            fork_flag = true;
+        }
+    } else if (pc == begin_point) {
+        if (fork_flag) {
+            getInfoStream() << " 1 fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+            afl_con->AFL_input = 0;
+            Ethernet.pos = 0;
+            afl_con->AFL_return = 0;
+            prev_loc = 0;
+            start_time = time(NULL);
+            plgState->inc_hit_count();
+            if (plgState->get_hit_count() == 1000) {
+                fork_flag = false;
+                std::string s;
+                llvm::raw_string_ostream ss(s);
+                ss << "Kill path due to one thousand\n";
+                ss.flush();
+                s2e()->getExecutor()->terminateState(*state, s);
+            }
+            usleep(10000);
+        } else {
+            prev_loc = 0;
+            memset(afl_area_ptr, 0, MAP_SIZE);
+            start_time = time(NULL);
+            forkPoint(state);
+            getWarningsStream() << " 0 fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
+            //PrintRegs(state);
             fork_flag = true;
         }
     }

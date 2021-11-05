@@ -100,6 +100,8 @@ private:
     //uint32_t cur_read;
     uint64_t disable_interrupt_count;
     bool fork_flag;
+    uint32_t min_input_length;
+    uint32_t begin_point;
     uint32_t fork_point;
     std::vector<uint32_t> crash_points;
     std::vector<MEM> roms;
