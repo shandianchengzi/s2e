@@ -70,7 +70,8 @@ typedef std::vector<Flag> FlagList;
 
 enum RWType { Write,
               Read,
-              Rx };
+              Rx,
+              Unknown };
 // std::map<std::string, uint32_t> symbol_list = {
 //    {"*",0},{"=",1},{">":2},{"<",3},{">=",4},{"<=",5}
 //};
@@ -96,6 +97,7 @@ private:
     uint32_t rw_count;
     std::string NLPfileName;
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
+    std::map<uint32_t, uint32_t> rx_flags;
     std::map<uint32_t, std::vector<Field>> constraints;
     std::map<uint32_t, uint32_t> DR2SR;
     std::map<uint32_t, uint32_t> statistics;

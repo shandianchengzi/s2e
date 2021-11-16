@@ -324,7 +324,7 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     UpdateFlag(1);
     // fuzzing mode, if exit irq, check out if the rx is still empty
     if (enable_fuzzing) {
-        UpdateGraph(g_s2e_state, Write, 0);
+        UpdateGraph(g_s2e_state, Rx, 0);
     }
     /*
     if (plgState->get_exit_interrupt(irq_no) && enable_fuzzing) {
@@ -357,7 +357,7 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
         }
         UpdateFlag(0);
     }
-    UpdateGraph(g_s2e_state, Rx, 0);
+    UpdateGraph(g_s2e_state, Unknown, 0);
 }
 
 void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
@@ -664,6 +664,9 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     getDebugStream() << " trigger = " << trigger_str << " action = " << action_str << "\n";
 
     bool res = extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
+    if (trigger.back().a1.type == "R" && trigger.back().eq != "=") {
+        rx_flags[action.back().a1.phaddr] = action.back().a1.bits[0];
+    }
     if (v.size() == 3) {
         action.back().interrupt = std::stoi(v[2].c_str(), NULL, 10);
         getDebugStream() << " trigger = " << trigger_str << " action = " << action_str
@@ -839,6 +842,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         std::vector<bool> trigger_res;
         for (auto equ : trigger) {
             rel = equ.rel;
+
             if (equ.a1.type == "*") {
                 trigger_res.push_back(true);
             } else if (equ.type_a2 == "*" && equ.a1.type == "R") {
@@ -879,6 +883,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     getDebugStream() << "intermediate trigger a1 " << hexval(equ.a1.phaddr)
                                      << " bit: " << equ.a1.bits[0] << " a1 " << a1 << " eq " << equ.eq << " a2 "
                                      << equ.value << " \n";
+
                     trigger_res.push_back(compare(a1, equ.eq, a2));
                 }
             }
@@ -959,6 +964,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
 
             if (equ.interrupt == -1)
                 continue;
+            //skip non rx interrupt
+            if (type == Rx && (rx_flags.find(equ.a1.phaddr) == rx_flags.end() || rx_flags[equ.a1.phaddr] != equ.a1.bits[0])) {
+                getInfoStream() << "skip irq because non rx interrupt " << hexval(equ.a1.phaddr) << " bit " << equ.a1.bits[0] << "\n";
+                continue;
+            }
+
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
             //if (!enable_fuzzing) {
             //if (plgState->get_irq_freq(equ.interrupt) > 2) {
@@ -989,7 +1000,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                         return;
                     }
                 }
-                getDebugStream() << "add irqs " << equ.interrupt << "\n";
+                getInfoStream() << "add irqs " << equ.interrupt << " " << hexval(equ.a1.phaddr) << " bit " << equ.a1.bits[0] << "\n";
                 for (auto tequ : trigger) {
                     if (tequ.a1.phaddr != equ.a1.phaddr)
                         missed_enabled[equ.interrupt].insert(tequ.a1.phaddr);
@@ -1161,7 +1172,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
                 tmp.push(0x2D);
                 plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
-            UpdateGraph(g_s2e_state, Rx, 0);
+            UpdateGraph(g_s2e_state, Unknown, 0);
         }
     }
     read_numbers += 1;
@@ -1251,7 +1262,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
                 tmp.push(0x2D);
                 plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
             }
-            UpdateGraph(g_s2e_state, Rx, 0);
+            UpdateGraph(g_s2e_state, Unknown, 0);
         }
     }
     write_numbers += 1;
@@ -1306,7 +1317,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         }
         plgState->write_dr_value(phaddr, writeconcretevalue, 1, begin_irq_flag);
         getInfoStream() << "Write to data register " << hexval(phaddr) << " flag " << begin_irq_flag
-                         << " value: " << hexval(writeconcretevalue) << " cur dr: " << hexval(state_map[phaddr].t_value) << " \n";
+                        << " value: " << hexval(writeconcretevalue) << " cur dr: " << hexval(state_map[phaddr].t_value) << " \n";
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);
         getDebugStream() << "Write to phaddr " << hexval(phaddr) << " value: " << writeconcretevalue << " \n";
@@ -1378,7 +1389,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
                                 << " return value: " << return_value2.size() << "\n";
             }
             UpdateFlag(0);
-            UpdateGraph(state, Rx, 0);
+            UpdateGraph(state, Unknown, 0);
         } else {
             begin_irq_flag = true;
             init_dr_flag = true;
@@ -1389,7 +1400,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         plgState->inc_fork_count();
         if (!enable_fuzzing) {
             UpdateFlag(0);
-            UpdateGraph(state, Rx, 0);
+            UpdateGraph(state, Unknown, 0);
             if (plgState->pending_interrupt())
                 return;
             std::vector<uint32_t> irq_no;
@@ -1428,7 +1439,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
                             << " return value size: " << return_value.size() << "\n";
         }
         UpdateFlag(0);
-        UpdateGraph(state, Rx, 0);
+        UpdateGraph(state, Unknown, 0);
         init_dr_flag = false;
         std::vector<uint32_t> irq_no;
         onEnableISER.emit(state, &irq_no);
