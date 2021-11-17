@@ -21,8 +21,6 @@ S2E_DEFINE_PLUGIN(AFLFuzzer, "trigger and record external interrupts", "AFLFuzze
 
 class AFLFuzzerState : public PluginState {
 private:
-    typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
-
     uint64_t hit_count;
 
 public:
@@ -236,20 +234,6 @@ void AFLFuzzer::initialize() {
     unique_tb_num = 0;
 }
 
-/*static void SymbHwGetConcolicVector(uint64_t in, unsigned size, hw::ConcreteArray &out) {*/
-    //union {
-        //// XXX: assumes little endianness!
-        //uint64_t value;
-        //uint8_t array[8];
-    //};
-
-    //value = in;
-    //out.resize(size);
-    //for (unsigned i = 0; i < size; ++i) {
-        //out[i] = array[i];
-    //}
-/*}*/
-
 template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
     auto size = sizeof(T);
 
@@ -280,7 +264,7 @@ static void PrintRegs(S2EExecutionState *state) {
     }
 }
 
-void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
+void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag, uint32_t pc) {
     PrintRegs(state);
     memcpy(afl_area_ptr, bitmap, MAP_SIZE);
     if (flag == 1) {
@@ -295,153 +279,6 @@ void AFLFuzzer::onCrashHang(S2EExecutionState *state, uint32_t flag) {
     ss.flush();
     s2e()->getExecutor()->terminateState(*state, s);
 }
-
-/*void AFLFuzzer::onTimer() {*/
-    //++timer_ticks;
-/*}*/
-
-/*void AFLFuzzer::onModeSwitch(S2EExecutionState *state, bool fuzzing_to_learning) {*/
-    //DECLARE_PLUGINSTATE(AFLFuzzerState, state);
-    //if (fuzzing_to_learning) {
-        //memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-        //afl_con->AFL_input = 0;
-        //// afl_con->AFL_return = FAULT_ERROR;
-        //blockEndConnection.disconnect();
-        //concreteDataMemoryAccessConnection.disconnect();
-        //invalidPCAccessConnection.disconnect();
-        //timerConnection.disconnect();
-        //plgState->clear_hit_count();
-        //timer_ticks = 0;
-    //} else {
-        //getInfoStream() << " AFL Reconnection !!\n";
-        //timer_ticks = 0;
-        //blockEndConnection = s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
-            //sigc::mem_fun(*this, &AFLFuzzer::onTranslateBlockEnd));
-        //concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
-            //sigc::mem_fun(*this, &AFLFuzzer::onConcreteDataMemoryAccess));
-        //invalidPCAccessConnection =
-            //s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
-        //timerConnection = s2e()->getCorePlugin()->onTimer.connect(sigc::mem_fun(*this, &AFLFuzzer::onTimer));
-    //}
-//}
-
-//void AFLFuzzer::onInvalidPHs(S2EExecutionState *state, uint64_t addr) {
-    //getWarningsStream() << "Kill path due to onInvalid PHs at pc = " << hexval(state->regs()->getPc())
-                        //<< "ph addr = " << hexval(addr) << "\n";
-    //onCrashHang(state, 1);
-/*}*/
-
-/*void AFLFuzzer::onFuzzingInput(S2EExecutionState *state, PeripheralRegisterType type, uint64_t phaddr,*/
-                               //uint32_t t3_count, uint32_t *size, uint32_t *value, bool *doFuzz) {
-    //DECLARE_PLUGINSTATE(AFLFuzzerState, state);
-
-    //memset(value, 0, 4 * sizeof(char));
-    //for (auto input_peripheral : input_peripherals) {
-        //if (input_peripheral.first == phaddr) {
-            //*doFuzz = true;
-            //*size = input_peripherals[phaddr];
-            //break;
-        //}
-    //}
-
-    //if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
-        //*doFuzz = true;
-        //*size = 1;
-        //Ethernet.pos++;
-        //if (Ethernet.pos == Ethernet.size) {
-            //Ethernet.pos = 0;
-        //}
-    //}
-
-    //if (*doFuzz && g_s2e_cache_mode && t3_count == 0) {
-        //if (plgState->get_hit_count() == 0) {
-            //afl_con->AFL_return = 0;
-            //invaild_pc = 0;
-            //cur_read = 0;
-            //Ethernet.pos = 0;
-            //getDebugStream() << "fork at checking point phaddr  = " << hexval(phaddr)
-                                //<< " pc = " << hexval(state->regs()->getPc()) << "\n";
-            //hw::ConcreteArray concolicValue;
-            //SymbHwGetConcolicVector(0x0, *size, concolicValue);
-            //klee::ref<klee::Expr> original_value =
-                //state->createSymbolicValue("checking_point", *size * 8, concolicValue);
-            //s2e()->getExecutor()->forkAndConcretize(state, original_value);
-        //}
-
-        //plgState->inc_hit_count();
-        //timer_ticks = 0;
-
-        //if (cur_read >= afl_con->AFL_size) {
-            //cur_read = 0;
-            //memcpy(afl_area_ptr, bitmap, MAP_SIZE);
-            //afl_con->AFL_input = 0;
-            //fork_count++;
-            //if (fork_count > max_fork_count) {
-                //fork_count = 0;
-                //std::string s;
-                //llvm::raw_string_ostream ss(s);
-                //ss << "Fork point each " << max_fork_count << " testcases\n";
-                //ss.flush();
-                //s2e()->getExecutor()->terminateState(*state, s);
-            //}
-        //}
-
-        //if (afl_con->AFL_input) {
-            //getDebugStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
-                             //<< " cur_read = " << cur_read << "\n";
-            //memcpy(value, testcase + cur_read, *size);
-            //cur_read += *size;
-        //} else {
-            //memset(value, 0, 4 * sizeof(char));
-            //cur_read = 0;
-        //}
-    //}
-/*}*/
-
-/*void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t size,*/
-                            //std::queue<uint8_t> *value, bool *empty_flag) {
-
-    //bool doFuzz;
-    //doFuzz = true;
-    ////TODO
-    //memset(value, 0, 4 * sizeof(char));
-    //for (auto disable_input_peripheral : disable_input_peripherals) {
-        //if (disable_input_peripheral.first == phaddr) {
-            //doFuzz = false;
-            //size = disable_input_peripherals[phaddr];
-            //break;
-        //}
-    //}
-
-    //if (phaddr >= Ethernet.addr && phaddr < Ethernet.addr + Ethernet.size) {
-        //doFuzz = true;
-        //size = 1;
-        //Ethernet.pos++;
-        //if (Ethernet.pos == Ethernet.size) {
-            //Ethernet.pos = 0;
-        //}
-    //}
-
-    //if (doFuzz) {
-        //timer_ticks = 0;
-        //if (cur_read >= afl_con->AFL_size) {
-            //cur_read = 0;
-            //*empty_flag = true;
-            //return;
-        //}
-
-        //if (afl_con->AFL_input) {
-            //getInfoStream() << "AFL_input = " << afl_con->AFL_input << " AFL_size = " << afl_con->AFL_size
-                             //<< " cur_read = " << cur_read << "\n";
-            //memcpy(value, testcase + cur_read, size);
-            //cur_read += size;
-        //} else {
-            //getWarningsStream() << "AFL testcase is not ready!! return 0\n";
-            //memset(value, 0, 4 * sizeof(char));
-            //cur_read = 0;
-        //}
-    //}
-/*}*/
 
 void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_t *testcase_size,
                             std::queue<uint8_t> *value) {
@@ -477,7 +314,7 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
 void AFLFuzzer::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
     uint32_t pc = state->regs()->getPc();
     getWarningsStream() << "Kill path due to invaild pc  = " << hexval(pc) << " addr = " << hexval(addr) << "\n";
-    onCrashHang(state, 1);
+    onCrashHang(state, 1, pc);
 }
 
 void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t address, uint64_t value, uint8_t size,
@@ -527,7 +364,7 @@ void AFLFuzzer::onConcreteDataMemoryAccess(S2EExecutionState *state, uint64_t ad
                             << " pc = " << hexval(pc) << "\n";
     }
 
-    onCrashHang(state, 1);
+    onCrashHang(state, 1, pc);
 }
 
 void AFLFuzzer::recordTBMap() {
@@ -624,22 +461,22 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
 
     if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() < 10) {
         getWarningsStream() << "Kill Fuzz State due to Fault interrupt = " << state->regs()->getExceptionIndex()
-                            << " pc = " << hexval(state->regs()->getPc()) << "\n";
-        onCrashHang(state, 1);
+                            << " pc = " << hexval(cur_loc) << "\n";
+        onCrashHang(state, 1, cur_loc);
     }
 
     // user-defined crash points
     for (auto crash_point : crash_points) {
         if (fork_flag && crash_point == cur_loc) {
             getWarningsStream() << "Kill Fuzz state due to user-defined crash points\n";
-            onCrashHang(state, 1);
+            onCrashHang(state, 1, cur_loc);
         }
     }
 
     // crash/hang
     if (unlikely((end_time - start_time) > hang_timeout)) {
-        getWarningsStream() << "Kill Fuzz State due to Timeout at pc = " << hexval(cur_loc) <<"\n";
-        onCrashHang(state, 0);
+        getWarningsStream() << "Kill Fuzz state due to timeout at pc = " << hexval(cur_loc) << "\n";
+        onCrashHang(state, 0, cur_loc);
     }
 
     // path bitmap
