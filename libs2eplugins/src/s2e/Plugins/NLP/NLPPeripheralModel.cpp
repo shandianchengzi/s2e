@@ -1365,6 +1365,10 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
 
 void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    tb_num++;
+    if (begin_irq_flag && tb_num % 500 == 0) {
+        UpdateGraph(state, Write, 0);
+    }
     if (pc == begin_point && begin_point != fork_point) {
         plgState->inc_fork_count();
         std::queue<uint8_t> return_value;

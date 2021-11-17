@@ -123,7 +123,7 @@ private:
     void onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc,
                              bool staticTarget, uint64_t staticTargetPc);
     void onBlockEnd(S2EExecutionState *state, uint64_t pc, unsigned source_type);
-    void onCrashHang(S2EExecutionState *state, uint32_t flag);
+    void onCrashHang(S2EExecutionState *state, uint32_t flag, uint32_t pc);
     void forkPoint(S2EExecutionState *state);
     //void onTimer();
     void recordTBMap();
