@@ -120,6 +120,7 @@ private:
     uint32_t fork_point;
     bool begin_irq_flag;
     bool init_dr_flag;
+    uint64_t tb_num;
 
     bool parseConfig();
     void initialize();
