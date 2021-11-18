@@ -1354,11 +1354,14 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
 
 void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    tb_num++;
+    if (!state->regs()->getInterruptFlag()) {
+        tb_num++;
+    }
     if (begin_irq_flag && tb_num % 500 == 0) {
         UpdateGraph(state, Write, 0);
     }
     if (pc == begin_point && begin_point != fork_point) {
+        tb_num = 0;
         plgState->inc_fork_count();
         std::queue<uint8_t> return_value;
         std::queue<uint8_t> return_value2;
@@ -1391,6 +1394,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         begin_irq_flag = true;
         init_dr_flag = true;
         plgState->inc_fork_count();
+        tb_num = 0;
         if (!enable_fuzzing) {
             UpdateFlag(0);
             UpdateGraph(state, Rx, 0);
