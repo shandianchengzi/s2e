@@ -665,7 +665,7 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
 
     bool res = extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
     //if (trigger.back().a1.type == "R" && trigger.back().eq != "=") {
-        //rx_flags[action.back().a1.phaddr] = action.back().a1.bits[0];
+    //rx_flags[action.back().a1.phaddr] = action.back().a1.bits[0];
     //}
     if (v.size() == 3) {
         action.back().interrupt = std::stoi(v[2].c_str(), NULL, 10);
@@ -999,6 +999,18 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     if (!begin_irq_flag) {
                         return;
                     }
+                }
+                //DMA request
+                if (equ.a1.type == "D") {
+                    bool irq_triggered = false;
+                    onDMAInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
+                    if (irq_triggered) {
+                        plgState->inc_irq_freq(equ.interrupt);
+                        plgState->set_exit_interrupt(equ.interrupt, true);
+                    } else {
+                        untriggered_irq[equ.interrupt] = missed_enabled[equ.interrupt];
+                    }
+                    return;
                 }
                 getInfoStream() << "add irqs " << equ.interrupt << " " << hexval(equ.a1.phaddr) << " bit " << equ.a1.bits[0] << "\n";
                 for (auto tequ : trigger) {
@@ -1444,17 +1456,19 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
     if (init_dr_flag == true) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
-	/*return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	return_value.push(0x68);
-	}*/
+        /*
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        return_value.push(0x68);
+        }
+        */
         for (uint32_t i = 0; i < data_register.size(); ++i) {
             if (i == 0) {
                 onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
