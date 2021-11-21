@@ -664,9 +664,9 @@ bool NLPPeripheralModel::getTApairs(std::string peripheralcache, EquList &trigge
     getDebugStream() << " trigger = " << trigger_str << " action = " << action_str << "\n";
 
     bool res = extractEqu(trigger_str, trigger, trigger_rel) && extractEqu(action_str, action, action_rel);
-    if (trigger.back().a1.type == "R" && trigger.back().eq != "=") {
-        rx_flags[action.back().a1.phaddr] = action.back().a1.bits[0];
-    }
+    //if (trigger.back().a1.type == "R" && trigger.back().eq != "=") {
+        //rx_flags[action.back().a1.phaddr] = action.back().a1.bits[0];
+    //}
     if (v.size() == 3) {
         action.back().interrupt = std::stoi(v[2].c_str(), NULL, 10);
         getDebugStream() << " trigger = " << trigger_str << " action = " << action_str
@@ -965,10 +965,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (equ.interrupt == -1)
                 continue;
             //skip non rx interrupt
-            if (type == Rx && (rx_flags.find(equ.a1.phaddr) == rx_flags.end() || rx_flags[equ.a1.phaddr] != equ.a1.bits[0])) {
-                getInfoStream() << "skip irq because non rx interrupt " << hexval(equ.a1.phaddr) << " bit " << equ.a1.bits[0] << "\n";
-                continue;
-            }
+            //if (type == Rx && (rx_flags.find(equ.a1.phaddr) == rx_flags.end() || rx_flags[equ.a1.phaddr] != equ.a1.bits[0])) {
+            //     getInfoStream() << "skip irq because non rx interrupt " << hexval(equ.a1.phaddr) << " bit " << equ.a1.bits[0] << "\n";
+            //     continue;
+            // }
 
             //no fuzzing mode, skip if the irq is triggered by writing to rx & interrupt_freq is more than once
             //if (!enable_fuzzing) {
@@ -1320,7 +1320,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
                         << " value: " << hexval(writeconcretevalue) << " cur dr: " << hexval(state_map[phaddr].t_value) << " \n";
     } else {
         plgState->write_ph_value(phaddr, writeconcretevalue);
-        getDebugStream() << "Write to phaddr " << hexval(phaddr) << " value: " << writeconcretevalue << " \n";
+        getInfoStream() << "Write to phaddr " << hexval(phaddr) << " value: " << hexval(writeconcretevalue) << " \n";
     }
     UpdateGraph(g_s2e_state, Write, phaddr);
 }
@@ -1428,10 +1428,29 @@ void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecuti
 
 void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    /*
+	if (cur_loc == 0x8002288) {
+		getInfoStream() << "change cr!!\n";
+		plgState->write_ph_value(0x40005400,0x501);
+	} else if (cur_loc == 0x8002316) {
+		getInfoStream() << "change cr!!\n";
+		plgState->write_ph_value(0x40005400,0x101);
+	}
+    */
     if (init_dr_flag == true) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
-        // Write a value to DR
+	/*return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	return_value.push(0x68);
+	}*/
         for (uint32_t i = 0; i < data_register.size(); ++i) {
             if (i == 0) {
                 onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
