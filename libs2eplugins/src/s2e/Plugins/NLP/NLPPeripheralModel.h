@@ -144,9 +144,9 @@ private:
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
     bool extractFlag(std::string peripheralcache, Flag &flag);
-    bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma);
+    bool extractDMA(std::string peripheralcache, DMA &dma);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
-    void EmitIRQ(S2EExecutionState *state, int irq);
+    bool EmitIRQ(S2EExecutionState *state, int irq);
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
     void onStatistics();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);

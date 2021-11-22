@@ -812,11 +812,11 @@ bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma) {
     Field htif;
     htif.phaddr = 0x40020000;
     htif.type = 'O';
-    htif.bits = [26];
+    htif.bits = {26};
     Field tcif;
     tcif.phaddr = 0x40020000;
     tcif.type = 'O';
-    tcif.bits = [25];
+    tcif.bits = {25};
     dma.peri_dr = 0x4001244c;
     dma.HTIF = htif;
     dma.TCIF = tcif;
@@ -840,15 +840,15 @@ bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
     return false;
 }
 
-void NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
+bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     bool irq_triggered = false;
     onExternalInterruptEvent.emit(state, irq, &irq_triggered);
     if (irq_triggered) {
         plgState->inc_irq_freq(irq);
         plgState->set_exit_interrupt(irq, true);
-    } else {
-        untriggered_irq[irq] = missed_enabled[irq];
     }
+    return irq_triggered;
 }
 
 void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
@@ -1065,7 +1065,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
     for (auto interrupt : irqs) {
         if (plgState->get_exit_interrupt(interrupt)) continue;
-        EmitIRQ(state, interrupt);
+        if (!EmitIRQ(state, interrupt))
+            untriggered_irq[interrupt] = missed_enabled[interrupt];
     }
     for (auto dma : dmas) {
         if (plgState->get_exit_interrupt(dma.second)) continue;
@@ -1101,8 +1102,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
             data_from_rx.pop();
         }
+        getWarningsStream() << "DMA Request! update: "<<hexval(cur_dma.HTIF.phaddr)<<"\n";
         set_reg_value(state_map, cur_dma.HTIF, 1);
-        EmitIRQ(state, dma.second);
+	if (!EmitIRQ(state, dma.second))
+            untriggered_irq[dma.second] = missed_enabled[dma.second];
         for (unsigned i = 32; i < 64; ++i) {
             uint8_t b = data_from_rx.front();
             if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
@@ -1112,8 +1115,10 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
             data_from_rx.pop();
         }
+        getWarningsStream() << "DMA Request! update: "<<hexval(cur_dma.TCIF.phaddr)<<"\n";
         set_reg_value(state_map, cur_dma.TCIF, 1);
-        EmitIRQ(state, dma.second);
+	if (!EmitIRQ(state, dma.second))
+            untriggered_irq[dma.second] = missed_enabled[dma.second];
     }
 }
 
