@@ -1013,15 +1013,17 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 if (equ.a1.type == "D") {
                     bool irq_triggered = false;
                     std::queue<uint8_t> data_from_rx;
+		    uint32_t rx_addr = equ.a1.phaddr;
                     for (auto _phaddr : data_register) {
-                        if () {
+                        if (_phaddr - equ.a1.phaddr < 0x100 || equ.a1.phaddr - _phaddr < 0x100) {
                             data_from_rx = plgState->retrieve_rx(_phaddr);
+			    rx_addr = _phaddr;
                             break;
                         }
                     }
                     onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, &irq_triggered);
                     if (irq_triggered) {
-                        plgState->clear_rx();
+                        plgState->clear_rx(rx_addr);
                         plgState->inc_irq_freq(equ.interrupt);
                         plgState->set_exit_interrupt(equ.interrupt, true);
                     } else {
