@@ -33,7 +33,8 @@ private:
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onBlockStart(S2EExecutionState *state, uint64_t pc);
-    void onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_nobool, bool* irq_triggered);
+    void onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool* irq_triggered);
+    void onDMARequest(S2EExecutionState *state, uint32_t irq_no, std::queue<uint8_t> data, bool* irq_triggered);
     void onGetISERIRQ(S2EExecutionState *state, std::vector<uint32_t> *irq_no);
 };
 

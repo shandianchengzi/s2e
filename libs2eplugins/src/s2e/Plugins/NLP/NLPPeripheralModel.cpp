@@ -122,7 +122,7 @@ public:
         return state_map[phaddr].r_value;
     }
 
-    std::queue<uint8_t> clear_rx(uint32_t phaddr) {
+    void clear_rx(uint32_t phaddr) {
         state_map[phaddr].r_value = {};
         state_map[phaddr].r_size = 0;
     }
@@ -1014,8 +1014,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     bool irq_triggered = false;
                     std::queue<uint8_t> data_from_rx;
                     for (auto _phaddr : data_register) {
-                        if (std::abs(_phaddr - equ.a1.phaddr) < 0x100) {
+                        if () {
                             data_from_rx = plgState->retrieve_rx(_phaddr);
+                            break;
                         }
                     }
                     onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, &irq_triggered);

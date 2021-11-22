@@ -129,6 +129,8 @@ void ExternalInterrupt::initialize() {
     onNLPPeripheralModelConnection = s2e()->getPlugin<NLPPeripheralModel>();
     onNLPPeripheralModelConnection->onExternalInterruptEvent.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onExternelInterruptTrigger));
+    onNLPPeripheralModelConnection->onDMAInterruptEvent.connect(
+        sigc::mem_fun(*this, &ExternalInterrupt::onDMARequest));
     onNLPPeripheralModelConnection->onEnableISER.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onGetISERIRQ));
 
@@ -202,6 +204,26 @@ void ExternalInterrupt::onGetISERIRQ(S2EExecutionState *state, std::vector<uint3
     }
 }
 
+void ExternalInterrupt::onDMARequest(S2EExecutionState *state, uint32_t irq_no, std::queue<uint8_t> data, bool* irq_triggered) {
+    if (data.size() < 64) {
+        for (unsigned j = 0; j < 64 - data.size(); j++) {
+            data.push(0);
+        }
+    }
+
+    getWarningsStream() << "DMA Request!\n";
+    for (unsigned i = 0; i < 64; ++i) {
+        uint8_t b = data.front();
+        if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+            getWarningsStream(state) << "Can not write memory"
+                                     << " at " << hexval(0x20003210 + i) << '\n';
+            exit(-1);
+        }
+        data.pop();
+    }
+
+    onExternelInterruptTrigger(state, irq_no, irq_triggered);
+}
 
 void ExternalInterrupt::onExternelInterruptTrigger(S2EExecutionState *state, uint32_t irq_no, bool *irq_triggered) {
     DECLARE_PLUGINSTATE(ExternalInterruptState, state);
