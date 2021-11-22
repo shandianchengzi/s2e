@@ -118,6 +118,15 @@ public:
         }
     }
 
+    std::queue<uint8_t> retrieve_rx(uint32_t phaddr) {
+        return state_map[phaddr].r_value;
+    }
+
+    std::queue<uint8_t> clear_rx(uint32_t phaddr) {
+        state_map[phaddr].r_value = {};
+        state_map[phaddr].r_size = 0;
+    }
+
     uint8_t get_dr_value(uint32_t phaddr, uint32_t width) {
         width *= 8;
         state_map[phaddr].r_size -= width;
@@ -1003,8 +1012,15 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 //DMA request
                 if (equ.a1.type == "D") {
                     bool irq_triggered = false;
-                    onDMAInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
+                    std::queue<uint8_t> data_from_rx;
+                    for (auto _phaddr : data_register) {
+                        if (std::abs(_phaddr - equ.a1.phaddr) < 0x100) {
+                            data_from_rx = plgState->retrieve_rx(_phaddr);
+                        }
+                    }
+                    onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, &irq_triggered);
                     if (irq_triggered) {
+                        plgState->clear_rx();
                         plgState->inc_irq_freq(equ.interrupt);
                         plgState->set_exit_interrupt(equ.interrupt, true);
                     } else {
