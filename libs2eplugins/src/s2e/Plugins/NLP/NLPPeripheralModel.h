@@ -62,6 +62,12 @@ typedef struct flag {
     // int32_t value;
 } Flag;
 
+typedef struct dma {
+    uint32_t peri_dr;
+    Field HTIF;
+    Field TCIF;
+} DMA;
+
 typedef std::map<uint32_t, PeripheralReg> RegMap;
 typedef std::vector<Equation> EquList;
 typedef std::pair<EquList, EquList> TA;
@@ -99,6 +105,7 @@ private:
     std::string NLPfileName;
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
     std::map<uint32_t, uint32_t> rx_flags;
+    std::map<uint32_t, DMA> all_dmas;
     std::map<uint32_t, std::vector<Field>> constraints;
     std::map<uint32_t, uint32_t> DR2SR;
     std::map<uint32_t, uint32_t> statistics;
@@ -137,8 +144,9 @@ private:
     bool getTApairs(std::string peripheralcache, EquList &trigger, EquList &action);
     bool extractEqu(std::string peripheralcache, EquList &vec, bool rel);
     bool extractFlag(std::string peripheralcache, Flag &flag);
+    bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
-
+    void EmitIRQ(S2EExecutionState *state, int irq);
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
     void onStatistics();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);

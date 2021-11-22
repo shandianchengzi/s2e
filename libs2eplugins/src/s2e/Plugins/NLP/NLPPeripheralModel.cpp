@@ -156,7 +156,7 @@ public:
     }
 
     void hardware_write_to_receive_buffer(uint32_t phaddr, std::queue<uint8_t> value, uint32_t width) {
-        state_map[phaddr].r_size = width * 8; //TODO: width is all data in the queue.
+        state_map[phaddr].r_size = width * 8;
         //state_map[phaddr].front_left = 8;     //front size
         state_map[phaddr].r_value = value;
     }
@@ -509,8 +509,9 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
 
             getDebugStream() << "current start:" << hexval(start) << " " << hexval(reg.phaddr) << "\n";
             if (reg.phaddr >= start + 0x100 || reg.phaddr <= start - 0x100) {
-                for (auto dr : curDR)
+                for (auto dr : curDR) {
                     DR2SR[dr] = SR;
+                }
                 SR = 0;
                 start = reg.phaddr;
                 curDR.clear();
@@ -584,6 +585,12 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         }
     }
     flags_numbers = _idx - ta_numbers;
+
+    //TODO DMA FIELD STRUCTURE
+    DMA dma;
+    if (extractDMA(peripheralcache, dma)) {
+        all_dmas[dma.peri_dr] = dma;
+    }
 
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==")
@@ -801,6 +808,21 @@ bool NLPPeripheralModel::extractFlag(std::string peripheralcache, Flag &flag) {
     return true;
 }
 
+bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma) {
+    Field htif;
+    htif.phaddr = 0x40020000;
+    htif.type = 'O';
+    htif.bits = [26];
+    Field tcif;
+    tcif.phaddr = 0x40020000;
+    tcif.type = 'O';
+    tcif.bits = [25];
+    dma.peri_dr = 0x4001244c;
+    dma.HTIF = htif;
+    dma.TCIF = tcif;
+    return true;
+}
+
 bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
     // 1:= ; 2:>; 3:<; 4:>=; 5:<=
     if (sym == "*")
@@ -816,6 +838,17 @@ bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
     if (sym == "<=")
         return a1 <= a2;
     return false;
+}
+
+void NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
+    bool irq_triggered = false;
+    onExternalInterruptEvent.emit(state, irq, &irq_triggered);
+    if (irq_triggered) {
+        plgState->inc_irq_freq(irq);
+        plgState->set_exit_interrupt(irq, true);
+    } else {
+        untriggered_irq[irq] = missed_enabled[irq];
+    }
 }
 
 void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
@@ -843,6 +876,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
     std::map<std::pair<uint32_t, int>, uint32_t> prev_action;
     std::vector<uint32_t> irqs;
+    std::vector<std::pair<uint32_t, uint32_t>> dmas;
     std::map<uint32_t, std::set<uint32_t>> missed_enabled;
     for (auto ta : allTAs) {
         _idx += 1;
@@ -1009,64 +1043,16 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                         return;
                     }
                 }
-                //DMA request
-                if (equ.a1.type == "D") {
-                    bool irq_triggered = false;
-                    std::queue<uint8_t> data_from_rx;
-                    uint32_t rx_addr = equ.a1.phaddr;
-                    for (auto _phaddr : data_register) {
-                        if (_phaddr - equ.a1.phaddr < 0x100 || equ.a1.phaddr - _phaddr < 0x100) {
-                            data_from_rx = plgState->retrieve_rx(_phaddr);
-                            rx_addr = _phaddr;
-                            break;
-                        }
-                    }
-                    getWarningsStream() << "DMA Request! phaddr =" << hexval(rx_addr) << "\n";
-                    //onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, irq_flag, &irq_triggered);
-                    // DMA request
-                    // at least 64B
-                    if (data_from_rx.size() < 64) {
-                        for (unsigned j = 0; j < 64 - data_from_rx.size(); j++) {
-                            data_from_rx.push(0);
-                        }
-                    }
-
-                    getWarningsStream() << "DMA Request!\n";
-                    for (unsigned i = 0; i < 32; ++i) {
-                        uint8_t b = data_from_rx.front();
-                        if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
-                            getWarningsStream(state) << "Can not write memory"
-                                                     << " at " << hexval(0x20003210 + i) << '\n';
-                            exit(-1);
-                        }
-                        data_from_rx.pop();
-                    }
-                    //TODO: set HIF flag and than emit 11 irq
-                    for (unsigned i = 32; i < 64; ++i) {
-                        uint8_t b = data_from_rx.front();
-                        if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
-                            getWarningsStream(state) << "Can not write memory"
-                                                     << " at " << hexval(0x20003210 + i) << '\n';
-                            exit(-1);
-                        }
-                        data_from_rx.pop();
-                    }
-                    //TODO: set TIF flag and than emit 11 irq
-                    if (irq_triggered) {
-                        plgState->clear_rx(rx_addr);
-                        plgState->inc_irq_freq(equ.interrupt);
-                        plgState->set_exit_interrupt(equ.interrupt, true);
-                    } else {
-                        untriggered_irq[equ.interrupt] = missed_enabled[equ.interrupt];
-                    }
-                    return;
-                }
                 getInfoStream() << "add irqs " << equ.interrupt << " " << hexval(equ.a1.phaddr) << " bit " << equ.a1.bits[0] << "\n";
                 for (auto tequ : trigger) {
                     if (tequ.a1.phaddr != equ.a1.phaddr)
                         missed_enabled[equ.interrupt].insert(tequ.a1.phaddr);
                 }
-                irqs.push_back(equ.interrupt);
+                //DMA request
+                if (equ.a1.type == "D") {
+                    dmas.push_back({equ.a1.phaddr, equ.interrupt});
+                } else
+                    irqs.push_back(equ.interrupt);
             }
             //else if (enable_fuzzing) {
             //    plgState->set_exit_interrupt(equ.interrupt, true);
@@ -1079,15 +1065,55 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
     for (auto interrupt : irqs) {
         if (plgState->get_exit_interrupt(interrupt)) continue;
-        bool irq_triggered = false;
-        onExternalInterruptEvent.emit(state, interrupt, &irq_triggered);
-        getInfoStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(interrupt) << " exit_interrupt = " << plgState->get_exit_interrupt(interrupt) << " irq = " << interrupt << "\n";
-        if (irq_triggered) {
-            plgState->inc_irq_freq(interrupt);
-            plgState->set_exit_interrupt(interrupt, true);
-        } else {
-            untriggered_irq[interrupt] = missed_enabled[interrupt];
+        EmitIRQ(state, interrupt);
+    }
+    for (auto dma : dmas) {
+        if (plgState->get_exit_interrupt(dma.second)) continue;
+        std::queue<uint8_t> data_from_rx;
+        uint32_t rx_addr = dma.first;
+
+        //TODO might need keep the related dr address
+        for (auto _phaddr : data_register) {
+            if (_phaddr - dma.first < 0x100 || dma.first - _phaddr < 0x100) {
+                data_from_rx = plgState->retrieve_rx(_phaddr);
+                rx_addr = _phaddr;
+                break;
+            }
         }
+        DMA cur_dma = all_dmas[rx_addr];
+        getWarningsStream() << "DMA Request! phaddr =" << hexval(rx_addr) << "\n";
+        //onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, irq_flag, &irq_triggered);
+        // DMA request
+        // at least 64B
+        if (data_from_rx.size() < 64) {
+            for (unsigned j = 0; j < 64 - data_from_rx.size(); j++) {
+                data_from_rx.push(0);
+            }
+        }
+
+        getWarningsStream() << "DMA Request!\n";
+        for (unsigned i = 0; i < 32; ++i) {
+            uint8_t b = data_from_rx.front();
+            if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+                getWarningsStream(state) << "Can not write memory"
+                                         << " at " << hexval(0x20003210 + i) << '\n';
+                exit(-1);
+            }
+            data_from_rx.pop();
+        }
+        set_reg_value(state_map, cur_dma.HTIF, 1);
+        EmitIRQ(state, dma.second);
+        for (unsigned i = 32; i < 64; ++i) {
+            uint8_t b = data_from_rx.front();
+            if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+                getWarningsStream(state) << "Can not write memory"
+                                         << " at " << hexval(0x20003210 + i) << '\n';
+                exit(-1);
+            }
+            data_from_rx.pop();
+        }
+        set_reg_value(state_map, cur_dma.TCIF, 1);
+        EmitIRQ(state, dma.second);
     }
 }
 
@@ -1535,14 +1561,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
         onEnableISER.emit(state, &irq_no);
         CheckEnable(state, irq_no);
         if (!plgState->get_exit_interrupt(16)) {
-          bool irq_triggered = false;
-          onExternalInterruptEvent.emit(state, 16, &irq_triggered);
-          if (irq_triggered) {
-            plgState->inc_irq_freq(16);
-            plgState->set_exit_interrupt(16, true);
-          } else {
-            untriggered_irq[16] = missed_enabled[16];
-          }
+            EmitIRQ(state, 16);
         }
     }
 }
