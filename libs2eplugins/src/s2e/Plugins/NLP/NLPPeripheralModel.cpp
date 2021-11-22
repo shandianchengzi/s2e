@@ -1013,15 +1013,45 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 if (equ.a1.type == "D") {
                     bool irq_triggered = false;
                     std::queue<uint8_t> data_from_rx;
-		    uint32_t rx_addr = equ.a1.phaddr;
+                    uint32_t rx_addr = equ.a1.phaddr;
                     for (auto _phaddr : data_register) {
                         if (_phaddr - equ.a1.phaddr < 0x100 || equ.a1.phaddr - _phaddr < 0x100) {
                             data_from_rx = plgState->retrieve_rx(_phaddr);
-			    rx_addr = _phaddr;
+                            rx_addr = _phaddr;
                             break;
                         }
                     }
-                    onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, &irq_triggered);
+                    getWarningsStream() << "DMA Request! phaddr =" << hexval(rx_addr) << "\n";
+                    //onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, irq_flag, &irq_triggered);
+                    // DMA request
+                    // at least 64B
+                    if (data_from_rx.size() < 64) {
+                        for (unsigned j = 0; j < 64 - data_from_rx.size(); j++) {
+                            data_from_rx.push(0);
+                        }
+                    }
+
+                    getWarningsStream() << "DMA Request!\n";
+                    for (unsigned i = 0; i < 32; ++i) {
+                        uint8_t b = data_from_rx.front();
+                        if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+                            getWarningsStream(state) << "Can not write memory"
+                                                     << " at " << hexval(0x20003210 + i) << '\n';
+                            exit(-1);
+                        }
+                        data_from_rx.pop();
+                    }
+                    //TODO: set HIF flag and than emit 11 irq
+                    for (unsigned i = 32; i < 64; ++i) {
+                        uint8_t b = data_from_rx.front();
+                        if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+                            getWarningsStream(state) << "Can not write memory"
+                                                     << " at " << hexval(0x20003210 + i) << '\n';
+                            exit(-1);
+                        }
+                        data_from_rx.pop();
+                    }
+                    //TODO: set TIF flag and than emit 11 irq
                     if (irq_triggered) {
                         plgState->clear_rx(rx_addr);
                         plgState->inc_irq_freq(equ.interrupt);
@@ -1504,6 +1534,16 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
         std::vector<uint32_t> irq_no;
         onEnableISER.emit(state, &irq_no);
         CheckEnable(state, irq_no);
+        if (!plgState->get_exit_interrupt(16)) {
+          bool irq_triggered = false;
+          onExternalInterruptEvent.emit(state, 16, &irq_triggered);
+          if (irq_triggered) {
+            plgState->inc_irq_freq(16);
+            plgState->set_exit_interrupt(16, true);
+          } else {
+            untriggered_irq[16] = missed_enabled[16];
+          }
+        }
     }
 }
 }
