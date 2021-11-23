@@ -844,7 +844,9 @@ bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     bool irq_triggered = false;
     onExternalInterruptEvent.emit(state, irq, &irq_triggered);
+    getInfoStream() << "emit irq DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(irq) << " exit_interrupt = " << plgState->get_exit_interrupt(irq) << " irq = " << irq << "\n";
     if (irq_triggered) {
+        getInfoStream() <<"SUCCESS! emit irq: "<<irq<<"\n";
         plgState->inc_irq_freq(irq);
         plgState->set_exit_interrupt(irq, true);
     }
@@ -1102,7 +1104,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
             data_from_rx.pop();
         }
-        getWarningsStream() << "DMA Request! update: "<<hexval(cur_dma.HTIF.phaddr)<<"\n";
+        getWarningsStream() << "DMA Request! update1: "<<hexval(cur_dma.HTIF.phaddr)<<"\n";
         set_reg_value(state_map, cur_dma.HTIF, 1);
 	if (!EmitIRQ(state, dma.second))
             untriggered_irq[dma.second] = missed_enabled[dma.second];
@@ -1115,7 +1117,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             }
             data_from_rx.pop();
         }
-        getWarningsStream() << "DMA Request! update: "<<hexval(cur_dma.TCIF.phaddr)<<"\n";
+        getWarningsStream() << "DMA Request! update2: "<<hexval(cur_dma.TCIF.phaddr)<<"\n";
         set_reg_value(state_map, cur_dma.TCIF, 1);
 	if (!EmitIRQ(state, dma.second))
             untriggered_irq[dma.second] = missed_enabled[dma.second];
