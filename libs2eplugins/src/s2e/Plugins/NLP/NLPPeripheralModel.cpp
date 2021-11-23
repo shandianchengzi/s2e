@@ -24,7 +24,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model With Auto Timer", "N
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
-    std::map<uint32_t, DMA> dma_map;
+    //std::map<uint32_t, DMA> dma_map;
     std::map<int, int> exit_interrupt; // interrupt id, num
     std::map<uint32_t, uint32_t> interrupt_freq;
     uint32_t fork_point_count;
@@ -319,6 +319,56 @@ void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t valu
     }
 }
 
+bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
+    for (auto dma : all_dmas) {
+        if (dma.peri_irq != irq_no && dma.dma_irq != irq_no) continue;
+        uint32_t rx_addr = dma.peri_dr;
+        getInfoStream() << "DMA Request! phaddr =" << hexval(rx_addr) << "\n";
+        std::queue<uint8_t> data_from_rx;
+        // DMA request
+        // at least 64B
+        if (dma.state == 1) {
+            if (data_from_rx.size() < 64) {
+                for (unsigned j = 0; j < 64 - data_from_rx.size(); j++) {
+                    data_from_rx.push(0);
+                }
+            }
+            getInfoStream() << "DMA Request!\n";
+            for (unsigned i = 0; i < 32; ++i) {
+                uint8_t b = data_from_rx.front();
+                if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+                    getWarningsStream(state) << "Can not write memory"
+                                             << " at " << hexval(0x20003210 + i) << '\n';
+                    exit(-1);
+                }
+                data_from_rx.pop();
+            }
+            getInfoStream() << "DMA Request! update1: " << hexval(dma.HTIF.phaddr) << "\n";
+            set_reg_value(state_map, dma.HTIF, 1);
+            if (!EmitIRQ(state, dma.second))
+                untriggered_irq[dma.second] = missed_enabled[dma.second];
+            dma.state == 2;
+        } else if (dma.state == 2) {
+            for (unsigned i = 32; i < 64; ++i) {
+                uint8_t b = data_from_rx.front();
+                if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
+                    getWarningsStream(state) << "Can not write memory"
+                                             << " at " << hexval(0x20003210 + i) << '\n';
+                    exit(-1);
+                }
+                data_from_rx.pop();
+            }
+            getInfoStream() << "DMA Request! update2: " << hexval(dma.TCIF.phaddr) << "\n";
+            set_reg_value(state_map, dma.TCIF, 1);
+            if (!EmitIRQ(state, dma.second))
+                untriggered_irq[dma.second] = missed_enabled[dma.second];
+            dma.state = 0;
+        }
+        return true;
+    }
+    return false;
+}
+
 void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // interrupt vector+16
@@ -332,21 +382,12 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
                     << "\n";
     // flip timer flag
     UpdateFlag(1);
-    // fuzzing mode, if exit irq, check out if the rx is still empty
-    if (enable_fuzzing) {
-        UpdateGraph(g_s2e_state, Rx, 0);
-    }
-    /*
-    if (plgState->get_exit_interrupt(irq_no) && enable_fuzzing) {
-        getWarningsStream() << "IRQ Action restart = " << irq_no << "\n";
-        bool irq_triggered = false;
-        onExternalInterruptEvent.emit(state, equ.interrupt, &irq_triggered);
-        if (irq_triggered) {
-            getWarningsStream() << " DATA IRQ Action trigger interrupt equ.interrupt = " << interrupt_freq[equ.interrupt] << "\n";
-            interrupt_freq[equ.interrupt]++;
+    if (!EmitDMA(state, irq_no)) {
+        // fuzzing mode, if exit irq, check out if the rx is still empty
+        if (enable_fuzzing) {
+            UpdateGraph(g_s2e_state, Rx, 0);
         }
     }
-    */
 }
 
 // void NLPPeripheralModel::onInvalidStatesDetection(S2EExecutionState *state, uint32_t pc, InvalidStatesType type,
@@ -590,7 +631,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     //TODO DMA FIELD STRUCTURE
     DMA dma;
     if (extractDMA(peripheralcache, dma)) {
-        all_dmas[dma.peri_dr] = dma;
+        all_dmas.push_back(dma);
     }
 
     while (getline(fNLP, peripheralcache)) {
@@ -813,14 +854,21 @@ bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma) {
     Field htif;
     htif.phaddr = 0x40020000;
     htif.type = 'O';
-    htif.bits = [26];
+    htif.bits = {26};
     Field tcif;
     tcif.phaddr = 0x40020000;
     tcif.type = 'O';
-    tcif.bits = [25];
+    tcif.bits = {25};
+    Field gif;
+    gif.phaddr = 0x40020000;
+    gif.type = 'O';
+    gif.bits = {24};
     dma.peri_dr = 0x4001244c;
+    dma.peri_irq = 18;
+    dma.dma_irq = 11;
     dma.HTIF = htif;
     dma.TCIF = tcif;
+    dma.GIF = gif;
     return true;
 }
 
@@ -842,9 +890,12 @@ bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
 }
 
 bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     bool irq_triggered = false;
     onExternalInterruptEvent.emit(state, irq, &irq_triggered);
+    getInfoStream() << "emit irq DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(irq) << " exit_interrupt = " << plgState->get_exit_interrupt(irq) << " irq = " << irq << "\n";
     if (irq_triggered) {
+        getInfoStream() << "SUCCESS! emit irq: " << irq << "\n";
         plgState->inc_irq_freq(irq);
         plgState->set_exit_interrupt(irq, true);
     }
@@ -1066,57 +1117,16 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     for (auto interrupt : irqs) {
         if (plgState->get_exit_interrupt(interrupt)) continue;
         if (!EmitIRQ(state, interrupt))
-            untriggered_irq[irq] = missed_enabled[irq];
-    }
-    for (auto dma : dmas) {
-        if (plgState->get_exit_interrupt(dma.second)) continue;
-        std::queue<uint8_t> data_from_rx;
-        uint32_t rx_addr = dma.first;
-
-        //TODO might need keep the related dr address
-        for (auto _phaddr : data_register) {
-            if (_phaddr - dma.first < 0x100 || dma.first - _phaddr < 0x100) {
-                data_from_rx = plgState->retrieve_rx(_phaddr);
-                rx_addr = _phaddr;
-                break;
-            }
+            untriggered_irq[interrupt] = missed_enabled[interrupt];
+        else {
+            for (auto dma : all_dmas)
+                if (interrupt == dma.peri_irq)
+                    for (auto enabled : dmas) {
+                        if (plgState->get_exit_interrupt(enabled.second)) continue;
+                        if (enabled.second == dma.dma_irq)
+                            dma.state = 1;
+                    }
         }
-        DMA cur_dma = all_dmas[rx_addr];
-        getWarningsStream() << "DMA Request! phaddr =" << hexval(rx_addr) << "\n";
-        //onDMAInterruptEvent.emit(state, equ.interrupt, data_from_rx, irq_flag, &irq_triggered);
-        // DMA request
-        // at least 64B
-        if (data_from_rx.size() < 64) {
-            for (unsigned j = 0; j < 64 - data_from_rx.size(); j++) {
-                data_from_rx.push(0);
-            }
-        }
-
-        getWarningsStream() << "DMA Request!\n";
-        for (unsigned i = 0; i < 32; ++i) {
-            uint8_t b = data_from_rx.front();
-            if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
-                getWarningsStream(state) << "Can not write memory"
-                                         << " at " << hexval(0x20003210 + i) << '\n';
-                exit(-1);
-            }
-            data_from_rx.pop();
-        }
-        set_reg_value(state_map, cur_dma.HTIF, 1);
-        if (!EmitIRQ(state, interrupt))
-            untriggered_irq[irq] = missed_enabled[irq];
-        for (unsigned i = 32; i < 64; ++i) {
-            uint8_t b = data_from_rx.front();
-            if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
-                getWarningsStream(state) << "Can not write memory"
-                                         << " at " << hexval(0x20003210 + i) << '\n';
-                exit(-1);
-            }
-            data_from_rx.pop();
-        }
-        set_reg_value(state_map, cur_dma.TCIF, 1);
-        if (!EmitIRQ(state, interrupt))
-            untriggered_irq[irq] = missed_enabled[irq];
     }
 }
 
