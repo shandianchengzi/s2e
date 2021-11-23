@@ -24,6 +24,7 @@ S2E_DEFINE_PLUGIN(NLPPeripheralModel, "NLP Peripheral Model With Auto Timer", "N
 class NLPPeripheralModelState : public PluginState {
 private:
     RegMap state_map;
+    std::map<uint32_t, DMA> dma_map;
     std::map<int, int> exit_interrupt; // interrupt id, num
     std::map<uint32_t, uint32_t> interrupt_freq;
     uint32_t fork_point_count;
@@ -840,15 +841,14 @@ bool NLPPeripheralModel::compare(uint32_t a1, std::string sym, uint32_t a2) {
     return false;
 }
 
-void NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
+bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
     bool irq_triggered = false;
     onExternalInterruptEvent.emit(state, irq, &irq_triggered);
     if (irq_triggered) {
         plgState->inc_irq_freq(irq);
         plgState->set_exit_interrupt(irq, true);
-    } else {
-        untriggered_irq[irq] = missed_enabled[irq];
     }
+    return irq_triggered;
 }
 
 void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr) {
@@ -1065,7 +1065,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
     for (auto interrupt : irqs) {
         if (plgState->get_exit_interrupt(interrupt)) continue;
-        EmitIRQ(state, interrupt);
+        if (!EmitIRQ(state, interrupt))
+            untriggered_irq[irq] = missed_enabled[irq];
     }
     for (auto dma : dmas) {
         if (plgState->get_exit_interrupt(dma.second)) continue;
@@ -1102,7 +1103,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             data_from_rx.pop();
         }
         set_reg_value(state_map, cur_dma.HTIF, 1);
-        EmitIRQ(state, dma.second);
+        if (!EmitIRQ(state, interrupt))
+            untriggered_irq[irq] = missed_enabled[irq];
         for (unsigned i = 32; i < 64; ++i) {
             uint8_t b = data_from_rx.front();
             if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
@@ -1113,7 +1115,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             data_from_rx.pop();
         }
         set_reg_value(state_map, cur_dma.TCIF, 1);
-        EmitIRQ(state, dma.second);
+        if (!EmitIRQ(state, interrupt))
+            untriggered_irq[irq] = missed_enabled[irq];
     }
 }
 

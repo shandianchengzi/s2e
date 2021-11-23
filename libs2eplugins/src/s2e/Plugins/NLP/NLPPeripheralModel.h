@@ -64,8 +64,10 @@ typedef struct flag {
 
 typedef struct dma {
     uint32_t peri_dr;
+    uint32_t state; //0: not start yet; 1: half complete;
     Field HTIF;
     Field TCIF;
+    Field GIF;
 } DMA;
 
 typedef std::map<uint32_t, PeripheralReg> RegMap;
