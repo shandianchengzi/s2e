@@ -119,8 +119,13 @@ public:
         }
     }
 
-    std::queue<uint8_t> retrieve_rx(uint32_t phaddr) {
-        return state_map[phaddr].r_value;
+
+    void rx_push_to_fix_size(uint32_t phaddr, int size) {
+	    if (state_map[phaddr].r_value.size() < size) {
+                for (unsigned j = 0; j < size - state_map[phaddr].r_value.size(); j++) {
+                    state_map[phaddr].r_value.push(0);
+                }
+            }
     }
 
     void clear_rx(uint32_t phaddr) {
@@ -320,63 +325,60 @@ void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t valu
 }
 
 bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
-    for (auto dma : all_dmas) {
-        if (dma.peri_irq != irq_no && dma.dma_irq != irq_no) continue;
-        uint32_t rx_addr = dma.peri_dr;
-        getInfoStream() << "DMA Request! phaddr =" << hexval(rx_addr) << "\n";
-        std::queue<uint8_t> data_from_rx;
-        // DMA request
-        // at least 64B
-        if (dma.state == 1) {
-            if (data_from_rx.size() < 64) {
-                for (unsigned j = 0; j < 64 - data_from_rx.size(); j++) {
-                    data_from_rx.push(0);
-                }
-            }
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    RegMap state_map = plgState->get_state_map();
+    for (int i = 0; i < all_dmas.size(); ++i) {
+        if (all_dmas[i].peri_irq != irq_no && all_dmas[i].dma_irq != irq_no) continue;
+        uint32_t rx_addr = all_dmas[i].peri_dr;
+        getInfoStream() << "DMA Request! phaddr =" << hexval(rx_addr) <<" " <<all_dmas[i].state<<"\n";
+        if (all_dmas[i].state == 1) {
+            // DMA request
+            // at least 64B
+	    plgState->rx_push_to_fix_size(rx_addr, 64);
             getInfoStream() << "DMA Request!\n";
             for (unsigned i = 0; i < 32; ++i) {
-                uint8_t b = data_from_rx.front();
+                uint8_t b = plgState->get_dr_value(rx_addr,1);
                 if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
                     getWarningsStream(state) << "Can not write memory"
                                              << " at " << hexval(0x20003210 + i) << '\n';
                     exit(-1);
                 }
-                data_from_rx.pop();
             }
-            getInfoStream() << "DMA Request! update1: " << hexval(dma.HTIF.phaddr) << "\n";
-            set_reg_value(state_map, dma.HTIF, 1);
-            if (!EmitIRQ(state, dma.second))
-                untriggered_irq[dma.second] = missed_enabled[dma.second];
-            dma.state == 2;
-        } else if (dma.state == 2) {
+            getInfoStream() << "DMA Request! update1: " << hexval(all_dmas[i].HTIF.phaddr) << "\n";
+            set_reg_value(state_map, all_dmas[i].HTIF, 1);
+            set_reg_value(state_map, all_dmas[i].GIF, 1);
+            EmitIRQ(state, all_dmas[i].dma_irq);
+            all_dmas[i].state = 2;
+            return true;
+        } else if (all_dmas[i].state == 2) {
             for (unsigned i = 32; i < 64; ++i) {
-                uint8_t b = data_from_rx.front();
+                uint8_t b = plgState->get_dr_value(rx_addr,1);
                 if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
                     getWarningsStream(state) << "Can not write memory"
                                              << " at " << hexval(0x20003210 + i) << '\n';
                     exit(-1);
                 }
-                data_from_rx.pop();
             }
-            getInfoStream() << "DMA Request! update2: " << hexval(dma.TCIF.phaddr) << "\n";
-            set_reg_value(state_map, dma.TCIF, 1);
-            if (!EmitIRQ(state, dma.second))
-                untriggered_irq[dma.second] = missed_enabled[dma.second];
-            dma.state = 0;
+            getInfoStream() << "DMA Request! update2: " << hexval(all_dmas[i].TCIF.phaddr) << "\n";
+            set_reg_value(state_map, all_dmas[i].TCIF, 1);
+            set_reg_value(state_map, all_dmas[i].GIF, 1);
+	    plgState->clear_rx(rx_addr);
+            EmitIRQ(state, all_dmas[i].dma_irq);
+            all_dmas[i].state = 0;
+            return true;
         }
-        return true;
     }
     return false;
 }
 
 void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
+    if (irq_no <= 15) return;
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     // interrupt vector+16
     // if (irq_no > 15)
     // plgState->set_exit_interrupt(irq_no - 16, false);
     if (irq_no > 15)
         irq_no -= 16;
-    plgState->set_exit_interrupt(irq_no, -1);
 
     getInfoStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
                     << "\n";
@@ -384,6 +386,15 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     UpdateFlag(1);
     if (!EmitDMA(state, irq_no)) {
         // fuzzing mode, if exit irq, check out if the rx is still empty
+	for (auto dma: all_dmas) {
+	    if (irq_no == dma.dma_irq && plgState->get_exit_interrupt(dma.dma_irq)) {
+		plgState->set_exit_interrupt(dma.dma_irq, -1);
+                plgState->set_exit_interrupt(dma.peri_irq, -1);
+                getInfoStream() << "EXIT Interrupt IRQ" << dma.dma_irq <<" "<<dma.peri_irq << " exit_inter = " << plgState->get_exit_interrupt(dma.peri_irq)<<" "<<plgState->get_exit_interrupt(dma.dma_irq)
+                    << "\n";
+	    }
+	}
+        plgState->set_exit_interrupt(irq_no, -1);
         if (enable_fuzzing) {
             UpdateGraph(g_s2e_state, Rx, 0);
         }
@@ -893,12 +904,12 @@ bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     bool irq_triggered = false;
     onExternalInterruptEvent.emit(state, irq, &irq_triggered);
-    getInfoStream() << "emit irq DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(irq) << " exit_interrupt = " << plgState->get_exit_interrupt(irq) << " irq = " << irq << "\n";
     if (irq_triggered) {
         getInfoStream() << "SUCCESS! emit irq: " << irq << "\n";
         plgState->inc_irq_freq(irq);
         plgState->set_exit_interrupt(irq, true);
     }
+    getInfoStream() << "emit irq DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(irq) << " exit_interrupt = " << plgState->get_exit_interrupt(irq) << " irq = " << irq << "\n";
     return irq_triggered;
 }
 
@@ -1119,13 +1130,16 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         if (!EmitIRQ(state, interrupt))
             untriggered_irq[interrupt] = missed_enabled[interrupt];
         else {
-            for (auto dma : all_dmas)
-                if (interrupt == dma.peri_irq)
+            for (int i = 0; i < all_dmas.size(); ++i) {
+                if (interrupt == all_dmas[i].peri_irq)
                     for (auto enabled : dmas) {
                         if (plgState->get_exit_interrupt(enabled.second)) continue;
-                        if (enabled.second == dma.dma_irq)
-                            dma.state = 1;
+                        if (enabled.second == all_dmas[i].dma_irq) {
+			    getInfoStream() << "SET DMA "<<all_dmas[i].dma_irq<<" "<<enabled.second<<"\n";
+                            all_dmas[i].state = 1;
+			}
                     }
+	    }
         }
     }
 }
