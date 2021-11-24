@@ -119,13 +119,12 @@ public:
         }
     }
 
-
     void rx_push_to_fix_size(uint32_t phaddr, int size) {
-	    if (state_map[phaddr].r_value.size() < size) {
-                for (unsigned j = 0; j < size - state_map[phaddr].r_value.size(); j++) {
-                    state_map[phaddr].r_value.push(0);
-                }
+        if (state_map[phaddr].r_value.size() < size) {
+            for (unsigned j = 0; j < size - state_map[phaddr].r_value.size(); j++) {
+                state_map[phaddr].r_value.push(0);
             }
+        }
     }
 
     void clear_rx(uint32_t phaddr) {
@@ -330,14 +329,14 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
     for (int i = 0; i < all_dmas.size(); ++i) {
         if (all_dmas[i].peri_irq != irq_no && all_dmas[i].dma_irq != irq_no) continue;
         uint32_t rx_addr = all_dmas[i].peri_dr;
-        getInfoStream() << "DMA Request! phaddr =" << hexval(rx_addr) <<" " <<all_dmas[i].state<<"\n";
+        getInfoStream() << "DMA Request! phaddr =" << hexval(rx_addr) << " " << all_dmas[i].state << "\n";
         if (all_dmas[i].state == 1) {
             // DMA request
             // at least 64B
-	    plgState->rx_push_to_fix_size(rx_addr, 64);
+            plgState->rx_push_to_fix_size(rx_addr, 64);
             getInfoStream() << "DMA Request!\n";
             for (unsigned i = 0; i < 32; ++i) {
-                uint8_t b = plgState->get_dr_value(rx_addr,1);
+                uint8_t b = plgState->get_dr_value(rx_addr, 1);
                 if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
                     getWarningsStream(state) << "Can not write memory"
                                              << " at " << hexval(0x20003210 + i) << '\n';
@@ -352,7 +351,7 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             return true;
         } else if (all_dmas[i].state == 2) {
             for (unsigned i = 32; i < 64; ++i) {
-                uint8_t b = plgState->get_dr_value(rx_addr,1);
+                uint8_t b = plgState->get_dr_value(rx_addr, 1);
                 if (!state->mem()->write(0x20003210 + i, &b, sizeof(b))) {
                     getWarningsStream(state) << "Can not write memory"
                                              << " at " << hexval(0x20003210 + i) << '\n';
@@ -362,7 +361,7 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             getInfoStream() << "DMA Request! update2: " << hexval(all_dmas[i].TCIF.phaddr) << "\n";
             set_reg_value(state_map, all_dmas[i].TCIF, 1);
             set_reg_value(state_map, all_dmas[i].GIF, 1);
-	    plgState->clear_rx(rx_addr);
+            plgState->clear_rx(rx_addr);
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 0;
             return true;
@@ -386,14 +385,14 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     UpdateFlag(1);
     if (!EmitDMA(state, irq_no)) {
         // fuzzing mode, if exit irq, check out if the rx is still empty
-	for (auto dma: all_dmas) {
-	    if (irq_no == dma.dma_irq && plgState->get_exit_interrupt(dma.dma_irq)) {
-		plgState->set_exit_interrupt(dma.dma_irq, -1);
+        for (auto dma : all_dmas) {
+            if (irq_no == dma.dma_irq && plgState->get_exit_interrupt(dma.dma_irq)) {
+                plgState->set_exit_interrupt(dma.dma_irq, -1);
                 plgState->set_exit_interrupt(dma.peri_irq, -1);
-                getInfoStream() << "EXIT Interrupt IRQ" << dma.dma_irq <<" "<<dma.peri_irq << " exit_inter = " << plgState->get_exit_interrupt(dma.peri_irq)<<" "<<plgState->get_exit_interrupt(dma.dma_irq)
-                    << "\n";
-	    }
-	}
+                getInfoStream() << "EXIT Interrupt IRQ" << dma.dma_irq << " " << dma.peri_irq << " exit_inter = " << plgState->get_exit_interrupt(dma.peri_irq) << " " << plgState->get_exit_interrupt(dma.dma_irq)
+                                << "\n";
+            }
+        }
         plgState->set_exit_interrupt(irq_no, -1);
         if (enable_fuzzing) {
             UpdateGraph(g_s2e_state, Rx, 0);
@@ -1135,11 +1134,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                     for (auto enabled : dmas) {
                         if (plgState->get_exit_interrupt(enabled.second)) continue;
                         if (enabled.second == all_dmas[i].dma_irq) {
-			    getInfoStream() << "SET DMA "<<all_dmas[i].dma_irq<<" "<<enabled.second<<"\n";
+                            getInfoStream() << "SET DMA " << all_dmas[i].dma_irq << " " << enabled.second << "\n";
                             all_dmas[i].state = 1;
-			}
+                        }
                     }
-	    }
+            }
         }
     }
 }
@@ -1191,6 +1190,9 @@ void NLPPeripheralModel::onStatistics() {
             _tmp2++;
         }
     }
+    for (auto write : write_action) {
+        fPHNLP << "Write action " << hexval(write.first) << " times " << write.second << "\n";
+    }
     auto interrupt_freq = plgState->get_irqs_freq();
     for (auto interrupt : interrupt_freq) {
         fPHNLP << "interrupt id: " << interrupt.first << " freq: " << interrupt.second << "\n";
@@ -1200,7 +1202,7 @@ void NLPPeripheralModel::onStatistics() {
         fPHNLP << "chain id1: " << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
         chain_num += chain.second;
     }
-
+    fPHNLP << "Total ca: " << unique_ta + unique_flag << " unique chain " << chain_freq.size() << "\n";
     fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
     fPHNLP << "-------Verification Results-------\n";
     for (auto irq : unenabled_flag) {
@@ -1433,6 +1435,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         getInfoStream() << "Write to data register " << hexval(phaddr) << " flag " << begin_irq_flag
                         << " value: " << hexval(writeconcretevalue) << " cur dr: " << hexval(state_map[phaddr].t_value) << " \n";
     } else {
+        write_action[phaddr] += 1;
         plgState->write_ph_value(phaddr, writeconcretevalue);
         getInfoStream() << "Write to phaddr " << hexval(phaddr) << " value: " << hexval(writeconcretevalue) << " \n";
     }

@@ -110,6 +110,7 @@ private:
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
     std::map<uint32_t, uint32_t> rx_flags;
     std::vector<DMA> all_dmas;
+    std::map<uint32_t, uint32_t> write_action;
     std::map<uint32_t, std::vector<Field>> constraints;
     std::map<uint32_t, uint32_t> DR2SR;
     std::map<uint32_t, uint32_t> statistics;
