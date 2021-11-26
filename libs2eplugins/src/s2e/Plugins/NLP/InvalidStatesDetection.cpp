@@ -43,7 +43,8 @@ private:
     uint64_t tb_num;     // all tb number in per state
     bool enable_kill;    // indicate all external irqs have been invoked at once;
     TBCounts new_tb_map;
-
+    std::vector<uint32_t> traceirq_tb;
+    std::vector<uint32_t> trace_tb;
 public:
     virtual InvalidStatesDetectionState *clone() const {
         return new InvalidStatesDetectionState(*this);
@@ -218,6 +219,21 @@ public:
         return cacheconregs.at(cachePos).size();
     }
 
+    void insert_trace_pc(uint32_t pc) {
+        trace_tb.push_back(pc);
+    }
+
+    std::vector<uint32_t> get_all_trace() {
+        return trace_tb;
+    }
+
+    void insert_traceirq_pc(uint32_t pc) {
+        traceirq_tb.push_back(pc);
+    }
+
+    std::vector<uint32_t> get_all_traceirq() {
+        return traceirq_tb;
+    }
 };
 }
 
@@ -260,6 +276,7 @@ void InvalidStatesDetection::initialize() {
         return;
     }
 
+    firmwareName = s2e()->getConfig()->getString(getConfigKey() + ".firmwareName3", "x.elf");
     s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onTranslateBlockEnd));
     // use for user-defined invlid pc and alive pc
@@ -269,6 +286,65 @@ void InvalidStatesDetection::initialize() {
     invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
         sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
     s2e()->getCorePlugin()->onEngineShutdown.connect(sigc::mem_fun(*this, &InvalidStatesDetection::recordTBMap));
+    //start_flag = false;
+    ///////K64/////
+    //uart
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa6c;
+    //end_flag1 = 0xb14;
+    /*terminate_flag = 0x1164;*/
+    //i2c
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xb18;
+    /*terminate_flag = 0x1120;*/
+    //SPI
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xb00;
+    /*terminate_flag = 0x10f0;*/
+    //ADC
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xb00;
+    /*terminate_flag = 0x10b6;*/
+    //GPIOINT
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa60;
+    //end_flag1 = 0xad8;
+    /*terminate_flag = 0x12b0;*/
+    //Timer
+    /*start_flag1 = 0x764;*/
+    //start_flag2 = 0xa58;
+    //end_flag1 = 0xad0;
+    /*terminate_flag = 0x10a4;*/
+    //STM32F103
+    //uart
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000840;
+    //end_flag1 = 0x80008e8;
+    /*terminate_flag = 0x8000d60;*/
+    //i2c
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008d0;
+    /*terminate_flag = 0x8000d72;*/
+    //SPI
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008d0;
+    /*terminate_flag = 0x8000d50;*/
+    //GPIOINT
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008a0;
+    /*terminate_flag = 0x8000e1c;*/
+    //Timer
+    /*start_flag1 = 0x8000440;*/
+    //start_flag2 = 0x8000828;
+    //end_flag1 = 0x80008a0;
+    /*terminate_flag = 0x8000cbc;*/
+
 }
 
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
@@ -393,8 +469,63 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     return false;
 }
 
+void InvalidStatesDetection::recordTBTrace(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
+    std::string fileName;
+    std::size_t index = firmwareName.find_last_of("/\\");
+    fileName = s2e()->getOutputDirectory() + "/" + firmwareName.substr(index + 1) + "trace_bb.txt";
+    std::ofstream fTBmap;
+    fTBmap.open(fileName, std::ios::out | std::ios::trunc);
+
+    for (auto ittb : plgState->get_all_trace()) {
+        fTBmap << hexval(ittb) << std::endl;;
+    }
+
+    fTBmap.close();
+}
+
+void InvalidStatesDetection::recordTBTraceIRQ(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
+    std::string fileName;
+    std::size_t index = firmwareName.find_last_of("/\\");
+    fileName = s2e()->getOutputDirectory() + "/" + firmwareName.substr(index + 1) + "traceIRQ_bb.txt";
+    std::ofstream fTBmap;
+    fTBmap.open(fileName, std::ios::out | std::ios::trunc);
+
+    for (auto ittb : plgState->get_all_traceirq()) {
+        fTBmap << hexval(ittb) << std::endl;;
+    }
+
+    fTBmap.close();
+}
+
 void InvalidStatesDetection::onKillandAlivePoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
+
+    /*if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {*/
+        //plgState->insert_traceirq_pc(pc);
+    //} else if (!state->regs()->getInterruptFlag()) {
+        //if (pc == start_flag1 || pc == start_flag2 || start_flag) {
+            //if (pc != start_flag2 && pc != start_flag1)
+                //plgState->insert_trace_pc(pc);
+            //start_flag = true;
+        //}
+        //if (pc == end_flag1 || pc == terminate_flag) {
+            //start_flag = false;
+        //}
+    //}
+
+
+    //if (pc == terminate_flag) {
+        //recordTBTraceIRQ(state);
+        //recordTBTrace(state);
+        //getWarningsStream() << "===========unit test pass============\n";
+        //g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        //// Flush here just in case ~S2E() is not called (e.g., if atexit()
+        //// shutdown handler was not called properly).
+        //g_s2e->flushOutputStreams();
+        //exit(0);
+    /*}*/
     // kill points defined by users
     for (auto kill_point : kill_points) {
         if (kill_point == pc) {
