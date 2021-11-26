@@ -174,6 +174,10 @@ public:
         return interrupt_freq[irq_no];
     }
 
+    void clear_irq_freq(uint32_t irq_no) {
+        interrupt_freq[irq_no] = 0;
+    }
+
     std::map<uint32_t, uint32_t> get_irqs_freq() {
         return interrupt_freq;
     }
@@ -908,7 +912,7 @@ bool NLPPeripheralModel::EmitIRQ(S2EExecutionState *state, int irq) {
         plgState->inc_irq_freq(irq);
         plgState->set_exit_interrupt(irq, true);
     }
-    getInfoStream() << "emit irq DATA IRQ Action trigger interrupt equ.interrupt = " << plgState->get_irq_freq(irq) << " exit_interrupt = " << plgState->get_exit_interrupt(irq) << " irq = " << irq << "\n";
+    getInfoStream() << "emit irq DATA IRQ Action trigger interrupt freq = " << plgState->get_irq_freq(irq) << " exit_interrupt = " << plgState->get_exit_interrupt(irq) << " irq = " << irq << "\n";
     return irq_triggered;
 }
 
@@ -1126,11 +1130,11 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     }
     for (auto interrupt : irqs) {
         if (plgState->get_exit_interrupt(interrupt)) continue;
-        if (!EmitIRQ(state, interrupt))
+        if (!EmitIRQ(state, interrupt)) {
             untriggered_irq[interrupt] = missed_enabled[interrupt];
-        else {
+        } else {
             for (int i = 0; i < all_dmas.size(); ++i) {
-                if (interrupt == all_dmas[i].peri_irq)
+                if (interrupt == all_dmas[i].peri_irq) {
                     for (auto enabled : dmas) {
                         if (plgState->get_exit_interrupt(enabled.second)) continue;
                         if (enabled.second == all_dmas[i].dma_irq) {
@@ -1138,6 +1142,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                             all_dmas[i].state = 1;
                         }
                     }
+                }
             }
         }
     }
@@ -1558,7 +1563,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
 		plgState->write_ph_value(0x40005400,0x101);
 	}
     */
-    if (init_dr_flag == true) {
+    if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
         /*
@@ -1584,15 +1589,19 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value size: " << return_value.size() << "\n";
         }
+        //plgState->clear_irq_freq(37);
         UpdateFlag(0);
         UpdateGraph(state, Unknown, 0);
         init_dr_flag = false;
         std::vector<uint32_t> irq_no;
         onEnableISER.emit(state, &irq_no);
         CheckEnable(state, irq_no);
-        if (!plgState->get_exit_interrupt(16)) {
-            EmitIRQ(state, 16);
-        }
+        /*if (plgState->get_fork_point_count() > 100 && plgState->get_fork_point_count() % 500 == 0) {*/
+            //if (!plgState->get_exit_interrupt(16)) {
+                //getWarningsStream() << "emit irq 16\n";
+                //EmitIRQ(state, 16);
+            //}
+        /*}*/
     }
 }
 }
