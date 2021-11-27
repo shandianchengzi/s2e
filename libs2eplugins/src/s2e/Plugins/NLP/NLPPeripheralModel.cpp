@@ -464,6 +464,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
                 int tmp = 0;
+                //tmp = c.value[std::rand() % c.value.size()];
                 if (c.value.size() > 1 && c.value[1] > 0xf) {
                     tmp = rand() % 0xffffffff;
                     getInfoStream() << c.value.size() << "mutiple bits values!!" << c.value[1] << "\n";
@@ -553,16 +554,15 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
                 disable_init_dr_value_flag[reg.phaddr] = 0;
                 curDR.push_back(reg.phaddr);
             }
-            if (reg.type == "S") {
-                SR = reg.phaddr;
-            }
             if (start == 0x40000000)
                 start = reg.phaddr;
 
             getDebugStream() << "current start:" << hexval(start) << " " << hexval(reg.phaddr) << "\n";
             if (reg.phaddr >= start + 0x100 || reg.phaddr <= start - 0x100) {
                 for (auto dr : curDR) {
-                    DR2SR[dr] = SR;
+             	    if (std::abs(int(SR - dr)) <= 0x100)
+                        DR2SR[dr] = SR;
+		    getDebugStream() << "DR2SR "<<hexval(dr)<<" : "<<hexval(SR)<<" "<<hexval(DR2SR[dr])<<"\n";
                 }
                 SR = 0;
                 start = reg.phaddr;
@@ -573,6 +573,9 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
             return false;
+        }
+        if (reg.type == "S") {
+            SR = reg.phaddr;
         }
     }
 
