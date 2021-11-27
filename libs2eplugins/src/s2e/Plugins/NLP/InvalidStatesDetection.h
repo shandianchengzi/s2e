@@ -72,6 +72,9 @@ private:
     bool kill_point_flag;
     std::map<uint32_t/*pc*/, uint32_t/*count*/> kill_count_map;
     uint32_t last_loop_pc;
+    std::string firmwareName;
+    //bool start_flag;
+    //uint32_t start_flag1, start_flag2, end_flag1, terminate_flag;
 
     void recordTBMap();
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
@@ -90,6 +93,8 @@ private:
     bool onModeSwitchandTermination(S2EExecutionState *state, uint64_t pc);
 
     void onCacheModeMonitor(S2EExecutionState *state, uint64_t pc);
+    void recordTBTrace(S2EExecutionState *state);
+    void recordTBTraceIRQ(S2EExecutionState *state);
 };
 
 } // namespace plugins

@@ -289,6 +289,7 @@ void AFLFuzzer::onBufferInput(S2EExecutionState *state, uint32_t phaddr, uint32_
         if (afl_con->AFL_input) {
             getInfoStream() << "AFL_input = " << afl_con->AFL_input
                             << " AFL_size = " << afl_con->AFL_size << "\n";
+            start_time = time(NULL);
             for (uint32_t cur_read = 0; cur_read < afl_con->AFL_size; cur_read++) {
                 uint8_t fuzz_value;
                 memcpy(&fuzz_value, testcase + cur_read, 1);
@@ -474,9 +475,11 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     // crash/hang
-    if (unlikely((end_time - start_time) > hang_timeout)) {
+    if (unlikely((end_time - start_time) > hang_timeout - 1)) {
         getWarningsStream() << "Kill Fuzz state due to timeout at pc = " << hexval(cur_loc) << "\n";
-        onCrashHang(state, 0, cur_loc);
+        if (unlikely((end_time - start_time) > hang_timeout)) {
+            onCrashHang(state, 0, cur_loc);
+        }
     }
 
     // path bitmap
@@ -525,6 +528,7 @@ void AFLFuzzer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState
 void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(AFLFuzzerState, state);
     if (pc == fork_point) {
+    //if (pc == fork_point || pc == 0x80003d4 || pc == 0x8000424) {
         //if (fork_flag == false) {
         if (fork_flag) {
             getInfoStream() << "3 fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
