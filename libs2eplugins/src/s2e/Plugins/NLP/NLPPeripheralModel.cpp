@@ -294,34 +294,46 @@ void NLPPeripheralModel::initialize() {
 }
 
 uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
-    uint32_t res;
+    uint32_t res, phaddr;
     if (a.type == "T") {
         return state_map[a.phaddr].t_size;
     } else if (a.type == "R") {
         return state_map[a.phaddr].r_size;
-    } else if (a.bits[0] == -1) {
-        res = state_map[a.phaddr].cur_value;
+    } else if (a.type == "L") {
+        phaddr = state_map[a.phaddr].cur_value;
+    } else {
+        phaddr = a.phaddr;
+    }
+
+    if (a.bits[0] == -1) {
+        res = state_map[phaddr].cur_value;
     } else {
         res = 0;
         for (int i = 0; i < a.bits.size(); ++i) {
             int tmp = a.bits[i];
-            res = (res << 1) + (state_map[a.phaddr].cur_value >> tmp & 1);
+            res = (res << 1) + (state_map[phaddr].cur_value >> tmp & 1);
         }
     }
     return res;
 }
 
 void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t value) {
+    uint32_t phaddr;
+    if (a.type == "L") {
+        phaddr = state_map[a.phaddr].cur_value;
+    } else {
+        phaddr = a.phaddr;
+    }
     if (a.bits[0] == -1) {
-        state_map[a.phaddr].cur_value = value;
+        state_map[phaddr].cur_value = value;
     } else {
         for (int i = 0; i < a.bits.size(); ++i) {
             int tmp = a.bits[i];
             int a2 = (value >> (a.bits.size() - 1 - i)) & 1;
             if (a2 == 1) {
-                state_map[a.phaddr].cur_value |= (1 << tmp);
+                state_map[phaddr].cur_value |= (1 << tmp);
             } else {
-                state_map[a.phaddr].cur_value &= ~(1 << tmp);
+                state_map[phaddr].cur_value &= ~(1 << tmp);
             }
         }
     }
@@ -468,6 +480,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 getDebugStream() << "old Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
                 int tmp = 0;
+                //tmp = c.value[std::rand() % c.value.size()];
                 if (c.value.size() > 1 && c.value[1] > 0xf) {
                     tmp = rand() % 0xffffffff;
                     getInfoStream() << c.value.size() << "mutiple bits values!!" << c.value[1] << "\n";
@@ -557,16 +570,15 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
                 disable_init_dr_value_flag[reg.phaddr] = 0;
                 curDR.push_back(reg.phaddr);
             }
-            if (reg.type == "S") {
-                SR = reg.phaddr;
-            }
             if (start == 0x40000000)
                 start = reg.phaddr;
 
             getDebugStream() << "current start:" << hexval(start) << " " << hexval(reg.phaddr) << "\n";
             if (reg.phaddr >= start + 0x100 || reg.phaddr <= start - 0x100) {
                 for (auto dr : curDR) {
-                    DR2SR[dr] = SR;
+                    if (std::abs(int(SR - dr)) <= 0x100)
+                        DR2SR[dr] = SR;
+                    getDebugStream() << "DR2SR " << hexval(dr) << " : " << hexval(SR) << " " << hexval(DR2SR[dr]) << "\n";
                 }
                 SR = 0;
                 start = reg.phaddr;
@@ -577,6 +589,9 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             plgState->insert_reg_map(reg.phaddr, reg);
         } else {
             return false;
+        }
+        if (reg.type == "S") {
+            SR = reg.phaddr;
         }
     }
 
@@ -1597,10 +1612,10 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
         onEnableISER.emit(state, &irq_no);
         CheckEnable(state, irq_no);
         /*if (plgState->get_fork_point_count() > 100 && plgState->get_fork_point_count() % 500 == 0) {*/
-            //if (!plgState->get_exit_interrupt(16)) {
-                //getWarningsStream() << "emit irq 16\n";
-                //EmitIRQ(state, 16);
-            //}
+        //if (!plgState->get_exit_interrupt(16)) {
+        //getWarningsStream() << "emit irq 16\n";
+        //EmitIRQ(state, 16);
+        //}
         /*}*/
     }
 }
