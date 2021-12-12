@@ -190,7 +190,7 @@ void AFLFuzzer::initialize() {
         s2e()->getCorePlugin()->onInvalidPCAccess.connect(sigc::mem_fun(*this, &AFLFuzzer::onInvalidPCAccess));
 
     min_input_length = s2e()->getConfig()->getInt(getConfigKey() + ".minInputLength", 64);
-    if (min_input_length < 8) {
+    if (min_input_length < 4) {
         getWarningsStream() << " testcase length should at least 32B!\n";
         exit(-1);
     }
@@ -417,14 +417,6 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
         getWarningsStream() << 15 * total_time << "min: " << unique_tb_num << "unique tb number\n";
     }
 
-    // record total bb number
-    if (all_tb_map[cur_loc] < 1) {
-        ++unique_tb_num;
-        ++all_tb_map[cur_loc];
-        getWarningsStream() << "The unqiue number of the executed basic blocks in current state is "
-                            << unique_tb_num << " pc = " << hexval(cur_loc) << "\n";
-    }
-
     // uEmu ends up with fuzzer
     if (unlikely(afl_con->AFL_return == END_uEmu)) {
         recordTBMap();
@@ -527,6 +519,14 @@ void AFLFuzzer::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState
 
 void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(AFLFuzzerState, state);
+    // record total bb number
+    if (all_tb_map[pc] < 1) {
+        ++unique_tb_num;
+        ++all_tb_map[pc];
+        getWarningsStream() << "The unqiue number of the executed basic blocks in current state is "
+                            << unique_tb_num << " pc = " << hexval(pc) << "\n";
+    }
+
     if (pc == fork_point) {
     //if (pc == fork_point || pc == 0x80003d4 || pc == 0x8000424) {
         //if (fork_flag == false) {
