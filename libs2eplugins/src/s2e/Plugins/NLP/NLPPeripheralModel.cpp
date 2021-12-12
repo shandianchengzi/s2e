@@ -116,7 +116,25 @@ public:
             state_map[phaddr].r_value = tmp;
             state_map[phaddr].r_size = 32 * 4;
             instruction = true;
-        }
+        } else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x8000) {
+            std::queue<uint8_t> tmp;
+	    tmp.push(0x4);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+	    state_map[phaddr].r_value = tmp;
+	    state_map[phaddr].r_size = 8;
+            instruction = true;
+	} else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x1000) {
+            std::queue<uint8_t> tmp;
+            tmp.push(0x20);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            state_map[phaddr].r_value = tmp;
+            state_map[phaddr].r_size = 8;
+            instruction = true;
+	}
     }
 
     void rx_push_to_fix_size(uint32_t phaddr, int size) {
@@ -429,10 +447,17 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
 
         for (auto phaddr : data_register) {
             std::queue<uint8_t> tmp;
-            tmp.push(0x2D);
-            plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x16);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            plgState->hardware_write_to_receive_buffer(phaddr, tmp, 2);
         }
-        UpdateFlag(0);
+        //UpdateFlag(0);
     }
     UpdateGraph(g_s2e_state, Unknown, 0);
 }
@@ -1305,8 +1330,9 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
             getInfoStream() << " write init dr value 0x2D!  \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
-                tmp.push(0x2D);
-                plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
+                tmp.push(0x0);
+                tmp.push(0x16);
+                plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 2);
             }
             UpdateGraph(g_s2e_state, Unknown, 0);
         }
@@ -1395,8 +1421,9 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
             getInfoStream() << " write init dr value 0x2D! \n";
             for (auto _phaddr : data_register) {
                 std::queue<uint8_t> tmp;
-                tmp.push(0x2D);
-                plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 1);
+                tmp.push(0x0);
+                tmp.push(0x16);
+                plgState->hardware_write_to_receive_buffer(_phaddr, tmp, 2);
             }
             UpdateGraph(g_s2e_state, Unknown, 0);
         }
