@@ -118,14 +118,14 @@ public:
             instruction = true;
         } else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x8000) {
             std::queue<uint8_t> tmp;
-	    tmp.push(0x4);
+            tmp.push(0x4);
             tmp.push(0x0);
             tmp.push(0x0);
             tmp.push(0x0);
-	    state_map[phaddr].r_value = tmp;
-	    state_map[phaddr].r_size = 8;
+            state_map[phaddr].r_value = tmp;
+            state_map[phaddr].r_size = 8;
             instruction = true;
-	} else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x1000) {
+        } else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x1000) {
             std::queue<uint8_t> tmp;
             tmp.push(0x20);
             tmp.push(0x0);
@@ -134,7 +134,7 @@ public:
             state_map[phaddr].r_value = tmp;
             state_map[phaddr].r_size = 8;
             instruction = true;
-	}
+        }
     }
 
     void rx_push_to_fix_size(uint32_t phaddr, int size) {
@@ -311,49 +311,126 @@ void NLPPeripheralModel::initialize() {
     srand(time(NULL));
 }
 
-uint32_t NLPPeripheralModel::get_reg_value(RegMap &state_map, Field a) {
+uint32_t NLPPeripheralModel::get_reg_value(S2EExecutionState *state, Field a) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    RegMap state_map = plgState->get_state_map();
     uint32_t res, phaddr;
+    uint32_t cur_value;
+    std::vector<long> bits;
+    int start = 0;
     if (a.type == "T") {
         return state_map[a.phaddr].t_size;
     } else if (a.type == "R") {
         return state_map[a.phaddr].r_size;
     } else if (a.type == "L") {
+        if (a.bits[0] > 32) {
+            for (auto b : a.bits) {
+                bits.push_back(b % 32);
+            }
+            start = a.bits[0] / 32 * 32;
+        } else
+            bits = a.bits;
         phaddr = state_map[a.phaddr].cur_value;
+        state->mem()->read(phaddr + start, &cur_value, sizeof(cur_value));
     } else {
         phaddr = a.phaddr;
+        cur_value = state_map[phaddr].cur_value;
     }
 
     if (a.bits[0] == -1) {
-        res = state_map[phaddr].cur_value;
+        return cur_value;
     } else {
         res = 0;
-        for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i];
-            res = (res << 1) + (state_map[phaddr].cur_value >> tmp & 1);
+        for (int i = 0; i < bits.size(); ++i) {
+            int tmp = bits[i];
+            res = (res << 1) + (cur_value >> tmp & 1);
         }
     }
     return res;
 }
 
-void NLPPeripheralModel::set_reg_value(RegMap &state_map, Field a, uint32_t value) {
-    uint32_t phaddr;
+void NLPPeripheralModel::set_reg_value(S2EExecutionState *state, Field a, uint32_t value) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    RegMap state_map = plgState->get_state_map();
+    uint32_t phaddr, cur_value;
+    std::vector<long> bits;
+    int start = 0;
     if (a.type == "L") {
+        if (a.bits[0] > 32) {
+            for (auto b : a.bits) {
+                bits.push_back(b % 32);
+            }
+            start = a.bits[0] / 32 * 32;
+        } else
+            bits = a.bits;
         phaddr = state_map[a.phaddr].cur_value;
+        state->mem()->read(phaddr + start, &cur_value, sizeof(cur_value));
     } else {
         phaddr = a.phaddr;
+        cur_value = state_map[phaddr].cur_value;
+        bits = a.bits;
     }
-    if (a.bits[0] == -1) {
-        state_map[phaddr].cur_value = value;
-    } else {
-        for (int i = 0; i < a.bits.size(); ++i) {
-            int tmp = a.bits[i];
-            int a2 = (value >> (a.bits.size() - 1 - i)) & 1;
-            if (a2 == 1) {
-                state_map[phaddr].cur_value |= (1 << tmp);
-            } else {
-                state_map[phaddr].cur_value &= ~(1 << tmp);
-            }
+    for (int i = 0; i < bits.size(); ++i) {
+        int tmp = bits[i];
+        int a2 = (value >> (bits.size() - 1 - i)) & 1;
+        if (a2 == 1) {
+            cur_value |= (1 << tmp);
+        } else {
+            cur_value &= ~(1 << tmp);
         }
+    }
+    if (a.type == "L") {
+        state->mem()->write(phaddr + start, &cur_value, sizeof(cur_value));
+    } else {
+        if (bits[0] == -1) {
+            state_map[phaddr].cur_value = value;
+        } else {
+            state_map[phaddr].cur_value = cur_value;
+        }
+    }
+}
+
+void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    RegMap state_map = plgState->get_state_map();
+    uint32_t phaddr = state_map[RXdescriptor].cur_value;
+    int count = 1;
+    for (int i = 0; i <= count; ++i) {
+        uint32_t RDES0, RDES1, RDES2, RDES3;
+        state->mem()->read(phaddr, &RDES0, sizeof(RDES0));
+        state->mem()->read(phaddr + 32, &RDES1, sizeof(RDES1));
+        state->mem()->read(phaddr + 64, &RDES2, sizeof(RDES2));
+        state->mem()->read(phaddr + 96, &RDES3, sizeof(RDES3));
+        getInfoStream() << "start descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
+        if (RDES0 >> 31 == 1) {
+            //ETH_DMARXDESC_OWN
+            RDES0 &= (0 << 31);
+        }
+        if (i == count) {
+            //ETH_DMARXDESC_LS
+            RDES0 &= (1 << 8);
+            //RER:Receive end of ring
+            RDES1 &= (1 << 15);
+        }
+        if (i == 0) {
+            //ETH_DMARXDESC_FS
+            RDES0 &= (1 << 9);
+        }
+        //RCH: Second address chained
+        RDES1 &= (1 << 14);
+        //buffer 1 maximun size
+        //maximun_size = 0x1FFF & RDES1;
+        //ETH_DMARXDESC_FL add 32 to current frame
+        RDES0 = RDES0 + 32 << 16;
+        //RBS1:Receive buffer 1 size
+        RDES1 &= 32;
+        //buffer content
+        uint32_t content = 0x2D;
+        state->mem()->write(phaddr, &RDES0, sizeof(RDES0));
+        state->mem()->write(phaddr, &RDES1, sizeof(RDES1));
+        state->mem()->write(RDES2, &content, sizeof(content));
+        getInfoStream() << "end descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
+        phaddr = RDES3;
     }
 }
 
@@ -378,8 +455,8 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
                 }
             }
             getInfoStream() << "DMA Request! update1: " << hexval(all_dmas[i].HTIF.phaddr) << "\n";
-            set_reg_value(state_map, all_dmas[i].HTIF, 1);
-            set_reg_value(state_map, all_dmas[i].GIF, 1);
+            set_reg_value(state, all_dmas[i].HTIF, 1);
+            set_reg_value(state, all_dmas[i].GIF, 1);
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 2;
             return true;
@@ -393,8 +470,8 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
                 }
             }
             getInfoStream() << "DMA Request! update2: " << hexval(all_dmas[i].TCIF.phaddr) << "\n";
-            set_reg_value(state_map, all_dmas[i].TCIF, 1);
-            set_reg_value(state_map, all_dmas[i].GIF, 1);
+            set_reg_value(state, all_dmas[i].TCIF, 1);
+            set_reg_value(state, all_dmas[i].GIF, 1);
             plgState->clear_rx(rx_addr);
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 0;
@@ -493,12 +570,12 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
             ++_idx;
             if (c.a.type == "S" && phaddr == 0) {
                 statistics[_idx] += 1;
-                set_reg_value(state_map, c.a, c.value[0]);
+                set_reg_value(plgState, c.a, c.value[0]);
                 getDebugStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
             } else if (c.a.type == "S" && phaddr == 1) {
                 statistics[_idx] += 1;
-                set_reg_value(state_map, c.a, 0);
+                set_reg_value(plgState, c.a, 0);
                 getDebugStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
             } else if (c.a.type == "O" && phaddr > 1) {
@@ -513,7 +590,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                     tmp = c.value[std::rand() % c.value.size()];
                 }
                 auto old_value = state_map[c.a.phaddr].cur_value;
-                set_reg_value(state_map, c.a, tmp);
+                set_reg_value(plgState, c.a, tmp);
                 if (state_map[c.a.phaddr].cur_value == old_value)
                     continue;
                 statistics[_idx] += 1;
@@ -523,7 +600,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 getDebugStream() << "Flag " << hexval(c.a.phaddr) << " value " << c.value[0] << "\n";
             }
             if (c.a.type == "F") {
-                auto old_value = get_reg_value(state_map, c.a);
+                auto old_value = get_reg_value(plgState, c.a);
                 uint32_t tmp = 0;
                 tmp = (old_value << 1) + 1;
                 getDebugStream() << "count value old  " << old_value << " new " << tmp << "\n";
@@ -539,7 +616,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 //    if (tmp < c.value[0])
                 //        tmp = c.value[0];
                 //}
-                set_reg_value(state_map, c.a, tmp);
+                set_reg_value(plgState, c.a, tmp);
             }
 
             plgState->insert_reg_map(c.a.phaddr, state_map[c.a.phaddr]);
@@ -594,6 +671,8 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
                 data_register.push_back(reg.phaddr);
                 disable_init_dr_value_flag[reg.phaddr] = 0;
                 curDR.push_back(reg.phaddr);
+            } else if (reg.type == "RL") {
+                RXdescriptor = reg.phaddr;
             }
             if (start == 0x40000000)
                 start = reg.phaddr;
@@ -1007,13 +1086,13 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 trigger_res.push_back(false);
             } else {
                 uint32_t a1, a2;
-                a1 = get_reg_value(state_map, equ.a1);
+                a1 = get_reg_value(state, equ.a1);
                 if (equ.type_a2 == "T") {
                     a2 = state_map[equ.a2.phaddr].t_size;
                 } else if (equ.type_a2 == "R") {
                     a2 = state_map[equ.a2.phaddr].r_size;
                 } else if (equ.type_a2 == "F") {
-                    a2 = get_reg_value(state_map, equ.a2);
+                    a2 = get_reg_value(state, equ.a2);
                 } else if (equ.type_a2 == "V") {
                     a2 = equ.value;
                 } else {
@@ -1076,7 +1155,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             } else if (equ.type_a2 == "R") {
                 a2 = state_map[equ.a2.phaddr].cur_value;
             } else if (equ.type_a2 == "F") {
-                a2 = get_reg_value(state_map, equ.a2);
+                a2 = get_reg_value(state, equ.a2);
                 getDebugStream() << "get by address, phaddr" << hexval(equ.a2.phaddr) << " " << a2 << "\n";
             } else {
                 a2 = equ.value;
@@ -1092,7 +1171,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 state_map[equ.a1.phaddr].cur_value = a2;
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             } else {
-                set_reg_value(state_map, equ.a1, a2);
+                set_reg_value(state, equ.a1, a2);
                 if (type == Read) {
                     getDebugStream() << "Read Action: phaddr =  " << hexval(equ.a1.phaddr)
                                      << " updated bit = " << equ.a1.bits[0]
@@ -1536,6 +1615,10 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         UpdateGraph(state, Write, 0);
     }
     if (pc == begin_point && begin_point != fork_point) {
+        if (!enable_fuzzing) {
+            write_to_descriptor(state);
+            return;
+        }
         tb_num = 0;
         plgState->inc_fork_count();
         std::queue<uint8_t> return_value;

@@ -128,6 +128,7 @@ private:
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
     std::vector<uint32_t> data_register;
+    uint32_t RXdescriptor;
     uint32_t timer;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
     bool enable_fuzzing;
@@ -139,6 +140,7 @@ private:
 
     bool parseConfig();
     void initialize();
+    void write_to_descriptor(S2EExecutionState *state);
     void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
     bool ExistInMMIO(uint32_t tmp);
     bool EmitDMA(S2EExecutionState *state, uint32_t irq_no);
@@ -161,8 +163,8 @@ private:
     void UpdateFlag(uint32_t phaddr);
     void onForkPoints(S2EExecutionState *state, uint64_t pc);
     // void onForceIRQCheck(S2EExecutionState *state, uint32_t pc, uint64_t re_tb_num);
-    uint32_t get_reg_value(RegMap &state_map, Field a);
-    void set_reg_value(RegMap &state_map, Field a, uint32_t value);
+    uint32_t get_reg_value(S2EExecutionState *state, Field a);
+    void set_reg_value(S2EExecutionState *state, Field a, uint32_t value);
     void SplitString(const std::string &s, std::vector<std::string> &v, const std::string &c);
     void SplitStringToInt(const std::string &s, std::vector<long> &v, const std::string &c, int dtype);
     bool compare(uint32_t a1, std::string sym, uint32_t a2);
