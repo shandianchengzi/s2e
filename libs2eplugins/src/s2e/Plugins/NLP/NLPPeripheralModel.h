@@ -135,12 +135,13 @@ private:
     uint32_t begin_point;
     uint32_t fork_point;
     bool begin_irq_flag;
+    bool fork_point_flag;
     bool init_dr_flag;
     uint64_t tb_num;
 
     bool parseConfig();
     void initialize();
-    void write_to_descriptor(S2EExecutionState *state);
+    void write_to_descriptor(S2EExecutionState *state, std::queue<uint8_t> buffer_input);
     void CheckEnable(S2EExecutionState *state, std::vector<uint32_t> &irq_no);
     bool ExistInMMIO(uint32_t tmp);
     bool EmitDMA(S2EExecutionState *state, uint32_t irq_no);

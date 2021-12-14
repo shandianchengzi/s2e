@@ -289,6 +289,7 @@ void NLPPeripheralModel::initialize() {
     begin_irq_flag = false;
     if (enable_fuzzing) {
         init_dr_flag = false;
+        fork_point_flag = false;
         s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
             sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
         begin_point = s2e()->getConfig()->getInt(getConfigKey() + ".beginPoint", 0x0, &ok);
@@ -388,12 +389,12 @@ void NLPPeripheralModel::set_reg_value(S2EExecutionState *state, RegMap &state_m
     }
 }
 
-void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
+void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state, std::queue<uint8_t> buffer_input) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
     uint32_t phaddr = state_map[RXdescriptor].cur_value;
     //Fuzz
-    int count = 2;
+    int count = buffer_input.size()/1524;
     uint32_t frame_size = 0;
     for (int i = 0; i <= count; ++i) {
         uint32_t RDES0 = 0, RDES1 = 0, RDES2 = 0, RDES3 = 0;
@@ -417,22 +418,35 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
         if (i == 0) {
             //ETH_DMARXDESC_FS bit 9
             RDES0 |= 0x200;
+            //buffer 1 maximun size
+            //maximun_size = 0x1FFF & RDES1;
+            //ETH_DMARXDESC_FL add 32 to current frame
+            frame_size = buffer_input.size();
         }
         //RCH: Second address chained bit 14
         RDES1 |= 0x4000;
-        //buffer 1 maximun size
-        //maximun_size = 0x1FFF & RDES1;
-        //ETH_DMARXDESC_FL add 32 to current frame
-        frame_size += 32; //cur desc size 32
         RDES0 = RDES0 + (frame_size << 16);
-        //RBS1:Receive buffer 1 size
-        RDES1 = RDES1 & 0xFFFFE020; //cur desc size 32
+        if (buffer_input.size() > 1524) {
+            //RBS1:Receive buffer 1 size
+            RDES1 = RDES1 & 0xFFFFE5F4; //cur desc size 32
+        } else {
+            RDES1 = (RDES1 & 0xFFFFE000) + buffer_input.size();
+        }
         //buffer content
         //Fuzz
-        uint32_t content = 0x2D;
+        int cnt = 0;
+        if (buffer_input.size() > 1524) {
+            cnt = 1524;
+        } else {
+            cnt = buffer_input.size();
+        }
+        for (uint32_t j = 0; j < cnt; j++) {
+            uint8_t content = buffer_input.front();
+            state->mem()->write(RDES2+j, &content, sizeof(content));
+            buffer_input.pop();
+        }
         state->mem()->write(phaddr, &RDES0, sizeof(RDES0));
         state->mem()->write(phaddr + 4, &RDES1, sizeof(RDES1));
-        state->mem()->write(RDES2, &content, sizeof(content));
         getInfoStream() << "end descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
         phaddr = RDES3;
     }
@@ -1626,7 +1640,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     }
     //getInfoStream() << "begin: "<< hexval(begin_point) << " pc: "<< hexval(pc) << " fork point:" << hexval(fork_point) <<"\n";
     if (!enable_fuzzing && pc == fork_point) {
-        write_to_descriptor(state);
+        std::queue<uint8_t> return_value;
+        write_to_descriptor(state, return_value);
         plgState->inc_fork_count();
         if (plgState->get_fork_point_count() < 10) {
             return;
@@ -1665,6 +1680,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     } else if (pc == fork_point) {
         begin_irq_flag = true;
         init_dr_flag = true;
+        fork_point_flag = true;
         plgState->inc_fork_count();
         tb_num = 0;
         if (!enable_fuzzing) {
@@ -1705,19 +1721,6 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
     if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
-        /*
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        return_value.push(0x68);
-        }
-        */
         for (uint32_t i = 0; i < data_register.size(); ++i) {
             if (i == 0) {
                 onBufferInput.emit(state, data_register[i], &AFL_size, &return_value);
@@ -1728,10 +1731,14 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value size: " << return_value.size() << "\n";
         }
+        if (fork_point_flag) {
+            write_to_descriptor(state, return_value);
+        }
         //plgState->clear_irq_freq(37);
         UpdateFlag(0);
         UpdateGraph(state, Unknown, 0);
         init_dr_flag = false;
+        fork_point_flag = false;
         std::vector<uint32_t> irq_no;
         onEnableISER.emit(state, &irq_no);
         CheckEnable(state, irq_no);
