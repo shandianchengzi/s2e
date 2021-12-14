@@ -332,7 +332,7 @@ uint32_t NLPPeripheralModel::get_reg_value(S2EExecutionState *state, RegMap &sta
         state->mem()->read(phaddr + start, &cur_value, sizeof(cur_value));
     } else {
         phaddr = a.phaddr;
-	bits = a.bits;
+        bits = a.bits;
         cur_value = state_map[phaddr].cur_value;
     }
     getDebugStream() << "get_reg_value phaddr " << hexval(phaddr) << " cur_value " << hexval(cur_value) << "\n";
@@ -392,20 +392,22 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
     uint32_t phaddr = state_map[RXdescriptor].cur_value;
+    //Fuzz
     int count = 0;
     uint32_t frame_size = 0;
     for (int i = 0; i <= count; ++i) {
         uint32_t RDES0 = 0, RDES1 = 0, RDES2 = 0, RDES3 = 0;
         bool ok = state->mem()->read(phaddr, &RDES0, sizeof(RDES0));
-	ok &= state->mem()->read(phaddr + 4, &RDES1, sizeof(RDES1));
+        ok &= state->mem()->read(phaddr + 4, &RDES1, sizeof(RDES1));
         ok &= state->mem()->read(phaddr + 8, &RDES2, sizeof(RDES2));
         ok &= state->mem()->read(phaddr + 12, &RDES3, sizeof(RDES3));
-        getInfoStream() << ok<<" \n ";
-        getInfoStream() << "phaddr "<< hexval(phaddr)<<" start descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
+        getInfoStream() << ok << " \n ";
+        getInfoStream() << "phaddr " << hexval(phaddr) << " start descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
         if (RDES0 >> 31 == 1) {
-            //ETH_DMARXDESC_OWN
-            RDES0 &= 0x7FFFFFFF;
+            return;
         }
+        //ETH_DMARXDESC_OWN
+        RDES0 &= 0x7FFFFFFF;
         if (i == count) {
             //ETH_DMARXDESC_LS bit 8
             RDES0 |= 0x100;
@@ -421,14 +423,15 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
         //buffer 1 maximun size
         //maximun_size = 0x1FFF & RDES1;
         //ETH_DMARXDESC_FL add 32 to current frame
-	frame_size += 32;
+        frame_size += 32; //cur desc size 32
         RDES0 = RDES0 + (frame_size << 16);
         //RBS1:Receive buffer 1 size
-        RDES1 = RDES1 & 0xFFFFE020;
+        RDES1 = RDES1 & 0xFFFFE020; //cur desc size 32
         //buffer content
+        //Fuzz
         uint32_t content = 0x2D;
         state->mem()->write(phaddr, &RDES0, sizeof(RDES0));
-        state->mem()->write(phaddr+32, &RDES1, sizeof(RDES1));
+        state->mem()->write(phaddr + 32, &RDES1, sizeof(RDES1));
         state->mem()->write(RDES2, &content, sizeof(content));
         getInfoStream() << "end descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
         phaddr = RDES3;
@@ -460,8 +463,8 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             set_reg_value(state, state_map, all_dmas[i].GIF, 1);
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 2;
-	    plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
-	    plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
+            plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
             return true;
         } else if (all_dmas[i].state == 2) {
             for (unsigned i = 32; i < 64; ++i) {
@@ -479,8 +482,8 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             plgState->clear_rx(rx_addr);
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 0;
-	    plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
-	    plgState->insert_reg_map(all_dmas[i].TCIF.phaddr, state_map[all_dmas[i].TCIF.phaddr]);
+            plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
+            plgState->insert_reg_map(all_dmas[i].TCIF.phaddr, state_map[all_dmas[i].TCIF.phaddr]);
             plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
             return true;
         }
@@ -1626,8 +1629,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         write_to_descriptor(state);
         plgState->inc_fork_count();
         if (plgState->get_fork_point_count() < 10) {
-	    return;
-	}
+            return;
+        }
     }
     if (pc == begin_point && begin_point != fork_point) {
         tb_num = 0;
