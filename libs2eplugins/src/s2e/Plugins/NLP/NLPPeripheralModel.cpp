@@ -393,7 +393,7 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
     RegMap state_map = plgState->get_state_map();
     uint32_t phaddr = state_map[RXdescriptor].cur_value;
     //Fuzz
-    int count = 0;
+    int count = 2;
     uint32_t frame_size = 0;
     for (int i = 0; i <= count; ++i) {
         uint32_t RDES0 = 0, RDES1 = 0, RDES2 = 0, RDES3 = 0;
@@ -403,7 +403,7 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
         ok &= state->mem()->read(phaddr + 12, &RDES3, sizeof(RDES3));
         getInfoStream() << ok << " \n ";
         getInfoStream() << "phaddr " << hexval(phaddr) << " start descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
-        if (RDES0 >> 31 == 1) {
+        if (RDES0 >> 31 == 0) {
             return;
         }
         //ETH_DMARXDESC_OWN
@@ -431,7 +431,7 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state) {
         //Fuzz
         uint32_t content = 0x2D;
         state->mem()->write(phaddr, &RDES0, sizeof(RDES0));
-        state->mem()->write(phaddr + 32, &RDES1, sizeof(RDES1));
+        state->mem()->write(phaddr + 4, &RDES1, sizeof(RDES1));
         state->mem()->write(RDES2, &content, sizeof(content));
         getInfoStream() << "end descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
         phaddr = RDES3;
