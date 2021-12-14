@@ -123,7 +123,7 @@ public:
             tmp.push(0x0);
             tmp.push(0x0);
             state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 8;
+            state_map[phaddr].r_size = 32;
             instruction = true;
         } else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x1000) {
             std::queue<uint8_t> tmp;
@@ -132,9 +132,22 @@ public:
             tmp.push(0x0);
             tmp.push(0x0);
             state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 8;
+            state_map[phaddr].r_size = 32;
             instruction = true;
-        }
+        } else if (phaddr == 0x40005410 && state_map[phaddr].t_value == 0x84) {
+            std::queue<uint8_t> tmp;
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x16);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            tmp.push(0x0);
+            state_map[phaddr].r_value = tmp;
+            state_map[phaddr].r_size = 64;
+            instruction = true;
+	}
     }
 
     void rx_push_to_fix_size(uint32_t phaddr, int size) {
@@ -1494,7 +1507,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
             plgState->receive_instruction(phaddr);
         }
         getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size
-                        << "pc = " << hexval(state->regs()->getPc()) << " value " << hexval(*NLPsymbolicvalue) << "\n";
+                        << "pc = " << hexval(state->regs()->getPc()) << " value " << hexval(*NLPsymbolicvalue) << " " <<(uint32_t)data[0] <<" " <<(uint32_t)data[1]<<" "<<(uint32_t)data[2]<<" "<<(uint32_t)data[3] <<"\n";
     } else {
         *NLPsymbolicvalue = plgState->get_ph_value(phaddr);
     }
