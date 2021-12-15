@@ -30,6 +30,7 @@ private:
     uint32_t fork_point_count;
     bool instruction;
     // std::map<int, bool> exit_interrupt;
+    uint32_t cur_dp_addr;
 public:
     NLPPeripheralModelState() {
         interrupt_freq.clear();
@@ -224,6 +225,14 @@ public:
     uint32_t get_fork_point_count() {
         return fork_point_count;
     }
+    // cur description loc
+    void insert_cur_dp_addr(uint32_t mem_addr) {
+        cur_dp_addr = mem_addr;
+    }
+
+    uint32_t get_cur_dp_addr() {
+        return cur_dp_addr;
+    }
 };
 
 bool NLPPeripheralModel::parseConfig(void) {
@@ -408,19 +417,21 @@ void NLPPeripheralModel::set_reg_value(S2EExecutionState *state, RegMap &state_m
 
 void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state, std::queue<uint8_t> buffer_input) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
-    RegMap state_map = plgState->get_state_map();
-    uint32_t phaddr = state_map[RXdescriptor].cur_value;
     //Fuzz
+    uint32_t cur_dp_addr = plgState->get_cur_dp_addr();
     int count = buffer_input.size()/1524;
     uint32_t frame_size = 0;
+    if (count >= 4) {
+        count = 3;
+    }
     for (int i = 0; i <= count; ++i) {
         uint32_t RDES0 = 0, RDES1 = 0, RDES2 = 0, RDES3 = 0;
-        bool ok = state->mem()->read(phaddr, &RDES0, sizeof(RDES0));
-        ok &= state->mem()->read(phaddr + 4, &RDES1, sizeof(RDES1));
-        ok &= state->mem()->read(phaddr + 8, &RDES2, sizeof(RDES2));
-        ok &= state->mem()->read(phaddr + 12, &RDES3, sizeof(RDES3));
-        getInfoStream() << ok << " \n ";
-        getInfoStream() << "phaddr " << hexval(phaddr) << " start descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
+        bool ok = state->mem()->read(cur_dp_addr, &RDES0, sizeof(RDES0));
+        ok &= state->mem()->read(cur_dp_addr + 4, &RDES1, sizeof(RDES1));
+        ok &= state->mem()->read(cur_dp_addr + 8, &RDES2, sizeof(RDES2));
+        ok &= state->mem()->read(cur_dp_addr + 12, &RDES3, sizeof(RDES3));
+        getInfoStream() << ok << " \n";
+        getInfoStream() << "phaddr " << hexval(cur_dp_addr) << " start descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
         if (RDES0 >> 31 == 0) {
             return;
         }
@@ -462,11 +473,12 @@ void NLPPeripheralModel::write_to_descriptor(S2EExecutionState *state, std::queu
             state->mem()->write(RDES2+j, &content, sizeof(content));
             buffer_input.pop();
         }
-        state->mem()->write(phaddr, &RDES0, sizeof(RDES0));
-        state->mem()->write(phaddr + 4, &RDES1, sizeof(RDES1));
-        getInfoStream() << "end descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
-        phaddr = RDES3;
+        state->mem()->write(cur_dp_addr, &RDES0, sizeof(RDES0));
+        state->mem()->write(cur_dp_addr + 4, &RDES1, sizeof(RDES1));
+        getInfoStream() << " write end descriptor RDES0 " << hexval(RDES0) << " RDES1 " << hexval(RDES1) << " RDES2 " << hexval(RDES2) << " RDES3 " << hexval(RDES3) << "\n";
+        cur_dp_addr = RDES3;
     }
+    plgState->insert_cur_dp_addr(cur_dp_addr);
 }
 
 bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
@@ -1693,6 +1705,10 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         } else {
             begin_irq_flag = true;
             init_dr_flag = true;
+            RegMap state_map = plgState->get_state_map();
+            uint32_t init_dp_addr = state_map[RXdescriptor].cur_value;
+            plgState->insert_cur_dp_addr(init_dp_addr);
+            getInfoStream(state) << "init dp addr = " << hexval(init_dp_addr) << "\n";
         }
     } else if (pc == fork_point) {
         begin_irq_flag = true;
@@ -1700,6 +1716,12 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         fork_point_flag = true;
         plgState->inc_fork_count();
         tb_num = 0;
+        if (plgState->get_fork_point_count() == 1) {
+            RegMap state_map = plgState->get_state_map();
+            uint32_t init_dp_addr = state_map[RXdescriptor].cur_value;
+            plgState->insert_cur_dp_addr(init_dp_addr);
+            getInfoStream(state) << "init dp addr = " << hexval(init_dp_addr) << "\n";
+        }
         if (!enable_fuzzing) {
             UpdateFlag(0);
             UpdateGraph(state, Unknown, 0);
