@@ -28,12 +28,13 @@ private:
     std::map<int, int> exit_interrupt; // interrupt id, num
     std::map<uint32_t, uint32_t> interrupt_freq;
     uint32_t fork_point_count;
-    bool instruction = false;
+    bool instruction;
     // std::map<int, bool> exit_interrupt;
 public:
     NLPPeripheralModelState() {
         interrupt_freq.clear();
         fork_point_count = 0;
+        instruction = false;
     }
 
     virtual ~NLPPeripheralModelState() {
@@ -144,10 +145,13 @@ public:
             tmp.push(0x0);
             tmp.push(0x0);
             tmp.push(0x0);
+            for (uint32_t i = 0; i < 64; i++) {
+                tmp.push(0x1);
+            }
             state_map[phaddr].r_value = tmp;
-            state_map[phaddr].r_size = 64;
+            state_map[phaddr].r_size = 576;
             instruction = true;
-	}
+        }
     }
 
     void rx_push_to_fix_size(uint32_t phaddr, int size) {
@@ -1503,9 +1507,9 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         } else {
             *NLPsymbolicvalue = data[0];
         }
-        if (!begin_irq_flag) {
+        //if (!begin_irq_flag) {
             plgState->receive_instruction(phaddr);
-        }
+        //}
         getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size
                         << "pc = " << hexval(state->regs()->getPc()) << " value " << hexval(*NLPsymbolicvalue) << " " <<(uint32_t)data[0] <<" " <<(uint32_t)data[1]<<" "<<(uint32_t)data[2]<<" "<<(uint32_t)data[3] <<"\n";
     } else {
@@ -1660,7 +1664,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             return;
         }
     }
-    if (pc == begin_point && begin_point != fork_point) {
+    if (pc == begin_point && begin_point != fork_point && !plgState->check_instruction()) {
         tb_num = 0;
         plgState->inc_fork_count();
         std::queue<uint8_t> return_value;
