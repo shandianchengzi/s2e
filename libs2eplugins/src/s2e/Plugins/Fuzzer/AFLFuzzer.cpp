@@ -445,7 +445,7 @@ void AFLFuzzer::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned 
     }
 
     if (!state->regs()->getInterruptFlag()) {
-        if (fork_flag && tb_num % 1000 == 0) {
+        if (fork_flag && tb_num % 500 == 0) {
             getDebugStream() << " force exit every max loop tb num " << tb_num << "\n";
             g_s2e_allow_interrupt = 1;
             s2e()->getExecutor()->setCpuExitRequest();
