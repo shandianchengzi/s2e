@@ -48,6 +48,7 @@ typedef struct peripheralReg {
     uint32_t phaddr;
     uint32_t reset;
     uint32_t cur_value;
+    uint8_t width;
     uint32_t t_size;
     uint32_t r_size;
     uint32_t t_value;
