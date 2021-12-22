@@ -1762,17 +1762,16 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(data_register[i])
                             << " return value size: " << return_value.size() << "\n";
         }
-        if (fork_point_flag) {
-            write_to_descriptor(state, return_value);
-        }
+        /*if (fork_point_flag) {*/
+            //write_to_descriptor(state, return_value);
+        /*}*/
         //plgState->clear_irq_freq(37);
         UpdateFlag(0);
         UpdateGraph(state, Unknown, 0);
         init_dr_flag = false;
-        fork_point_flag = false;
-        std::vector<uint32_t> irq_no;
-        onEnableISER.emit(state, &irq_no);
-        CheckEnable(state, irq_no);
+        //std::vector<uint32_t> irq_no;
+        //onEnableISER.emit(state, &irq_no);
+        //CheckEnable(state, irq_no);
         /*if (plgState->get_fork_point_count() > 100 && plgState->get_fork_point_count() % 500 == 0) {*/
         //if (!plgState->get_exit_interrupt(16)) {
         //getWarningsStream() << "emit irq 16\n";
