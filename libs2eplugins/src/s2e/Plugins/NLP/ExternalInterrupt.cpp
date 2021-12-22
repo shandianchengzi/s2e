@@ -129,8 +129,8 @@ void ExternalInterrupt::initialize() {
     onNLPPeripheralModelConnection = s2e()->getPlugin<NLPPeripheralModel>();
     onNLPPeripheralModelConnection->onExternalInterruptEvent.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onExternelInterruptTrigger));
-    onNLPPeripheralModelConnection->onDMAInterruptEvent.connect(
-        sigc::mem_fun(*this, &ExternalInterrupt::onDMARequest));
+    //onNLPPeripheralModelConnection->onDMAInterruptEvent.connect(
+    //    sigc::mem_fun(*this, &ExternalInterrupt::onDMARequest));
     onNLPPeripheralModelConnection->onEnableISER.connect(
         sigc::mem_fun(*this, &ExternalInterrupt::onGetISERIRQ));
 
