@@ -521,10 +521,10 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(AFLFuzzerState, state);
     // record total bb number
     if (all_tb_map[pc] < 1) {
+        ++unique_tb_num;
         getWarningsStream() << "The unqiue number of the executed basic blocks in current state is "
                             << unique_tb_num << " pc = " << hexval(pc) << "\n";
     }
-    ++unique_tb_num;
     ++all_tb_map[pc];
 
     if (pc == fork_point) {
