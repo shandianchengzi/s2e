@@ -562,12 +562,14 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
 
         for (auto phaddr : data_register) {
             std::queue<uint8_t> tmp;
-            tmp.push(0x0);
             //tmp.push(0x0);
             //tmp.push(0x0);
             //tmp.push(0x0);
-            tmp.push(0x16);
-            //tmp.push(0x0);
+	    for (int i = 0; i < 64; ++ i) {
+                tmp.push(0x16);
+                tmp.push(0x0);
+	    }
+	    //tmp.push(0x0);
             //tmp.push(0x0);
             //tmp.push(0x0);
             plgState->hardware_write_to_receive_buffer(phaddr, tmp, 2);
