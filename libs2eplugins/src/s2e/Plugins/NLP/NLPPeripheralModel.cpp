@@ -586,8 +586,6 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
     if (rw_count > 1) {
         timer += 1;
         //getDebugStream() << "start UpdateFlag" << rw_count << " " << timer << " " << _allFlags.size() << "\n";
-
-        int _idx = ta_numbers;
         FlagList _allFlags;
         if (phaddr <= 1) {
             _allFlags = allFlags;
@@ -599,19 +597,17 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                     _allFlags = flags;
                     break;
                 }
-                _idx += flags.size();
             }
         }
 
         for (auto c : _allFlags) {
-            ++_idx;
             if (c.a.type == "S" && phaddr == 0) {
-                statistics[_idx] += 1;
+                statistics[c.id] += 1;
                 set_reg_value(g_s2e_state, state_map, c.a, c.value[0]);
                 getDebugStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
             } else if (c.a.type == "S" && phaddr == 1) {
-                statistics[_idx] += 1;
+                statistics[c.id] += 1;
                 set_reg_value(g_s2e_state, state_map, c.a, 0);
                 getDebugStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
@@ -630,7 +626,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 set_reg_value(g_s2e_state, state_map, c.a, tmp);
                 if (state_map[c.a.phaddr].cur_value == old_value)
                     continue;
-                statistics[_idx] += 1;
+                statistics[c.id] += 1;
                 // set_reg_value(state_map, c.a, c.value);
                 //getWarningsStream() <<_idx<< " Flag " << hexval(c.a.phaddr) <<" bit "<<c.a.bits[0]<< " value " << tmp << " size " << c.value.size()
                 //                 << " " << std::rand() << "\n";
@@ -643,7 +639,7 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
                 getDebugStream() << "count value old  " << old_value << " new " << tmp << "\n";
                 if (tmp > c.value[0] || tmp == old_value)
                     tmp = 0;
-                statistics[_idx] += 1;
+                statistics[c.id] += 1;
                 //if (c.freq > 0) {
                 //    tmp = (old_value << 1) + 1;
                 //    if (tmp > c.value[0])
@@ -753,6 +749,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         EquList trigger;
         EquList action;
         if (getTApairs(peripheralcache, trigger, action)) {
+            trigger[0].id = ++_idx;
             _allTAs.push_back(std::make_pair(trigger, action));
             for (auto equ : trigger) {
                 if (equ.eq == "*")
@@ -764,15 +761,11 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
                 start = std::min(start, equ.a1.phaddr);
                 end = std::max(end, equ.a1.phaddr);
             }
-            statistics[++_idx] = 0;
+            allTAs.push_back(_allTAs.back());
+            statistics[_idx] = 0;
         } else {
             return false;
         }
-    }
-
-    allTAs.reserve(_idx); // preallocate memory
-    for (auto loc : TA_range) {
-        allTAs.insert(allTAs.end(), loc.second.begin(), loc.second.end());
     }
 
     ta_numbers = _idx;
@@ -791,22 +784,20 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         }
         Flag count;
         if (extractFlag(peripheralcache, count)) {
+            count.id = ++_idx;
             _allFlags.push_back(count);
             for (auto equ : _allFlags) {
                 start = std::min(start, equ.a.phaddr);
                 end = std::max(end, equ.a.phaddr);
             }
-            statistics[++_idx] = 0;
+            if (count.a.type == "S")
+                allFlags.push_back(count);
+            statistics[_idx] = 0;
         } else {
             return false;
         }
     }
     flags_numbers = _idx - ta_numbers;
-
-    allFlags.reserve(flags_numbers); // preallocate memory
-    for (auto loc : Flags_range) {
-        allFlags.insert(allFlags.end(), loc.second.begin(), loc.second.end());
-    }
 
     //TODO DMA FIELD STRUCTURE
     DMA dma;
@@ -1088,7 +1079,6 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
     TAMap _allTAs;
-    int _idx = 0;
     if (phaddr == 0) {
         _allTAs = allTAs;
     } else {
@@ -1099,7 +1089,6 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
                 _allTAs = TA;
                 break;
             }
-            _idx += TA.size();
         }
     }
     std::map<std::pair<uint32_t, int>, uint32_t> prev_action;
@@ -1107,7 +1096,6 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     std::vector<std::pair<uint32_t, uint32_t>> dmas;
     std::map<uint32_t, std::set<uint32_t>> missed_enabled;
     for (auto ta : _allTAs) {
-        _idx += 1;
         EquList trigger = ta.first;
         bool rel;
         std::vector<bool> trigger_res;
@@ -1180,6 +1168,7 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         }
         if (!check)
             continue;
+        uint32_t _idx = trigger[0].id;
         statistics[_idx] += 1;
         if (!enable_fuzzing) {
             for (auto equ : trigger) {
@@ -1332,10 +1321,10 @@ void NLPPeripheralModel::onStatistics() {
     fPHNLP << "nlp write: " << write_numbers << " nlp read: " << read_numbers << " ta_num: " << ta_numbers << "\n";
 
     uint32_t sum_ta = 0, sum_flag = 0, unique_ta = 0, unique_flag = 0, uncertain_flag = 0, unique_uncertain_flag = 0;
-    int idx = 0;
+
     for (auto loc : TA_range) {
         for (auto ta : loc.second) {
-            idx += 1;
+            int idx = ta.first[0].id;
             //if (statistics[idx] == 0) continue;
             fPHNLP << "TA : " << idx << " " << hexval(ta.first[0].a1.phaddr) << " " << ta.first[0].a1.bits[0] << " " << ta.first[0].eq << " ";
             //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
@@ -1637,11 +1626,9 @@ void NLPPeripheralModel::CheckEnable(S2EExecutionState *state, std::vector<uint3
             unenabled_flag[irq] = tmp;
         }
     }
-    int _idx = 0;
     for (auto loc : TA_range) {
         auto _allTAs = loc.second;
         for (auto ta : _allTAs) {
-            _idx += 1;
             EquList action = ta.second;
             if (!enable_fuzzing) {
                 uint32_t tmp = action.back().a1.phaddr;
@@ -1758,7 +1745,7 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
 		plgState->write_ph_value(0x40005400,0x101);
 	}
     */
-    
+
     if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;

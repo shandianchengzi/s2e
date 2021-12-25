@@ -34,6 +34,7 @@ typedef struct field {
 } Field;
 
 typedef struct equation {
+    uint32_t id;
     Field a1;
     std::string eq;      //= ; >;  <;  >=; <=
     std::string type_a2; // V:value; R: receive; T: transmit; F: field
@@ -57,6 +58,7 @@ typedef struct peripheralReg {
 } PeripheralReg;
 
 typedef struct flag {
+    uint32_t id;
     Field a;
     int freq;
     std::vector<long> value;
