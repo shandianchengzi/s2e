@@ -134,7 +134,7 @@ private:
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::set<uint32_t> data_register;
     uint32_t RXdescriptor;
-    uint32_t timer;
+    bool timer = 0;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
     bool enable_fuzzing;
     uint32_t begin_point;

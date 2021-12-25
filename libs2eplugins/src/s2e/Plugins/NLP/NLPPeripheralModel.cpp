@@ -533,7 +533,9 @@ void NLPPeripheralModel::onExceptionExit(S2EExecutionState *state, uint32_t irq_
     getInfoStream() << "EXIT Interrupt IRQ" << irq_no << " exit_inter = " << plgState->get_exit_interrupt(irq_no)
                     << "\n";
     // flip timer flag
-    UpdateFlag(1);
+    if (timer)
+        UpdateFlag(1);
+
     if (!EmitDMA(state, irq_no)) {
         // fuzzing mode, if exit irq, check out if the rx is still empty
         for (auto dma : all_dmas) {
@@ -584,8 +586,6 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, g_s2e_state);
     RegMap state_map = plgState->get_state_map();
     if (rw_count > 1) {
-        timer += 1;
-        //getDebugStream() << "start UpdateFlag" << rw_count << " " << timer << " " << _allFlags.size() << "\n";
         FlagList _allFlags;
         if (phaddr <= 1) {
             _allFlags = allFlags;
@@ -603,11 +603,13 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
         for (auto c : _allFlags) {
             if (c.a.type == "S" && phaddr == 0) {
                 statistics[c.id] += 1;
+                timer = true;
                 set_reg_value(g_s2e_state, state_map, c.a, c.value[0]);
                 getDebugStream() << "Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
             } else if (c.a.type == "S" && phaddr == 1) {
                 statistics[c.id] += 1;
+                timer = false;
                 set_reg_value(g_s2e_state, state_map, c.a, 0);
                 getDebugStream() << "Flip Specific Flag" << state_map[c.a.phaddr].cur_value << " bits " << c.a.bits[0]
                                  << "\n";
@@ -1653,7 +1655,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         tb_num++;
     }
     /*if (begin_irq_flag && tb_num % 500 == 0) {*/
-        //UpdateGraph(state, Unknown, 0);
+    //UpdateGraph(state, Unknown, 0);
     /*}*/
     //getInfoStream() << "begin: "<< hexval(begin_point) << " pc: "<< hexval(pc) << " fork point:" << hexval(fork_point) <<"\n";
     if (!enable_fuzzing && pc == fork_point) {
