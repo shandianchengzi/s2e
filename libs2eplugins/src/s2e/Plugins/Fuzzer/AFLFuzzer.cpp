@@ -533,6 +533,7 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         if (fork_flag) {
             getInfoStream() << "3 fork state at pc = " << hexval(state->regs()->getPc()) << "\n";
             memcpy(afl_area_ptr, bitmap, MAP_SIZE);
+            uint32_t size = afl_con->AFL_size;
             afl_con->AFL_input = 0;
             Ethernet.pos = 0;
             afl_con->AFL_return = 0;
@@ -540,7 +541,10 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             plgState->inc_hit_count();
             prev_loc = 0;
             uint8_t content = 0;
-            for (int i = 0; i < 256; i++) {
+            if (size >= 256) {
+                size = 256;
+            }
+            for (int i = 0; i < size; i++) {
                 state->mem()->write(0x200000A0 + i, &content, sizeof(content));
             }
             if (plgState->get_hit_count() == 1000) {
