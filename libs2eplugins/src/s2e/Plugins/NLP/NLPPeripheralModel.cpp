@@ -1671,6 +1671,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         std::queue<uint8_t> return_value2;
         uint32_t AFL_size = 0;
         if (plgState->get_fork_point_count() < 3) {
+            int i = 0;
             for (auto dr : data_register) {
                 if (i == 0) {
                     onBufferInput.emit(state, dr, &AFL_size, &return_value);
@@ -1682,6 +1683,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
                         return_value.pop();
                     }
                     plgState->hardware_write_to_receive_buffer(dr, return_value2, return_value2.size());
+                    i = 1;
                 } else {
                     plgState->hardware_write_to_receive_buffer(dr, return_value2, return_value2.size());
                 }
@@ -1749,10 +1751,12 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
     if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
+        int i = 0;
         for (auto dr : data_register) {
             if (i == 0) {
                 onBufferInput.emit(state, dr, &AFL_size, &return_value);
                 plgState->hardware_write_to_receive_buffer(dr, return_value, return_value.size());
+                i = 1;
             } else {
                 plgState->hardware_write_to_receive_buffer(dr, return_value, return_value.size());
             }
