@@ -109,6 +109,9 @@ private:
     uint32_t rw_count;
     std::string NLPfileName;
     std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
+    TAMap allTAs;
+    std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
+    FlagList allFlags;
     std::map<uint32_t, uint32_t> rx_flags;
     std::vector<DMA> all_dmas;
     std::map<uint32_t, uint32_t> write_action;
@@ -127,7 +130,6 @@ private:
     std::map<std::pair<uint32_t, uint32_t>, std::set<uint64_t>> read_access_freq;
     std::map<std::pair<uint32_t, uint32_t>, std::set<uint64_t>> write_access_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
-    std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
     std::vector<uint32_t> data_register;
     uint32_t RXdescriptor;
     uint32_t timer;
