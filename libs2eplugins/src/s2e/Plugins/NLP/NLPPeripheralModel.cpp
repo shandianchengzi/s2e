@@ -311,6 +311,8 @@ void NLPPeripheralModel::initialize() {
             getInfoStream() << "begin point = " << hexval(begin_point) << "\n";
         }
     } else {
+        s2e()->getCorePlugin()->onTranslateBlockEnd.connect(
+            sigc::mem_fun(*this, &NLPPeripheralModel::onTranslateBlockEnd));
         onInvalidStateDectionConnection = s2e()->getPlugin<InvalidStatesDetection>();
         onInvalidStateDectionConnection->onReceiveExternalDataEvent.connect(
             sigc::mem_fun(*this, &NLPPeripheralModel::onEnableReceive));
@@ -565,7 +567,7 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
             //tmp.push(0x0);
             //tmp.push(0x0);
             //tmp.push(0x0);
-	    for (int i = 0; i < 64; ++ i) {
+	    for (int i = 0; i < 1; ++ i) {
                 tmp.push(0x16);
                 tmp.push(0x0);
 	    }
@@ -1195,9 +1197,9 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
         for (auto equ : action) {
             uint32_t a2;
             if (equ.type_a2 == "T") {
-                a2 = state_map[equ.a2.phaddr].cur_value;
+                a2 = state_map[equ.a2.phaddr].t_size;
             } else if (equ.type_a2 == "R") {
-                a2 = state_map[equ.a2.phaddr].cur_value;
+                a2 = state_map[equ.a2.phaddr].r_size;
             } else if (equ.type_a2 == "F") {
                 a2 = get_reg_value(state, state_map, equ.a2);
                 getDebugStream() << "get by address, phaddr" << hexval(equ.a2.phaddr) << " bits " << equ.a2.bits[0] << " " << a2 << "\n";
@@ -1209,10 +1211,18 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             prev_action[_tmp] = _idx;
 
             if (equ.a1.type == "R") {
-                state_map[equ.a1.phaddr].cur_value = a2;
+                getDebugStream() << "set receive value : phaddr =  " << hexval(equ.a1.phaddr)
+                                 << " updated bit = " << equ.a1.bits[0]
+                                 << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2
+                                 << "\n";
+                state_map[equ.a1.phaddr].r_size = a2;
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             } else if (equ.a1.type == "T") {
-                state_map[equ.a1.phaddr].cur_value = a2;
+                getDebugStream() << "set transmit value : phaddr =  " << hexval(equ.a1.phaddr)
+                                 << " updated bit = " << equ.a1.bits[0]
+                                 << " value = " << hexval(state_map[equ.a1.phaddr].cur_value) << " a2 = " << a2
+                                 << "\n";
+                state_map[equ.a1.phaddr].t_size = a2;
                 plgState->insert_reg_map(equ.a1.phaddr, state_map[equ.a1.phaddr]);
             } else {
                 set_reg_value(state, state_map, equ.a1, a2);
@@ -1610,6 +1620,7 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         plgState->write_ph_value(phaddr, writeconcretevalue);
         getInfoStream() << "Write to phaddr " << hexval(phaddr) << " value: " << hexval(writeconcretevalue) << " \n";
     }
+    UpdateFlag(phaddr);
     UpdateGraph(g_s2e_state, Write, phaddr);
 }
 
@@ -1737,6 +1748,37 @@ void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecuti
                                              uint64_t pc, bool staticTarget, uint64_t staticTargetPc) {
     signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onBlockEnd), (unsigned)tb->se_tb_type));
 }
+/*
+template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
+    auto size = sizeof(T);
+
+    klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
+    if (isa<klee::ConstantExpr>(expr)) {
+        klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
+        *value = ce->getZExtValue();
+        return true;
+    } else {
+        // evaluate symobolic regs
+        klee::ref<klee::ConstantExpr> ce;
+        ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+        *value = ce->getZExtValue();
+        return false;
+    }
+}
+
+static void PrintRegs(S2EExecutionState *state) {
+    for (unsigned i = 0; i < 15; ++i) {
+        unsigned offset = offsetof(CPUARMState, regs[i]);
+        target_ulong concreteData;
+
+        if (getConcolicValue(state, offset, &concreteData)) {
+            g_s2e->getWarningsStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+        } else {
+            g_s2e->getWarningsStream() << "Sym Regs " << i << " = " << hexval(concreteData) << "\n";
+        }
+    }
+}
+*/
 
 void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
@@ -1749,7 +1791,24 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
 		plgState->write_ph_value(0x40005400,0x101);
 	}
     */
-    if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
+    /*if (cur_loc == 0x1a40 || cur_loc == 0x1894 || cur_loc == 0x1b36) {
+        PrintRegs(state);
+	}
+    //if (cur_loc == 0x1b36) {
+    //	uint32_t remin_value=4,sent_value=3;
+    //    state->mem()->write(0x2002ff84,&sent_value, sizeof(sent_value));
+    //	state->mem()->read(0x2002ff88, &remin_value, sizeof(remin_value));
+    //}
+	uint32_t handle,remin_value,sent_value;
+	state->mem()->read(0x2002ff38, &handle, sizeof(handle));
+	state->mem()->read(0x2002ff84, &sent_value, sizeof(sent_value));
+	state->mem()->read(0x2002ff88, &remin_value, sizeof(remin_value));
+        getDebugStream() <<"handle: "<<handle<<" Receive: "<<remin_value<<" SENT: "<<sent_value<<"\n";
+	state->mem()->read(0x20000030, &sent_value, sizeof(sent_value));
+	state->mem()->read(0x20000034, &remin_value, sizeof(remin_value));
+        getDebugStream() <<"handle: "<<handle<<" Receive: "<<remin_value<<" SENT: "<<sent_value<<"\n";
+    */
+	if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
         for (uint32_t i = 0; i < data_register.size(); ++i) {
