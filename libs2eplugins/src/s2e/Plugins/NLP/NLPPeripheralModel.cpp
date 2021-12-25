@@ -1590,8 +1590,8 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
     }
 
     // unauthorized access check
-    if (!enable_fuzzing && data_register.find(phaddr) != data_register.end()) {
-        if (ExistInMMIO(phaddr) && checked_SR == false) {
+    if (data_register.find(phaddr) != data_register.end()) {
+        if (!enable_fuzzing && ExistInMMIO(phaddr) && checked_SR == false) {
             getInfoStream() << "unauthorized WRITE access to data register: " << hexval(phaddr)
                             << " pc = " << hexval(state->regs()->getPc()) << "\n";
             if (write_unauthorized_freq.find(phaddr) == write_unauthorized_freq.end()) {
@@ -1654,9 +1654,9 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     if (!state->regs()->getInterruptFlag()) {
         tb_num++;
     }
-    /*if (begin_irq_flag && tb_num % 500 == 0) {*/
-    //UpdateGraph(state, Unknown, 0);
-    /*}*/
+    if (!enable_fuzzing && begin_irq_flag && tb_num % 500 == 0) {
+        UpdateGraph(state, Unknown, 0);
+    }
     //getInfoStream() << "begin: "<< hexval(begin_point) << " pc: "<< hexval(pc) << " fork point:" << hexval(fork_point) <<"\n";
     if (!enable_fuzzing && pc == fork_point) {
         std::queue<uint8_t> return_value;
