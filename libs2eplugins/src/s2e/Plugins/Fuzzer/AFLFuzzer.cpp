@@ -540,13 +540,13 @@ void AFLFuzzer::onForkPoints(S2EExecutionState *state, uint64_t pc) {
             start_time = time(NULL);
             plgState->inc_hit_count();
             prev_loc = 0;
-            uint8_t content = 0;
+            //uint8_t content = 0;
             if (size >= 256) {
                 size = 256;
             }
-            for (int i = 0; i < size; i++) {
-                state->mem()->write(0x200000A0 + i, &content, sizeof(content));
-            }
+            /*for (int i = 0; i < size; i++) {*/
+                //state->mem()->write(0x200000A0 + i, &content, sizeof(content));
+            /*}*/
             if (plgState->get_hit_count() == 1000) {
                 fork_flag = false;
                 std::string s;
