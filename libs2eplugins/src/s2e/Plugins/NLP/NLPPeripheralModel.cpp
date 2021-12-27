@@ -690,6 +690,7 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     fNLP.open(fileName, std::ios::in);
     if (!fNLP) {
         getWarningsStream() << "Could not open cache nlp file: " << fileName << "\n";
+        exit(-1);
         return false;
     }
 
