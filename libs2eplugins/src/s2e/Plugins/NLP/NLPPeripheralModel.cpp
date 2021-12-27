@@ -1766,9 +1766,9 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
             getInfoStream() << "write to receiver buffer " << hexval(dr)
                             << " return value size: " << return_value.size() << "\n";
         }
-        /*if (fork_point_flag) {*/
-        //write_to_descriptor(state, return_value);
-        /*}*/
+        if (fork_point_flag) {
+            write_to_descriptor(state, return_value);
+        }
         //plgState->clear_irq_freq(37);
         UpdateFlag(0);
         UpdateGraph(state, Unknown, 0);
