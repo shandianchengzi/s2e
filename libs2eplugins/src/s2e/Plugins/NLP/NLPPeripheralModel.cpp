@@ -119,7 +119,7 @@ public:
             state_map[phaddr].r_value = tmp;
             state_map[phaddr].r_size = 32; // * 4;
             instruction = true;
-        } else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x8000) {
+        } else if (phaddr == 0x40028014 && (state_map[phaddr].t_value & 0x8000)) {
             std::queue<uint8_t> tmp;
             tmp.push(0x4);
             //tmp.push(0x0);
@@ -128,7 +128,7 @@ public:
             state_map[phaddr].r_value = tmp;
             state_map[phaddr].r_size = 8; //32;
             instruction = true;
-        } else if (phaddr == 0x40028014 && state_map[phaddr].t_value == 0x1000) {
+        } else if (phaddr == 0x40028014 && (state_map[phaddr].t_value & 0x1000)) {
             std::queue<uint8_t> tmp;
             tmp.push(0x20);
             //tmp.push(0x0);
