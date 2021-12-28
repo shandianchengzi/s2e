@@ -1324,16 +1324,30 @@ void NLPPeripheralModel::onStatistics() {
     fPHNLP << "nlp write: " << write_numbers << " nlp read: " << read_numbers << " ta_num: " << ta_numbers << "\n";
 
     uint32_t sum_ta = 0, sum_flag = 0, unique_ta = 0, unique_flag = 0, uncertain_flag = 0, unique_uncertain_flag = 0;
-
+    uint32_t c1 = 0, c2 = 0, c3 = 0, a1 = 0, a2 = 0, a3 = 0;
     for (auto loc : TA_range) {
         for (auto ta : loc.second) {
             int idx = ta.first[0].id;
-            //if (statistics[idx] == 0) continue;
-            fPHNLP << "TA : " << idx;
+            fPHNLP << "TA : " << idx << "used ? " << (statistics[idx] != 0) << " ";
             for (auto equ : ta.first) {
                 fPHNLP << " " << equ.a1.type << " " << hexval(equ.a1.phaddr) << " " << equ.a1.bits[0] << " " << equ.eq << " ";
             }
             fPHNLP << hexval(ta.second[0].a1.phaddr) << " " << ta.second[0].a1.bits[0] << "\n";
+            if (statistics[idx] != 0) {
+                if (ta.second.back().interrupt != -1) {
+                    c3 += 1;
+                    if (ta.second.back().a1.type == "D")
+                        a3 += 1;
+                    else
+                        a2 += 1;
+                } else {
+                    if (ta.first[0].a1.type == "R" || ta.first[0].a1.type == "T")
+                        c1 += 1;
+                    else
+                        c2 += 1;
+                    a1 += 1;
+                }
+            }
         }
     }
     int _tmp1 = 0, _tmp2 = 0;
@@ -1353,6 +1367,10 @@ void NLPPeripheralModel::onStatistics() {
                 unique_uncertain_flag += ta.second > 0;
                 uncertain_flag += ta.second;
             }
+            if (ta.second != 0) {
+                c1 += 1;
+                a1 += 1;
+            }
             sum_flag += ta.second;
             unique_flag += ta.second > 0;
             fPHNLP << "Flag uncertain? " << uncertain << " id: " << ta.first << " reg: " << hexval(tmp) << " bit: " << Flags_range[_tmp1].second[_tmp2].a.bits[0] << " cnt: " << ta.second << "\n";
@@ -1361,6 +1379,8 @@ void NLPPeripheralModel::onStatistics() {
     }
     for (auto write : write_action) {
         fPHNLP << "Write action " << hexval(write.first) << " times " << write.second << "\n";
+        c2 += 1;
+        a1 += 1;
     }
     auto interrupt_freq = plgState->get_irqs_freq();
     for (auto interrupt : interrupt_freq) {
