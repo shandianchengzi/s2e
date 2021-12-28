@@ -1329,12 +1329,11 @@ void NLPPeripheralModel::onStatistics() {
         for (auto ta : loc.second) {
             int idx = ta.first[0].id;
             //if (statistics[idx] == 0) continue;
-            fPHNLP << "TA : " << idx << " " << hexval(ta.first[0].a1.phaddr) << " " << ta.first[0].a1.bits[0] << " " << ta.first[0].eq << " ";
-            //fPHNLP << "TA : "<<idx<<" "<< hexval(ta.first[0].a1.phaddr) <<" "<<ta.first[0].a1.bits[0]<<" "<<ta.first[0].eq<<" "<<hexval(ta.first[0].a2.phaddr)<<" "<<ta.first[0].a2.bits[0]<<" "<<ta.first[0].value;
-            if (ta.first.size() > 1) {
-                fPHNLP << " " << hexval(ta.first.back().a1.phaddr) << " " << ta.first.back().a1.bits[0];
+            fPHNLP << "TA : " << idx;
+            for (auto equ : ta.first) {
+                fPHNLP << " " << equ.a1.type << " " << hexval(equ.a1.phaddr) << " " << equ.a1.bits[0] << " " << equ.eq << " ";
             }
-            fPHNLP << "\n";
+            fPHNLP << hexval(ta.second[0].a1.phaddr) << " " << ta.second[0].a1.bits[0] << "\n";
         }
     }
     int _tmp1 = 0, _tmp2 = 0;
