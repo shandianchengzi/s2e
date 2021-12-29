@@ -1099,6 +1099,7 @@ klee::ref<klee::Expr> SymbolicPeripherals::onNLPLearningMode(S2EExecutionState *
     getWarningsStream(g_s2e_state) << ss.str() << " size " << hexval(size) << "dr flag = " << dr_flag
                                 << " SYM NLP value = " << hexval(NLP_value) << "\n";
 
+    //if (dr_flag || (address >= 0x40023800 && address <= 0x4002388C) || (address >= 0x40005400 && address <= 0x40005424) || (address >= 0x40064000 && address <=0x4006400D) || (address >= 0x40021000 && address <= 0x4002102C)) {
     if (dr_flag) {
         uint64_t LSB = ((uint64_t) 1 << (size * 8));
         getInfoStream() << "return concrete value phaddr = " << hexval(address) << "\n";

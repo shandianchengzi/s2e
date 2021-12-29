@@ -1391,6 +1391,7 @@ void NLPPeripheralModel::onStatistics() {
         fPHNLP << "chain id1: " << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
         chain_num += chain.second;
     }
+    fPHNLP << "Total TA rules: " << c1 <<" " << c2 <<" "<<c3<<" "<<a1<<" "<<a2<<" "<<a3<<"\n";
     fPHNLP << "Total ca: " << unique_ta + unique_flag << " unique chain " << chain_freq.size() << "\n";
     fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
     fPHNLP << "-------Verification Results-------\n";
@@ -1682,7 +1683,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         std::queue<uint8_t> return_value;
         write_to_descriptor(state, return_value);
         plgState->inc_fork_count();
-        if (plgState->get_fork_point_count() < 10) {
+        if (plgState->get_fork_point_count() < 4) {
             return;
         }
     }
