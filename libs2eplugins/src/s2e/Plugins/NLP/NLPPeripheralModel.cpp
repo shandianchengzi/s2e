@@ -589,11 +589,12 @@ void NLPPeripheralModel::UpdateFlag(uint32_t phaddr) {
         FlagList _allFlags;
         if (phaddr <= 1) {
             _allFlags = allFlags;
+            getInfoStream() << "Update ALL Flag size: " << allFlags.size() << "\n";
         } else {
             for (auto loc : Flags_range) {
                 auto range = loc.first;
                 auto flags = loc.second;
-                if (phaddr >= range.first && phaddr <= range.second) {
+                if (range.find(phaddr) != range.end()) {
                     _allFlags = flags;
                     break;
                 }
@@ -734,18 +735,16 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
         }
     }
 
-    start = 0xFFFFFFFF;
-    uint32_t end = 0;
     TAMap _allTAs;
     int _idx = 0;
+    std::set<uint32_t> addrs;
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==")
             break;
         if (peripheralcache == "--") {
-            TA_range[std::make_pair(start, end)] = _allTAs;
+            TA_range[addrs] = _allTAs;
             _allTAs.clear();
-            start = 0xFFFFFFFF;
-            end = 0;
+            addrs.clear();
             continue;
         }
         EquList trigger;
@@ -756,12 +755,10 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
             for (auto equ : trigger) {
                 if (equ.eq == "*")
                     continue;
-                start = std::min(start, equ.a1.phaddr);
-                end = std::max(end, equ.a1.phaddr);
+                addrs.insert(equ.a1.phaddr);
             }
             for (auto equ : action) {
-                start = std::min(start, equ.a1.phaddr);
-                end = std::max(end, equ.a1.phaddr);
+                addrs.insert(equ.a1.phaddr);
             }
             allTAs.push_back(_allTAs.back());
             statistics[_idx] = 0;
@@ -771,27 +768,22 @@ bool NLPPeripheralModel::readNLPModelfromFile(S2EExecutionState *state, std::str
     }
 
     ta_numbers = _idx;
-    start = 0xFFFFFFFF;
-    end = 0;
     FlagList _allFlags;
+    addrs.clear();
     while (getline(fNLP, peripheralcache)) {
         if (peripheralcache == "==")
             break;
         if (peripheralcache == "--") {
-            Flags_range.push_back(std::make_pair(std::make_pair(start, end), _allFlags));
+            Flags_range.push_back(std::make_pair(addrs, _allFlags));
             _allFlags.clear();
-            start = 0xFFFFFFFF;
-            end = 0;
+            addrs.clear();
             continue;
         }
         Flag count;
         if (extractFlag(peripheralcache, count)) {
             count.id = ++_idx;
             _allFlags.push_back(count);
-            for (auto equ : _allFlags) {
-                start = std::min(start, equ.a.phaddr);
-                end = std::max(end, equ.a.phaddr);
-            }
+            addrs.insert(count.a.phaddr);
             if (count.a.type == "S")
                 allFlags.push_back(count);
             statistics[_idx] = 0;
@@ -1083,11 +1075,12 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
     TAMap _allTAs;
     if (phaddr == 0) {
         _allTAs = allTAs;
+        getInfoStream() << "Update ALL Graph size: " << _allTAs.size() << "\n";
     } else {
         for (auto loc : TA_range) {
             auto range = loc.first;
             auto TA = loc.second;
-            if (phaddr >= range.first && phaddr <= range.second) {
+            if (range.find(phaddr) != range.end()) {
                 _allTAs = TA;
                 break;
             }
@@ -1328,7 +1321,7 @@ void NLPPeripheralModel::onStatistics() {
     for (auto loc : TA_range) {
         for (auto ta : loc.second) {
             int idx = ta.first[0].id;
-            fPHNLP << "TA : " << idx << "used ? " << (statistics[idx] != 0) << " ";
+            fPHNLP << "TA : " << idx << " used ? " << (statistics[idx] != 0) << " ";
             for (auto equ : ta.first) {
                 fPHNLP << " " << equ.a1.type << " " << hexval(equ.a1.phaddr) << " " << equ.a1.bits[0] << " " << equ.eq << " ";
             }
@@ -1391,7 +1384,7 @@ void NLPPeripheralModel::onStatistics() {
         fPHNLP << "chain id1: " << chain.first.first << " id2: " << chain.first.second << " freq: " << chain.second << "\n";
         chain_num += chain.second;
     }
-    fPHNLP << "Total TA rules: " << c1 <<" " << c2 <<" "<<c3<<" "<<a1<<" "<<a2<<" "<<a3<<"\n";
+    fPHNLP << "Total TA rules: " << c1 << " " << c2 << " " << c3 << " " << a1 << " " << a2 << " " << a3 << "\n";
     fPHNLP << "Total ca: " << unique_ta + unique_flag << " unique chain " << chain_freq.size() << "\n";
     fPHNLP << "ta: " << sum_ta << "\\" << unique_ta << " flag: " << sum_flag << "\\" << unique_flag << " uncertain flag: " << uncertain_flag << "\\" << unique_uncertain_flag << " chain num: " << chain_num << "\n";
     fPHNLP << "-------Verification Results-------\n";
@@ -1546,7 +1539,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     if (state_map[phaddr].type == "S") {
         checked_SR = true;
     }
-
+    updatedFuzzingReg(state, phaddr);
     UpdateGraph(g_s2e_state, Read, phaddr);
     getDebugStream() << "correction " << hexval(phaddr) << " value " << *NLPsymbolicvalue << " \n";
     if (correction.second != 0) {
@@ -1630,8 +1623,56 @@ void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHar
         plgState->write_ph_value(phaddr, writeconcretevalue);
         getInfoStream() << "Write to phaddr " << hexval(phaddr) << " value: " << hexval(writeconcretevalue) << " \n";
     }
+
+    updatedFuzzingReg(state, phaddr);
     UpdateFlag(phaddr);
     UpdateGraph(g_s2e_state, Write, phaddr);
+}
+
+void NLPPeripheralModel::updatedFuzzingReg(S2EExecutionState *state, uint32_t phaddr) {
+    DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
+    getInfoStream() << plgState->get_fork_point_count() << " ADD phaddr for future emulation: " << hexval(phaddr) << " ori size: "
+                    << allFlags.size() << " " << allTAs.size()
+                    << " " << todo_flags.size() << " " << todo_tas.size() << " ";
+
+    if (updated_size && plgState->get_fork_point_count() > 10) {
+        allFlags = todo_flags;
+        allTAs = todo_tas;
+        updated_size = false;
+        getInfoStream() << "at fork point swap size: " << allFlags.size() << " " << allTAs.size()
+                        << " " << todo_flags.size() << " " << todo_tas.size() << " "
+                        << "\n";
+    }
+    if (!enable_fuzzing || !fork_point_flag || todo_registers.find(phaddr) != todo_registers.end()) return;
+
+    uint32_t total_sz = todo_flags.size();
+    for (auto loc : Flags_range) {
+        auto range = loc.first;
+        auto flags = loc.second;
+        total_sz += flags.size();
+        todo_flags.reserve(total_sz);
+        if (range.find(phaddr) != range.end()) {
+            todo_flags.insert(todo_flags.end(), flags.begin(), flags.end());
+            todo_registers.insert(range.begin(), range.end());
+            break;
+        }
+    }
+
+    total_sz = todo_tas.size();
+    for (auto loc : TA_range) {
+        auto range = loc.first;
+        auto TA = loc.second;
+        total_sz += TA.size();
+        todo_tas.reserve(total_sz);
+        if (range.find(phaddr) != range.end()) {
+            todo_tas.insert(todo_tas.end(), TA.begin(), TA.end());
+            todo_registers.insert(range.begin(), range.end());
+            break;
+        }
+    }
+    updated_size = true;
+    getInfoStream() << " new size: " << allFlags.size() << " " << allTAs.size() << " " << todo_flags.size() << " " << todo_tas.size() << " "
+                    << "\n";
 }
 
 void NLPPeripheralModel::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
@@ -1729,6 +1770,7 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
         fork_point_flag = true;
         plgState->inc_fork_count();
         tb_num = 0;
+
         if (plgState->get_fork_point_count() == 1) {
             RegMap state_map = plgState->get_state_map();
             uint32_t init_dp_addr = state_map[RXdescriptor].cur_value;

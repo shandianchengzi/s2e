@@ -110,9 +110,9 @@ private:
     hw::PeripheralMmioRanges nlp_mmio;
     uint32_t rw_count;
     std::string NLPfileName;
-    std::map<std::pair<uint32_t, uint32_t>, TAMap> TA_range;
+    std::map<std::set<uint32_t>, TAMap> TA_range;
     TAMap allTAs;
-    std::vector<std::pair<std::pair<uint32_t, uint32_t>, FlagList>> Flags_range;
+    std::vector<std::pair<std::set<uint32_t>, FlagList>> Flags_range;
     FlagList allFlags;
     std::map<uint32_t, uint32_t> rx_flags;
     std::vector<DMA> all_dmas;
@@ -133,6 +133,10 @@ private:
     std::map<std::pair<uint32_t, uint32_t>, std::set<uint64_t>> write_access_freq;
     std::map<std::pair<uint32_t, uint32_t>, uint32_t> chain_freq;
     std::set<uint32_t> data_register;
+    std::set<uint32_t> todo_registers;
+    FlagList todo_flags;
+    TAMap todo_tas;
+    bool updated_size = false;
     uint32_t RXdescriptor;
     bool timer = 0;
     std::map<uint32_t, bool> disable_init_dr_value_flag;
@@ -161,6 +165,7 @@ private:
     bool extractDMA(std::string peripheralcache, DMA &dma);
     void UpdateGraph(S2EExecutionState *state, RWType type, uint32_t phaddr);
     bool EmitIRQ(S2EExecutionState *state, int irq);
+    void updatedFuzzingReg(S2EExecutionState *state, uint32_t phaddr);
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
     void onStatistics();
     void onExceptionExit(S2EExecutionState *state, uint32_t irq_no);
