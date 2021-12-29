@@ -1650,9 +1650,11 @@ void NLPPeripheralModel::updatedFuzzingReg(S2EExecutionState *state, uint32_t ph
         auto range = loc.first;
         auto flags = loc.second;
         total_sz += flags.size();
-        todo_flags.reserve(total_sz);
         if (range.find(phaddr) != range.end()) {
-            todo_flags.insert(todo_flags.end(), flags.begin(), flags.end());
+            for (auto f : flags) {
+                if (f.a.type == "S")
+                    todo_flags.push_back(f);
+            }
             todo_registers.insert(range.begin(), range.end());
             break;
         }
