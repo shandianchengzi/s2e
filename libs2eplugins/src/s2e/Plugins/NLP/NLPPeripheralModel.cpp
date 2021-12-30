@@ -493,10 +493,10 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             getInfoStream() << "DMA Request! update1: " << hexval(all_dmas[i].HTIF.phaddr) << "\n";
             set_reg_value(state, state_map, all_dmas[i].HTIF, 1);
             set_reg_value(state, state_map, all_dmas[i].GIF, 1);
-            EmitIRQ(state, all_dmas[i].dma_irq);
-            all_dmas[i].state = 2;
             plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
             plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            EmitIRQ(state, all_dmas[i].dma_irq);
+            all_dmas[i].state = 2;
             return true;
         } else if (all_dmas[i].state == 2) {
             for (unsigned i = 32; i < 64; ++i) {
@@ -512,11 +512,11 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             set_reg_value(state, state_map, all_dmas[i].TCIF, 1);
             set_reg_value(state, state_map, all_dmas[i].GIF, 1);
             plgState->clear_rx(rx_addr);
-            EmitIRQ(state, all_dmas[i].dma_irq);
-            all_dmas[i].state = 0;
             plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
             plgState->insert_reg_map(all_dmas[i].TCIF.phaddr, state_map[all_dmas[i].TCIF.phaddr]);
             plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            EmitIRQ(state, all_dmas[i].dma_irq);
+            all_dmas[i].state = 0;
             return true;
         }
     }
