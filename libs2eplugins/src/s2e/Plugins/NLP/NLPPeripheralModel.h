@@ -66,10 +66,10 @@ typedef struct flag {
 } Flag;
 
 typedef struct dma {
-    uint32_t peri_dr;
-    uint32_t peri_irq;
     uint32_t dma_irq;
     uint32_t state; //0: disable; 1: not start yet; 2:half complete
+    Field memory_addr;
+    Field peri_dr;
     Field HTIF;
     Field TCIF;
     Field GIF;
