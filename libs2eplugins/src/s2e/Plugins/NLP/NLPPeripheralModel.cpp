@@ -477,6 +477,8 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
         uint32_t rx_addr = get_reg_value(state, state_map, all_dmas[i].peri_dr);
         uint32_t memo_addr = get_reg_value(state, state_map, all_dmas[i].memory_addr);
         getInfoStream() << "DMA Request! phaddr =" << hexval(rx_addr) << " " << hexval(memo_addr) << " " << all_dmas[i].state << "\n";
+        if (rx_addr == 0 || memo_addr == 0)
+            break;
         if (all_dmas[i].state == 1) {
             // DMA request
             // at least 64B
@@ -492,9 +494,11 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             }
             getInfoStream() << "DMA Request! update1: " << hexval(all_dmas[i].HTIF.phaddr) << "\n";
             set_reg_value(state, state_map, all_dmas[i].HTIF, 1);
-            set_reg_value(state, state_map, all_dmas[i].GIF, 1);
             plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
-            plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            if (all_dmas[i].GIF.type != "N/A") {
+                set_reg_value(state, state_map, all_dmas[i].GIF, 1);
+                plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            }
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 2;
             return true;
@@ -510,11 +514,13 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             getInfoStream() << "DMA Request! update2: " << hexval(all_dmas[i].TCIF.phaddr) << "\n";
             set_reg_value(state, state_map, all_dmas[i].HTIF, 0);
             set_reg_value(state, state_map, all_dmas[i].TCIF, 1);
-            set_reg_value(state, state_map, all_dmas[i].GIF, 1);
-            plgState->clear_rx(rx_addr);
             plgState->insert_reg_map(all_dmas[i].HTIF.phaddr, state_map[all_dmas[i].HTIF.phaddr]);
             plgState->insert_reg_map(all_dmas[i].TCIF.phaddr, state_map[all_dmas[i].TCIF.phaddr]);
-            plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            if (all_dmas[i].GIF.type != "N/A") {
+                set_reg_value(state, state_map, all_dmas[i].GIF, 1);
+                plgState->insert_reg_map(all_dmas[i].GIF.phaddr, state_map[all_dmas[i].GIF.phaddr]);
+            }
+            plgState->clear_rx(rx_addr);
             EmitIRQ(state, all_dmas[i].dma_irq);
             all_dmas[i].state = 0;
             return true;
@@ -1030,8 +1036,10 @@ bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma) {
     dma.dma_irq = std::stoull(v[0].c_str(), NULL, 10);
     dma.state = 0;
 
+    std::vector<std::string> twomemory;
+    SplitString(v[1], twomemory, "|");
     std::vector<std::string> field;
-    SplitString(v[1], field, ",");
+    SplitString(twomemory[0], field, ",");
     Field memory;
     memory.phaddr = std::stoull(field[1].c_str(), NULL, 16);
     memory.type = field[0];
@@ -1065,9 +1073,13 @@ bool NLPPeripheralModel::extractDMA(std::string peripheralcache, DMA &dma) {
     field.clear();
     SplitString(v[6], field, ",");
     Field gif;
-    gif.phaddr = std::stoull(field[1].c_str(), NULL, 16);
-    gif.type = field[0];
-    SplitStringToInt(field[2], gif.bits, "/", 10);
+    if (!field.empty()) {
+        gif.phaddr = std::stoull(field[1].c_str(), NULL, 16);
+        gif.type = field[0];
+        SplitStringToInt(field[2], gif.bits, "/", 10);
+    } else {
+        gif.type = "N/A";
+    }
     dma.GIF = gif;
     return true;
 }
@@ -1333,7 +1345,8 @@ void NLPPeripheralModel::UpdateGraph(S2EExecutionState *state, RWType type, uint
             if (enabled.second == all_dmas[i].dma_irq && all_dmas[i].state == 0) {
                 getInfoStream() << "SET DMA " << all_dmas[i].dma_irq << " " << enabled.second << "\n";
                 all_dmas[i].state = 1;
-                EmitDMA(state, enabled.second);
+                if (!EmitDMA(state, enabled.second))
+                    all_dmas[i].state = 0;
             }
         }
     }
