@@ -577,7 +577,7 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
             //tmp.push(0x0);
             //tmp.push(0x0);
             //tmp.push(0x0);
-            for (int i = 0; i < 1; ++i) {
+            for (int i = 0; i < 30; ++i) {
                 tmp.push(0x16);
             }
             //tmp.push(0x0);
@@ -1371,7 +1371,7 @@ void NLPPeripheralModel::onStatistics() {
             for (auto equ : ta.first) {
                 fPHNLP << " " << equ.a1.type << " " << hexval(equ.a1.phaddr) << " " << equ.a1.bits[0] << " " << equ.eq << " ";
             }
-            fPHNLP << hexval(ta.second[0].a1.phaddr) << " " << ta.second[0].a1.bits[0] << "\n";
+            fPHNLP << " " << ta.second[0].a1.type << " " << hexval(ta.second[0].a1.phaddr) << " " << ta.second[0].a1.bits[0] << "\n";
             if (statistics[idx] != 0) {
                 if (ta.second.back().interrupt != -1) {
                     c3 += 1;
