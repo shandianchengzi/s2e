@@ -577,15 +577,14 @@ void NLPPeripheralModel::onEnableReceive(S2EExecutionState *state, uint32_t pc, 
             //tmp.push(0x0);
             //tmp.push(0x0);
             //tmp.push(0x0);
-            for (int i = 0; i < 30; ++i) {
-                tmp.push(0x16);
+            for (int i = 0; i < 2; ++i) {
+            tmp.push(0x2D);
             }
             //tmp.push(0x0);
             //tmp.push(0x0);
-            //tmp.push(0x0);
-            plgState->hardware_write_to_receive_buffer(phaddr, tmp, 1);
+            plgState->hardware_write_to_receive_buffer(phaddr, tmp, tmp.size());
         }
-        //UpdateFlag(0);
+        UpdateFlag(0);
     }
     UpdateGraph(g_s2e_state, Unknown, 0);
 }
