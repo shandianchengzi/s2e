@@ -1768,8 +1768,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     }
     //getInfoStream() << "begin: "<< hexval(begin_point) << " pc: "<< hexval(pc) << " fork point:" << hexval(fork_point) <<"\n";
     if (!enable_fuzzing && pc == fork_point) {
-        std::queue<uint8_t> return_value;
-        write_to_descriptor(state, return_value);
+        //std::queue<uint8_t> return_value;
+        //write_to_descriptor(state, return_value);
         plgState->inc_fork_count();
         if (plgState->get_fork_point_count() < 4) {
             return;
@@ -1848,6 +1848,34 @@ void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecuti
     signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onBlockEnd), (unsigned)tb->se_tb_type));
 }
 
+template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
+    auto size = sizeof(T);
+    klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
+    if (isa<klee::ConstantExpr>(expr)) {
+        klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(expr);
+        *value = ce->getZExtValue();
+        return true;
+    } else {
+        // evaluate symobolic regs
+        klee::ref<klee::ConstantExpr> ce;
+        ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
+        *value = ce->getZExtValue();
+        return false;
+    }
+}
+
+static void PrintRegs(S2EExecutionState *state) {
+    for (unsigned i = 0; i < 15; ++i) {
+        unsigned offset = offsetof(CPUARMState, regs[i]);
+        target_ulong concreteData;
+        if (getConcolicValue(state, offset, &concreteData)) {
+            g_s2e->getWarningsStream() << "Regs " << i << " = " << hexval(concreteData) << "\n";
+        } else {
+            g_s2e->getWarningsStream() << "Sym Regs " << i << " = " << hexval(concreteData) << "\n";
+        }
+    }
+}
+
 void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     /*
@@ -1859,7 +1887,10 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
 		plgState->write_ph_value(0x40005400,0x101);
 	}
     */
-
+    RegMap state_map = plgState->get_state_map();
+    uint32_t init_dp_addr = state_map[0x40020044].cur_value;
+    g_s2e->getWarningsStream() << hexval(cur_loc) <<" "<<hexval(init_dp_addr)<<"\n";
+    PrintRegs(state);
     if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
