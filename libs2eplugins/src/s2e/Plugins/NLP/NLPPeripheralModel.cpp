@@ -485,12 +485,12 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             plgState->rx_push_to_fix_size(rx_addr, 64);
             getInfoStream() << "DMA Request!\n";
             for (unsigned i = 0; i < 32; ++i) {
-                uint8_t b = plgState->get_dr_value(rx_addr, 1);
-                if (!state->mem()->write(memo_addr + i, &b, sizeof(b))) {
-                    getWarningsStream(state) << "Can not write memory"
-                                             << " at " << hexval(memo_addr + i) << '\n';
-                    exit(-1);
-                }
+                //uint8_t b = plgState->get_dr_value(rx_addr, 1);
+                //if (!state->mem()->write(memo_addr + i, &b, sizeof(b))) {
+                //    getWarningsStream(state) << "Can not write memory"
+                //                             << " at " << hexval(memo_addr + i) << '\n';
+                //    exit(-1);
+                //}
             }
             getInfoStream() << "DMA Request! update1: " << hexval(all_dmas[i].HTIF.phaddr) << "\n";
             set_reg_value(state, state_map, all_dmas[i].HTIF, 1);
@@ -504,12 +504,12 @@ bool NLPPeripheralModel::EmitDMA(S2EExecutionState *state, uint32_t irq_no) {
             return true;
         } else if (all_dmas[i].state == 2) {
             for (unsigned i = 32; i < 64; ++i) {
-                uint8_t b = plgState->get_dr_value(rx_addr, 1);
-                if (!state->mem()->write(memo_addr + i, &b, sizeof(b))) {
-                    getWarningsStream(state) << "Can not write memory"
-                                             << " at " << hexval(memo_addr + i) << '\n';
-                    exit(-1);
-                }
+                //uint8_t b = plgState->get_dr_value(rx_addr, 1);
+                //if (!state->mem()->write(memo_addr + i, &b, sizeof(b))) {
+                //    getWarningsStream(state) << "Can not write memory"
+                //                             << " at " << hexval(memo_addr + i) << '\n';
+                //    exit(-1);
+                //}
             }
             getInfoStream() << "DMA Request! update2: " << hexval(all_dmas[i].TCIF.phaddr) << "\n";
             set_reg_value(state, state_map, all_dmas[i].HTIF, 0);
@@ -1768,8 +1768,8 @@ void NLPPeripheralModel::onForkPoints(S2EExecutionState *state, uint64_t pc) {
     }
     //getInfoStream() << "begin: "<< hexval(begin_point) << " pc: "<< hexval(pc) << " fork point:" << hexval(fork_point) <<"\n";
     if (!enable_fuzzing && pc == fork_point) {
-        //std::queue<uint8_t> return_value;
-        //write_to_descriptor(state, return_value);
+        std::queue<uint8_t> return_value;
+        write_to_descriptor(state, return_value);
         plgState->inc_fork_count();
         if (plgState->get_fork_point_count() < 4) {
             return;
@@ -1848,6 +1848,7 @@ void NLPPeripheralModel::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecuti
     signal->connect(sigc::bind(sigc::mem_fun(*this, &NLPPeripheralModel::onBlockEnd), (unsigned)tb->se_tb_type));
 }
 
+/*
 template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
     auto size = sizeof(T);
     klee::ref<klee::Expr> expr = state->regs()->read(offset, size * 8);
@@ -1875,7 +1876,7 @@ static void PrintRegs(S2EExecutionState *state) {
         }
     }
 }
-
+*/
 void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, unsigned source_type) {
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     /*
@@ -1887,10 +1888,10 @@ void NLPPeripheralModel::onBlockEnd(S2EExecutionState *state, uint64_t cur_loc, 
 		plgState->write_ph_value(0x40005400,0x101);
 	}
     */
-    RegMap state_map = plgState->get_state_map();
-    uint32_t init_dp_addr = state_map[0x40020044].cur_value;
-    g_s2e->getWarningsStream() << hexval(cur_loc) <<" "<<hexval(init_dp_addr)<<"\n";
-    PrintRegs(state);
+    //RegMap state_map = plgState->get_state_map();
+    //uint32_t init_dp_addr = state_map[0x40020044].cur_value;
+    //g_s2e->getWarningsStream() << hexval(cur_loc) <<" "<<hexval(init_dp_addr)<<"\n";
+    //PrintRegs(state);
     if (init_dr_flag == true && (!state->regs()->getInterruptFlag())) {
         std::queue<uint8_t> return_value;
         uint32_t AFL_size = 0;
