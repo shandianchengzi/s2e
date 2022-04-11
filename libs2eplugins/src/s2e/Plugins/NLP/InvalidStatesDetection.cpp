@@ -426,22 +426,9 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
         s2e()->getExecutor()->terminateState(*state, s);
     } else {
         getDebugStream() << "begin kill count = "<<  kill_count_map[pc] << " pc =" << hexval(pc) << "\n";
-        bool uEmu_mode = false;
-        onPreInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum(), &uEmu_mode);
-        if (uEmu_mode) {
-            onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
-            kill_count_map[pc] = 0;
-            std::string s;
-            llvm::raw_string_ostream ss(s);
-            ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
-               << plgState->getnewtbnum() << "\n";
-            ss.flush();
-            s2e()->getExecutor()->terminateState(*state, s);
-        } else {
-            onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
-            getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
-            s2e()->getExecutor()->setCpuExitRequest();
-        }
+        onReceiveExternalDataEvent.emit(state, pc, plgState->gettbnum());
+        getWarningsStream() << " cannot kill invalid state, wait for nlp\n";
+        s2e()->getExecutor()->setCpuExitRequest();
     }
 
 }
@@ -453,19 +440,14 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     if (plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
         getInfoStream(state) << "==== unit test pass at pc = " << hexval(pc) << " ====\n";
-        bool actual_end = true;
-        onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
-        if (actual_end) {
-            getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
-            plgState->reset_allcache();
-            invalidPCAccessConnection.disconnect();
-            blockStartConnection.disconnect();
-            return true;
-        } else {
-            terminate_tb_num += 0.05 * terminate_tb_num;
-            return false;
-        }
+        getInfoStream() << "Terminate live state:" << state->getID() << " tb num " << plgState->getnewtbnum() << "\n";
+        g_s2e->getCorePlugin()->onEngineShutdown.emit();
+        // Flush here just in case ~S2E() is not called (e.g., if atexit()
+        // shutdown handler was not called properly).
+        g_s2e->flushOutputStreams();
+        exit(0);
     }
+
     return false;
 }
 
