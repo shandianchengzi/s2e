@@ -157,11 +157,11 @@ add_library(
     s2e/Plugins/Core/HostFiles.cpp
     s2e/Plugins/Core/Vmi.cpp
 
+    # Symbolic hardware
+    s2e/Plugins/SymbolicHardware/SymbolicHardware.cpp
+
     # SEmu specific plugins
-    s2e/Plugins/SEmu/FailureAnalysis.cpp
     s2e/Plugins/SEmu/ExternalInterrupt.cpp
-    s2e/Plugins/SEmu/InvalidStatesDetection.cpp
-    s2e/Plugins/SEmu/SymbolicPeripherals.cpp
     s2e/Plugins/SEmu/NLPPeripheralModel.cpp
 
     # Support plugins
