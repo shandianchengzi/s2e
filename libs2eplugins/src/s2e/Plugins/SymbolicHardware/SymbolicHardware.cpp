@@ -53,7 +53,35 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
                              SymbolicHardwareAccessType type, void *opaque);
 
 S2E_DEFINE_PLUGIN(SymbolicHardware, "SymbolicHardware S2E plugin", "", );
+namespace {
+class SymbolicHardwareState : public PluginState {
+private:
+    std::map<uint32_t /* phaddr */, uint32_t /* value */> all_phs;
+public:
+    SymbolicHardwareState() {
+        all_phs.clear();
+    }
 
+    virtual ~SymbolicHardwareState() {
+    }
+
+    static PluginState *factory(Plugin *, S2EExecutionState *) {
+        return new SymbolicHardwareState();
+    }
+
+    SymbolicHardwareState *clone() const {
+        return new SymbolicHardwareState(*this);
+    }
+
+    void insert_phs_value(uint32_t phaddr, uint32_t value) {
+        all_phs[phaddr] = value;
+    }
+
+    uint32_t get_phs_value(uint32_t phaddr) {
+        return all_phs[phaddr];
+    }
+};
+}
 void SymbolicHardware::initialize() {
     if (!ARMMMIORangeConfig()) {
         getWarningsStream() << "Could not parse config\n";
@@ -205,6 +233,7 @@ static void SymbHwGetConcolicVector(uint64_t in, unsigned size, ConcreteArray &o
 klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *state, SymbolicHardwareAccessType type,
                                                          uint64_t address, unsigned size, uint64_t concreteValue) {
 
+    DECLARE_PLUGINSTATE(SymbolicHardwareState, state);
     // peripheral address bit-band alias
     if (address >= 0x42000000 && address <= 0x43fffffc && bitbandFlag) {
         uint32_t phaddr = (address - 0x42000000) / 32 + 0x40000000;
@@ -227,20 +256,23 @@ klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *stat
 
     ss << hexval(address) << "@" << hexval(state->regs()->getPc());
 
-    bool createSymVar = false;
+    bool createSymFlag = false;
     uint32_t hwModelValue = concreteValue;
-    onSymbolicRegisterReadEvent.emit(state, type, address, size, &hwModelValue, &createSymVar, &ss);
+    onSymbolicRegisterReadEvent.emit(state, type, address, size, &hwModelValue, &createSymFlag, &ss);
 
     getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value =" << hexval(concreteValue)
-                                << " sym =" << (createSymVar ? "yes" : "no") << "\n";
+                                << " sym =" << (createSymFlag ? "yes" : "no") << "\n";
 
     uint64_t LSB = ((uint64_t) 1 << (size * 8));
-    if (createSymVar) {
+    hwModelValue = hwModelValue & (LSB - 1);
+
+    plgState->insert_phs_value(address, hwModelValue);
+    if (createSymFlag) {
         ConcreteArray concolicValue;
-        SymbHwGetConcolicVector((hwModelValue & (LSB - 1)), size, concolicValue);
+        SymbHwGetConcolicVector(hwModelValue, size, concolicValue);
         return state->createSymbolicValue(ss.str(), size * 8, concolicValue);
     } else {
-        return klee::ConstantExpr::create((hwModelValue & (LSB - 1)), size * 8);
+        return klee::ConstantExpr::create(hwModelValue, size * 8);
     }
 }
 
@@ -304,6 +336,7 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
 
 void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phaddr,
                                                 const klee::ref<klee::Expr> &value) {
+    DECLARE_PLUGINSTATE(SymbolicHardwareState, state);
     // peripheral address bit-band alias
     uint32_t curMMIOvalue = 0;
     uint32_t bit_loc = 0;
@@ -311,10 +344,8 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
     if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc && bitbandFlag) {
         bit_loc = ((phaddr - 0x42000000) % 32) / 4;
         phaddr = (phaddr - 0x42000000) / 32 + 0x40000000;
-        bool createSymFlag = false;
-        std::stringstream ss;
-        onSymbolicRegisterReadEvent.emit(state, SYMB_MMIO, phaddr, 0x4, &curMMIOvalue, &createSymFlag, &ss);
-        getDebugStream() << "write bit band alias address = " << hexval(phaddr)
+        curMMIOvalue = plgState->get_phs_value(phaddr);
+        getInfoStream() << "write bit band alias address = " << hexval(phaddr)
                          << " bit loc = " << hexval(bit_loc) << " cur value =" << hexval(curMMIOvalue) <<"\n";
         bit_alias = true;
     }
@@ -323,6 +354,7 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
     if (isa<klee::ConstantExpr>(value)) {
         klee::ref<klee::ConstantExpr> ce = dyn_cast<klee::ConstantExpr>(value);
         writeConcreteValue = ce->getZExtValue();
+        bool WriteSymFlag = false;
         if (bit_alias) {
             if (writeConcreteValue) {
                 curMMIOvalue |= (uint32_t)(1<< bit_loc);
@@ -332,7 +364,7 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
             writeConcreteValue = curMMIOvalue;
         }
         getInfoStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue) << "\n";
-        onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, writeConcreteValue);
+        onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, WriteSymFlag, writeConcreteValue);
     } else {
         if (bit_alias) {
             getWarningsStream() << " bit band does not support symbolic value\n";
@@ -343,7 +375,8 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
         ce = dyn_cast<klee::ConstantExpr>(g_s2e_state->concolics->evaluate(value));
         writeConcreteValue = ce->getZExtValue();
         getInfoStream() << "writing mmio " << hexval(phaddr) << " symbolic to concrete value: " << hexval(writeConcreteValue) << "\n";
-        onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, writeConcreteValue);
+        bool WriteSymFlag = true;
+        onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, WriteSymFlag, writeConcreteValue);
     }
 
 }

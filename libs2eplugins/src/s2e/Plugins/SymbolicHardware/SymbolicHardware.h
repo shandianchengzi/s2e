@@ -73,12 +73,14 @@ public:
                  unsigned /* size */, uint32_t * /* value from peripheral model */, bool * /* createSymbolicValue */,
                  std::stringstream * /* additional sym var string */>
         onSymbolicRegisterReadEvent;
+
     ///
     /// \brief onSymbolicRegisterWrite write concrete value to peripheral model.
     ///
     sigc::signal<void, S2EExecutionState *, SymbolicHardwareAccessType /* type */, uint32_t /* physicalAddress */,
-                 uint32_t  /* writeconcretevalue */>
+                 bool /* writesymbolicvalue*/, uint32_t  /* writeconcretevalue */>
         onSymbolicRegisterWriteEvent;
+
 
     SymbolicHardware(S2E *s2e) : Plugin(s2e) {
     }
