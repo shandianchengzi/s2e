@@ -626,14 +626,14 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
     }
     auto correction = AddressCorrection(state, phaddr);
     phaddr = correction.first;
-    *createSymFlag = true;
+    *createSymFlag = false;
 
     deal_rule_O(state);
     deal_rule_flag(state, phaddr);
     deal_rule_RWVB(state, phaddr, "R");
     RegMap state_map = plgState->get_state_map();
     if (data_register.find(phaddr) != data_register.end()) {
-        *createSymFlag = false;
+        *createSymFlag = true;
         size = state_map[phaddr].width / 8;
         std::vector<unsigned char> data;
         for (uint32_t i = 0; i < size; i++) {
@@ -667,7 +667,7 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
 }
 
 void NLPPeripheralModel::onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
-                                           uint32_t writeconcretevalue) {
+                                           bool writeSymFlag, uint32_t writeconcretevalue) {
     getDebugStream() << "NLPPeripheralModel WRITE"
                      << "\n";
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);

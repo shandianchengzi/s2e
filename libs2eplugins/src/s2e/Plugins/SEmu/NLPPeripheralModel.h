@@ -135,7 +135,7 @@ private:
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size,
                           uint32_t *NLPsymbolicvalue, bool *flag, std::stringstream *ss);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
-                           uint32_t writeconcretevalue);
+                           bool writeSymFlag, uint32_t writeconcretevalue);
     void hardware_write_to_receive_buffer(S2EExecutionState *state, uint32_t phaddr = 0);
     std::pair<uint32_t, uint32_t> AddressCorrection(S2EExecutionState *state, uint32_t phaddr);
 
