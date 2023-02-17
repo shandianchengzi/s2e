@@ -164,6 +164,12 @@ add_library(
     s2e/Plugins/SEmu/ExternalInterrupt.cpp
     s2e/Plugins/SEmu/NLPPeripheralModel.cpp
 
+    # uEmu specific plugins
+    s2e/Plugins/uEmu/PeripheralModelLearning.cpp
+    s2e/Plugins/uEmu/uEmuExternalInterrupt.cpp
+    s2e/Plugins/uEmu/ARMFunctionMonitor.cpp
+    s2e/Plugins/uEmu/InvalidStatesDetection.cpp
+
     # Support plugins
     s2e/Plugins/Support/KeyValueStore.cpp
 
