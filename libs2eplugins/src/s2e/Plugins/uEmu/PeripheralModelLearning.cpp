@@ -1098,9 +1098,11 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
         if (plgState->get_type_flag_ph_it(phaddr) == T3) {
             fuzzOk = true;
             fuzz_size = cache_dr_type_size[phaddr];
+        } else {
+            fuzz_size = size;
         }
 
-        onDataInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value, &fuzzOk);
+        onDataInput.emit(state, phaddr, 0, fuzz_size, &fuzz_value, &fuzzOk);
 
         if (fuzzOk) {
             getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
@@ -1397,8 +1399,8 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 fuzzOk = true;
             }
             fuzz_size = cache_dr_type_size[phaddr];
-            onDataInput.emit(state, (PeripheralRegisterType) itf->second, phaddr,
-                                cache_t3_type_phs[itf->first].size(), &fuzz_size, &fuzz_value, &fuzzOk);
+            onDataInput.emit(state, phaddr,
+                                cache_t3_type_phs[itf->first].size(), fuzz_size, &fuzz_value, &fuzzOk);
             if (cache_t3_type_phs[itf->first].size() == 0) {
                 getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                  << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
@@ -1409,7 +1411,8 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 return;
             }
         } else {
-            onDataInput.emit(state, (PeripheralRegisterType) itf->second, phaddr, 0, &fuzz_size, &fuzz_value,
+            fuzz_size = size;
+            onDataInput.emit(state, phaddr, 0, size, &fuzz_value,
                                 &fuzzOk);
             if (fuzzOk) {
                 getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)

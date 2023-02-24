@@ -164,6 +164,9 @@ add_library(
     s2e/Plugins/SEmu/ExternalInterrupt.cpp
     s2e/Plugins/SEmu/NLPPeripheralModel.cpp
 
+    # Pipe specific plugins
+    s2e/Plugins/Pipe/Pipe.cpp
+
     # uEmu specific plugins
     s2e/Plugins/uEmu/PeripheralModelLearning.cpp
     s2e/Plugins/uEmu/uEmuExternalInterrupt.cpp

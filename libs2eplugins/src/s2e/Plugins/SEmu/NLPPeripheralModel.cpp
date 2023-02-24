@@ -647,6 +647,12 @@ void NLPPeripheralModel::onPeripheralRead(S2EExecutionState *state, SymbolicHard
         } else {
             *NLPSymbolicValue = data[0];
         }
+
+        bool fuzzOk = false;
+        uint32_t fuzz_value = *NLPSymbolicValue;
+        onDataInput.emit(state, phaddr, 0, size, &fuzz_value, &fuzzOk);
+        *NLPSymbolicValue = fuzz_value;
+
         plgState->receive_instruction(phaddr);
         getInfoStream() << "Read data register " << hexval(phaddr) << " width " << size
                         << " rxsize = " << (uint32_t) plgState->get_rx_size(phaddr)

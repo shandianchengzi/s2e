@@ -103,6 +103,10 @@ public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* irq_no */, bool * /* actual trigger or not */>
         onExternalInterruptEvent;
     sigc::signal<void, S2EExecutionState *, std::vector<uint32_t> * /* enable IRQ vector */> onEnableISER;
+    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */,
+                 uint32_t /* t3 rest count */, uint32_t  /* size */, uint32_t * /* data input */,
+                 bool * /* enable fuzz */>
+        onDataInput;
 
 private:
     hw::PeripheralMmioRanges nlp_mmio;
