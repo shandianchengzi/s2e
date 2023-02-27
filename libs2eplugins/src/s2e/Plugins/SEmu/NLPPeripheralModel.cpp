@@ -975,7 +975,7 @@ void NLPPeripheralModel::deal_rule_RWVB(S2EExecutionState *state, uint32_t addre
     DECLARE_PLUGINSTATE(NLPPeripheralModelState, state);
     RegMap state_map = plgState->get_state_map();
 
-    auto rules = all_rules[rule_type][address];
+    auto &rules = all_rules[rule_type][address];
     for (auto &rule : rules) {
         bool check = true;
         for (auto &trigger : rule.first) {
