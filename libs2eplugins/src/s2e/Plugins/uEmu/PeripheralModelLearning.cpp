@@ -16,13 +16,7 @@
 
 #include "PeripheralModelLearning.h"
 
-#include <llvm/Support/CommandLine.h>
-
 using namespace klee;
-
-namespace {
-llvm::cl::opt<bool> DebugSymbHw("debug-symbolic-hardware", llvm::cl::init(true));
-}
 
 namespace s2e {
 namespace plugins {
