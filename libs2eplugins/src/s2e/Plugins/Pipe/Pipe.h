@@ -13,7 +13,6 @@
 #include <s2e/Plugins/uEmu/PeripheralModelLearning.h>
 #include <s2e/Plugins/SEmu/NLPPeripheralModel.h>
 #include <s2e/S2EExecutionState.h>
-#include <s2e/SymbolicHardwareHook.h>
 
 namespace s2e {
 namespace plugins {

@@ -17,7 +17,7 @@
 namespace s2e {
 namespace plugins {
 
-S2E_DEFINE_PLUGIN(Pipe, "data pipe for emulator ", "Pipe", "Pipe");
+S2E_DEFINE_PLUGIN(Pipe, "data pipe for emulator ", "Pipe");
 
 void Pipe::initialize() {
 
@@ -55,6 +55,7 @@ void Pipe::initialize() {
             sigc::mem_fun(*this, &Pipe::onDataInput));
     } else {
         getWarningsStream() << "Unsupported peripheral model is given!\n";
+        exit(-1);
     }
 
     //concreteDataMemoryAccessConnection = s2e()->getCorePlugin()->onConcreteDataMemoryAccess.connect(
