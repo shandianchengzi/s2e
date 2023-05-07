@@ -1385,7 +1385,7 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
 
     bool fuzzOk = false;
     if (enable_fuzzing) {
-        uint32_t fuzz_value;
+        uint32_t fuzz_value = 0;
         uint32_t fuzz_size;
 
         if (itf->second == T3) {
@@ -2777,6 +2777,9 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                             plgState->insert_t3_type_ph_back(it.first.first,
                                                                              itpt1->second.second.second);
                                             plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
+                                            plgState->erase_pt1_type_ph_it(it.first);
+                                            getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                             << " pc = " << hexval(itpt1->first.second) << "\n";
                                             break;
                                         } else {
                                             plgState->insert_t2_type_phs(it.first, itpt1->second.first,
@@ -2793,6 +2796,9 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                 << " hash = " << hexval(itch.first)
                                                 << " value = " << hexval(itch.second.second) << "\n";
                                             plgState->insert_t2_type_flag_phs(it.first, T2);
+                                            plgState->erase_pt1_type_ph_it(it.first);
+                                            getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                             << " pc = " << hexval(itpt1->first.second) << "\n";
                                             continue;
                                         }
                                     } else {
@@ -3009,13 +3015,57 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                             T1BNPeripheralMap pt1_type_phs = plgState->get_pt1_type_phs();
                             T1BNPeripheralMap::iterator itpt1 = pt1_type_phs.find(it.first);
                             if (itpt1 != pt1_type_phs.end()) {
-                                plgState->erase_pt1_type_ph_it(it.first);
+                                if (itpt1->second.second.second != 0 &&
+                                    itpt1->second.second.second != itch.second.second &&
+                                    itpt1->second.second.first != itch.second.first) {// different value and no
+                                    if (itpt1->second.first == itch.first) {           // same hash
+                                        plgState->insert_type_flag_phs(it.first.first, T3);
+                                        getInfoStream(state)
+                                            << " Note: pt1 change to t3 phaddr = " << hexval(it.first.first)
+                                            << " pc = " << hexval(it.first.second)
+                                            << " value = " << hexval(itpt1->second.second.second) << "\n";
+                                        getInfoStream(state)
+                                            << " Note: pt1 change to t3 phaddr = " << hexval(it.first.first)
+                                            << " pc = " << hexval(it.first.second)
+                                            << " value = " << hexval(itch.second.second) << "\n";
+                                        plgState->insert_t3_type_ph_back(it.first.first, itpt1->second.second.second);
+                                        plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
+                                        plgState->erase_pt1_type_ph_it(it.first);
+                                        getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                         << " pc = " << hexval(itpt1->first.second) << "\n";
+                                        break;
+                                    } else {
+                                        plgState->insert_t2_type_phs(it.first, itpt1->second.first,
+                                                                     itpt1->second.second.second);
+                                        plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
+                                        plgState->insert_t2_type_flag_phs(it.first, T2);
+                                        getInfoStream() << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
+                                                         << " pc = " << hexval(it.first.second)
+                                                         << " hash = " << hexval(itpt1->second.first)
+                                                         << " value = " << hexval(itpt1->second.second.second) << "\n";
+                                        getInfoStream() << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
+                                                         << " pc = " << hexval(it.first.second)
+                                                         << " hash = " << hexval(itch.first)
+                                                         << " value = " << hexval(itch.second.second) << "\n";
+                                        plgState->erase_pt1_type_ph_it(it.first);
+                                        getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                         << " pc = " << hexval(itpt1->first.second) << "\n";
+                                        continue;
+                                    }
+                                } else {
+                                    plgState->insert_lock_t1_type_flag(it.first.first, 1);
+                                    plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
+                                    getInfoStream() << "  Add t1 phs = " << hexval(it.first.first)
+                                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
+                                                     << " value = " << hexval(itch.second.second) << "\n";
+                                }
+                            } else {
+                                plgState->insert_lock_t1_type_flag(it.first.first, 1);
+                                plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
+                                getInfoStream() << "  Add t1 phs = " << hexval(it.first.first)
+                                                 << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
+                                                 << " value = " << hexval(itch.second.second) << "\n";
                             }
-                            plgState->insert_lock_t1_type_flag(it.first.first, 1);
-                            plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
-                            getInfoStream() << "  Add t1 phs = " << hexval(it.first.first)
-                                             << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
-                                             << " value = " << hexval(itch.second.second) << "\n";
                         }
                     }
                 } else if (type_flag_phs[it.first.first] == T3) {
