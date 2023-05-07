@@ -260,8 +260,8 @@ klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *stat
     uint32_t hwModelValue = concreteValue;
     onSymbolicRegisterReadEvent.emit(state, type, address, size, &hwModelValue, &createSymFlag, &ss);
 
-    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value =" << hexval(concreteValue)
-                                << " sym =" << (createSymFlag ? "yes" : "no") << "\n";
+    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value = " << hexval(hwModelValue)
+                                << " sym = " << (createSymFlag ? "yes" : "no") << "\n";
 
     uint64_t LSB = ((uint64_t) 1 << (size * 8));
     hwModelValue = hwModelValue & (LSB - 1);

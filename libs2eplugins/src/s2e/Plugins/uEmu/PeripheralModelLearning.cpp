@@ -1204,7 +1204,7 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                     if (itt2 != itt2s.end()) {
                         *value = plgState->get_t2_type_ph_it(UniquePeripheral(phaddr, pc), sum_hash) & (LSB - 1);
                         getDebugStream() << " T2 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                         << " value = " << hexval(value) << " size = " << hexval(size) << "\n";
+                                         << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                         if (plgState->get_pt2_type_flag_ph_it(UniquePeripheral(phaddr, pc), sum_hash) == 1) {
                             plgState->insert_pt2_type_flag_ph_it(UniquePeripheral(phaddr, pc), sum_hash, 2);
                         }
@@ -1229,7 +1229,7 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                         *value = plgState->get_t1_type_ph_it(UniquePeripheral(phaddr, pc));
                         plgState->insert_pt1_type_flag_phs(UniquePeripheral(phaddr, pc), 2);
                         getDebugStream() << " T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                         << " value = " << hexval(value) << "\n";
+                                         << " value = " << hexval(*value) << "\n";
                         if (plgState->get_readphs_count(phaddr) > 200) {
                             all_peripheral_no--;
                             *createSymFlag = false;
@@ -1253,13 +1253,13 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                             *value = plgState->get_pt1_type_ph_it(UniquePeripheral(phaddr, pc));
                             if (plgState->get_readphs_count(phaddr) > 200) {
                                 getDebugStream() << " CON PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                                 << " value = " << hexval(value) << " size = " << hexval(size) << "\n";
+                                                 << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                                 all_peripheral_no--;
                                 *createSymFlag = false;
                                 return;
                             } else {
                                 getDebugStream() << " Sym PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                                 << " value = " << hexval(value) << " size = " << hexval(size) << "\n";
+                                                 << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                                 plgState->insert_cachephs(phaddr, all_peripheral_no - 1, *value);
                                 *createSymFlag = true;
                                 return;
@@ -1393,6 +1393,8 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 fuzzOk = true;
             }
             fuzz_size = cache_dr_type_size[phaddr];
+            getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                             << " value = " << hexval(fuzz_value) << " fuzz_size = " << fuzz_size << "\n";
             onDataInput.emit(state, phaddr,
                                 cache_t3_type_phs[itf->first].size(), fuzz_size, &fuzz_value, &fuzzOk);
             if (cache_t3_type_phs[itf->first].size() == 0) {
@@ -1532,7 +1534,7 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 } else if (cache_t1_type_flag_phs[UniquePeripheral(phaddr, pc)] == 2) {
                     *value = cache_pt1_type_phs[UniquePeripheral(phaddr, pc)].second & (LSB - 1);
                     getDebugStream() << " TIRQ PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                     << " value = " << hexval(value) << " size =" << hexval(size) << "\n";
+                                     << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
                     *createSymFlag = false;
                     return;
                 } else {
@@ -1570,7 +1572,7 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                             exit(-1);
                         }
                         getDebugStream() << " T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                         << " value = " << hexval(value) << " size =" << hexval(size) << "\n";
+                                         << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
                         *createSymFlag = false;
                         return;
                     } else {
@@ -1598,7 +1600,7 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                     }
                 }
                 getDebugStream() << " t3 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << " value = " << hexval(value) << " size = " << hexval(size) << "\n";
+                                 << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                 *createSymFlag = false;
                 return;
             } else {
