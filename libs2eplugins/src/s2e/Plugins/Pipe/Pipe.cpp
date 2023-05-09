@@ -66,8 +66,6 @@ void Pipe::initialize() {
 void Pipe::onDataInput(S2EExecutionState *state, uint32_t phaddr, uint32_t t3_count,
                        uint32_t size, uint32_t *value, bool *doFuzz) {
 
-    memset(value, 0, 4 * sizeof(char));
-
     if (*doFuzz && g_s2e_cache_mode && t3_count == 0) {
         if (cur_read[phaddr] > testcase.size()) {
             getInfoStream() << "The whole testcase has been read by firmware, specific testcase analysis finish\n";

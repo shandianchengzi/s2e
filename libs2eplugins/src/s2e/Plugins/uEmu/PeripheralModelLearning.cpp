@@ -1096,8 +1096,6 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
             fuzz_size = size;
         }
 
-        onDataInput.emit(state, phaddr, 0, fuzz_size, &fuzz_value, &fuzzOk);
-
         if (fuzzOk) {
             getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
                              << " pc = " << hexval(pc) << " return value set as zero"
