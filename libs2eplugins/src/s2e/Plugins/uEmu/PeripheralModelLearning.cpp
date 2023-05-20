@@ -3232,6 +3232,7 @@ uint32_t PeripheralModelLearning::switchModefromFtoL(S2EExecutionState *state, u
     onInterruptExitonnection = s2e()->getCorePlugin()->onExceptionExit.connect(
         sigc::mem_fun(*this, &PeripheralModelLearning::onExceptionExit));
 
+    plgState->insert_t0_type_flag_phs(phaddr, 1);
     if (plgState->get_type_flag_ph_it(phaddr) == T0) {
         if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
             irq_crs[state->regs()->getExceptionIndex()][phaddr] = plgState->get_writeph(phaddr);
