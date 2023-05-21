@@ -1086,7 +1086,7 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
 
     if (enable_fuzzing) {
         bool fuzzOk = false;
-        uint32_t fuzz_value;
+        // uint32_t fuzz_value;
         uint32_t fuzz_size;
 
         if (plgState->get_type_flag_ph_it(phaddr) == T3) {
@@ -1733,7 +1733,13 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
 
     round_count++;
     std::size_t index = firmwareName.find_last_of("/\\");
-    fileName = s2e()->getOutputDirectory() + "/" + firmwareName.substr(index + 1) +
+    std::string ruleOutputpath = s2e()->getConfig()->getString(getConfigKey() + ".ruleOutputpath", "ruleOutputpath");
+    if(ruleOutputpath == "" || ruleOutputpath == "ruleOutputpath")
+        fileName = s2e()->getOutputDirectory() + "/" + firmwareName.substr(index + 1) +
+               "-round" + std::to_string(round_count) + "-state" +
+               std::to_string(state->getID()) + "-tbnum" + std::to_string(tb_num) + "_KB.dat";
+    else
+        fileName = ruleOutputpath + "/" + firmwareName.substr(index + 1) +
                "-round" + std::to_string(round_count) + "-state" +
                std::to_string(state->getID()) + "-tbnum" + std::to_string(tb_num) + "_KB.dat";
     std::ofstream fPHKB;
@@ -3282,7 +3288,7 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
 
     // TODO: updatge learning_mode_states in every kill and put the learning mode states to false states to kill
     if (!readKBfromFile(fileName)) {
-        getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
+        getWarningsStream() << "Could not read peripheral regs from cache file " << fileName << "\n";
         exit(-1);
     }
     onModeSwitch.emit(state, false);
