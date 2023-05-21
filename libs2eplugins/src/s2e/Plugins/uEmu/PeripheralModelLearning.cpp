@@ -1365,6 +1365,15 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
     plgState->inc_readphs(phaddr, size);
     all_peripheral_no++;
 
+    uint64_t sum_hash;
+    if (state->regs()->getInterruptFlag()) {
+        sum_hash = plgState->get_current_hash(state->regs()->getExceptionIndex());
+    } else {
+        sum_hash = plgState->get_current_hash(0);
+    }
+    *ss << "_" << hexval(sum_hash);
+    getDebugStream(state) << "hash " << hexval(sum_hash) << " size " << hexval(size) << "\n";
+
     TypeFlagPeripheralMap::iterator itf = cache_type_flag_phs.find(phaddr);
     if (itf == cache_type_flag_phs.end()) {
         std::vector<uint32_t>::iterator itph = find(valid_phs.begin(), valid_phs.end(), phaddr);
@@ -1419,16 +1428,6 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
             }
         }
     }
-
-    uint64_t sum_hash;
-    if (state->regs()->getInterruptFlag()) {
-        sum_hash = plgState->get_current_hash(state->regs()->getExceptionIndex());
-    } else {
-        sum_hash = plgState->get_current_hash(0);
-    }
-    *ss << "_" << hexval(sum_hash);
-
-    getDebugStream(state) << "hash " << hexval(sum_hash) << " size " << hexval(size) << "\n";
 
     uint64_t LSB = ((uint64_t) 1 << (size * 8));
     getDebugStream() << " reading addr = " << hexval(phaddr) << " pc = " << hexval(pc)
