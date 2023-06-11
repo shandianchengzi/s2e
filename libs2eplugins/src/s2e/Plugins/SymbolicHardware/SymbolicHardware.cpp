@@ -339,11 +339,13 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
     DECLARE_PLUGINSTATE(SymbolicHardwareState, state);
     // peripheral address bit-band alias
     uint32_t curMMIOvalue = 0;
-    uint32_t bit_loc = 0;
+    uint32_t bit_loc = 0, address_index = 0;
     bool bit_alias = false;
     if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc && bitbandFlag) {
-        bit_loc = ((phaddr - 0x42000000) % 32) / 4;
-        phaddr = (phaddr - 0x42000000) / 32 + 0x40000000;
+        getInfoStream() << "write bit band alias address = " << hexval(phaddr) <<"\n";
+        bit_loc = (phaddr & 0x7f) >> 2;
+        address_index = (phaddr & 0x1FFFFFF) >> 7;
+        phaddr = (address_index << 2) | 0x40000000;
         curMMIOvalue = plgState->get_phs_value(phaddr);
         getInfoStream() << "write bit band alias address = " << hexval(phaddr)
                          << " bit loc = " << hexval(bit_loc) << " cur value =" << hexval(curMMIOvalue) <<"\n";
@@ -366,16 +368,20 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
         getInfoStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue) << "\n";
         onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, WriteSymFlag, writeConcreteValue);
     } else {
-        if (bit_alias) {
-            getWarningsStream() << " bit band does not support symbolic value\n";
-            exit(-1);
-        }
         // evaluate symbolic regs
         klee::ref<klee::ConstantExpr> ce;
         ce = dyn_cast<klee::ConstantExpr>(g_s2e_state->concolics->evaluate(value));
         writeConcreteValue = ce->getZExtValue();
         getInfoStream() << "writing mmio " << hexval(phaddr) << " symbolic to concrete value: " << hexval(writeConcreteValue) << "\n";
         bool WriteSymFlag = true;
+        if (bit_alias) {
+            if (writeConcreteValue) {
+                curMMIOvalue |= (uint32_t)(1<< bit_loc);
+            } else {
+                curMMIOvalue &= (uint32_t)(~(1<< bit_loc));
+            }
+            writeConcreteValue = curMMIOvalue;
+        }
         onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, WriteSymFlag, writeConcreteValue);
     }
 
