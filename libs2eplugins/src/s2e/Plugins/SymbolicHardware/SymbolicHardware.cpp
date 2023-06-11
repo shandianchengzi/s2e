@@ -236,7 +236,8 @@ klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *stat
     DECLARE_PLUGINSTATE(SymbolicHardwareState, state);
     // peripheral address bit-band alias
     if (address >= 0x42000000 && address <= 0x43fffffc && bitbandFlag) {
-        uint32_t phaddr = (address - 0x42000000) / 32 + 0x40000000;
+        uint32_t phaddr = (address & 0x1FFFFFF) >> 7;
+        phaddr = (phaddr << 2) | 0x40000000;
         getDebugStream() << "bit band alias address = " << hexval(address) << " alias address = " << hexval(phaddr) << "\n";
         address = phaddr;
     }
