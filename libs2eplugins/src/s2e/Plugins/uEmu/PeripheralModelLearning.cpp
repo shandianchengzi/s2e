@@ -2106,7 +2106,7 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
     // remove states in same loop
     if ((!no_new_branch_flag && !state->regs()->getInterruptFlag()) ||
         (!irq_no_new_branch_flag && state->regs()->getInterruptFlag())) {
-        if (unsearched_condition_fork_states.back().size() > 1) {
+        if (unsearched_condition_fork_states.size() && unsearched_condition_fork_states.back().size() > 1) {
             for (int i = 1; i < unsearched_condition_fork_states.back().size();
                  ++i) { // last it is current state so not add current state
                 false_type_phs_fork_states.push_back(unsearched_condition_fork_states.back()[i]);
@@ -3292,7 +3292,7 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
 
     // TODO: updatge learning_mode_states in every kill and put the learning mode states to false states to kill
     if (!readKBfromFile(fileName)) {
-        getWarningsStream() << "Could not read peripheral regs from cache file " << fileName << "\n";
+        getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
         exit(-1);
     }
     onModeSwitch.emit(state, false);
