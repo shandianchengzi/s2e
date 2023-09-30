@@ -3018,7 +3018,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                             T1BNPeripheralMap pt1_type_phs = plgState->get_pt1_type_phs();
                             T1BNPeripheralMap::iterator itpt1 = pt1_type_phs.find(it.first);
                             if (itpt1 != pt1_type_phs.end()) {
-                                if (itpt1->second.second.second != 0 &&
+                                // update to t2 when two pt1 rules exists, or meet t1 when pt1 exists
+                                if ((itpt1->second.second.second != 0 || plgState->get_pt1_type_flag_ph_it(it.first) != 1) &&
                                     itpt1->second.second.second != itch.second.second &&
                                     itpt1->second.second.first != itch.second.first) {// different value and no
                                     if (itpt1->second.first == itch.first) {           // same hash
@@ -3061,6 +3062,9 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                     getInfoStream() << "  Add t1 phs = " << hexval(it.first.first)
                                                      << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                                      << " value = " << hexval(itch.second.second) << "\n";
+                                    plgState->erase_pt1_type_ph_it(it.first);
+                                    getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                         << " pc = " << hexval(itpt1->first.second) << "\n";
                                 }
                             } else {
                                 plgState->insert_lock_t1_type_flag(it.first.first, 1);
