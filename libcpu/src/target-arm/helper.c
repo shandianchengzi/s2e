@@ -33,6 +33,29 @@
 #define HPRINTF(...)
 #endif
 
+#define R_V7M_CONTROL_SPSEL_MASK 0x2
+
+/* Return true if a v7M CPU is in Handler mode */
+static inline bool arm_v7m_is_handler_mode(CPUARMState *env)
+{
+    return (env->v7m.exception != 0);
+}
+
+/**
+ * v7m_using_psp: Return true if using process stack pointer
+ * Return true if the CPU is currently using the process stack
+ * pointer, or false if it is using the main stack pointer.
+ */
+static inline bool v7m_using_psp(CPUARMState *env)
+{
+    /* Handler mode always uses the main stack; for thread mode
+     * the CONTROL.SPSEL bit determines the answer.
+     * Note that in v7M it is not possible to be in Handler mode with
+     * CONTROL.SPSEL non-zero, but in v8M it is, so we must check both.
+     */
+    return !arm_v7m_is_handler_mode(env) && env->v7m.control & R_V7M_CONTROL_SPSEL_MASK;
+}
+
 int semihosting_enabled = 0;
 int smp_cpus = 1;
 
@@ -667,18 +690,13 @@ static uint32_t v7m_pop(CPUARMState *env) {
     return val;
 }
 
-/* Switch to V7M main or process stack pointer.  */
-static void switch_v7m_sp(CPUARMState *env, int process) {
+
+/* Switch to V7M target stack pointer.  */
+static void switch_v7m_sp(CPUARMState *env) {
     uint32_t tmp;
-    if (env->v7m.current_sp != process) {
-        tmp = env->v7m.other_sp;
-        env->v7m.other_sp = RR_cpu(env,regs[13]);
-        WR_cpu(env,regs[13],tmp);
-        env->v7m.current_sp = process;
-        HPRINTF(" switch sp tmp = 0x%x, current_sp = 0x%x, other_sp = 0x%x\n", tmp, env->v7m.current_sp, env->v7m.other_sp);
-    } else {
-        HPRINTF(" already in handle mode current_sp = 0x%x, other_sp = 0x%x\n", env->v7m.current_sp, env->v7m.other_sp);
-    }
+    tmp = env->v7m.other_sp;
+    env->v7m.other_sp = env->regs[13];
+    env->regs[13] = tmp;
 }
 
 static void do_v7m_exception_exit(CPUARMState *env) {
@@ -690,9 +708,15 @@ static void do_v7m_exception_exit(CPUARMState *env) {
     irq_no = env->v7m.exception;
     if (env->v7m.exception != 0)
         armv7m_nvic_complete_irq(env->nvic, env->v7m.exception, false);
-
-    /* Switch to the target stack.  */
-    switch_v7m_sp(env, (type & 4) != 0);
+    if ((type & 8) && (type & 4)){
+        env->v7m.control |= R_V7M_CONTROL_SPSEL_MASK;
+        /* Switch to the process sp.  */
+        uint32_t tmp;
+        tmp = env->v7m.other_sp;
+        env->v7m.other_sp = env->regs[13];
+        env->regs[13] = tmp;
+    }
+        
     /* Pop registers.  */
     WR_cpu(env,regs[0],v7m_pop(env));
     WR_cpu(env,regs[1],v7m_pop(env));
@@ -739,10 +763,17 @@ void do_interrupt_v7m(CPUARMState *env) {
     exception = (unsigned long)(*armcpu+0x8b50);
 
     lr = 0xfffffff1;
-    if (env->v7m.current_sp)
+    // When the current stack is SP_process, switch to SP_Main
+    if (env->v7m.control & R_V7M_CONTROL_SPSEL_MASK){
         lr |= 4;
+        env->v7m.control &= ~R_V7M_CONTROL_SPSEL_MASK;
+    }
     if (env->v7m.exception == 0)
         lr |= 8;
+    int to_switch_sp = 0;
+    if (env->v7m.exception == 0 && env->v7m.control & R_V7M_CONTROL_SPSEL_MASK){
+        to_switch_sp = 1;
+    }
     // HPRINTF("interreput = 0x%x\n",env->exception_index);
     /* For exceptions we just mark as pending on the NVIC, and let that
        handle it.  */
@@ -815,7 +846,9 @@ void do_interrupt_v7m(CPUARMState *env) {
      */
 
     /* Switch to the msp stack.  */
-    switch_v7m_sp(env, 0);
+    if (to_switch_sp){
+        switch_v7m_sp(env);
+    }
     /* Clear IT bits */
     env->condexec_bits = 0;
     WR_cpu(env,regs[14],lr);
@@ -2228,9 +2261,9 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg) {
         case 7: /* IEPSR */
             return xpsr_read(env) & 0x0700edff;
         case 8: /* MSP */
-            return env->v7m.current_sp ? env->v7m.other_sp : RR_cpu(env,regs[13]);
+            return v7m_using_psp(env) ? env->v7m.other_sp : RR_cpu(env,regs[13]);
         case 9: /* PSP */
-            return env->v7m.current_sp ? RR_cpu(env,regs[13]) : env->v7m.other_sp;
+            return v7m_using_psp(env) ? RR_cpu(env,regs[13]) : env->v7m.other_sp;
         case 16: /* PRIMASK */
             return (env->uncached_cpsr & CPSR_I) != 0;
         case 17: /* BASEPRI */
@@ -2279,13 +2312,13 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val) {
             xpsr_write(env, val, 0x0600fc00);
             break;
         case 8: /* MSP */
-            if (env->v7m.current_sp)
+            if (v7m_using_psp(env))
                 env->v7m.other_sp = val;
             else
                 WR_cpu(env,regs[13],val);
             break;
         case 9: /* PSP */
-            if (env->v7m.current_sp)
+            if (v7m_using_psp(env))
                 WR_cpu(env,regs[13],val);
             else
                 env->v7m.other_sp = val;
@@ -2315,8 +2348,15 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val) {
                 env->uncached_cpsr &= ~CPSR_F;
             break;
         case 20: /* CONTROL */
+            /*
+             * Writing to the SPSEL bit only has an effect if we are in
+             * thread mode; other bits can be updated by any privileged code.
+             */
+            if (!arm_v7m_is_handler_mode(env)){
+                if ((val ^ env->v7m.control) & R_V7M_CONTROL_SPSEL_MASK)
+                    switch_v7m_sp(env);
+            }
             env->v7m.control = val & 3;
-            switch_v7m_sp(env, (val & 2) != 0);
             break;
         default:
             /* ??? For debugging only.  */
