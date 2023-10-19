@@ -2961,6 +2961,31 @@ static int disas_vfp_insn(CPUARMState *env, DisasContext *s, uint32_t insn) {
     TCGv tmp;
     TCGv tmp2;
 
+    /* two-register transfer */
+    rn = (insn >> 16) & 0xf;
+    rd = (insn >> 12) & 0xf;
+    tmp = load_reg(s, rn);
+
+    /* align rn0 */
+    if(insn==0xecb18b10){
+        // add 0x40 to rn0
+        tmp2 = tcg_const_i32(0x40);
+        tcg_gen_add_i32(tmp, tmp, tmp2);
+        tcg_temp_free_i32(tmp2);
+        // store 0x40 to rn0
+        store_reg(s, rn, tmp);
+    }else if(insn==0xed208b10){
+        // decrease 0x40 to rn0
+        tmp2 = tcg_const_i32(0x40);
+        tcg_gen_sub_i32(tmp, tmp, tmp2);
+        tcg_temp_free_i32(tmp2);
+        // store 0x40 to rn0
+        store_reg(s, rn, tmp);
+    }
+
+    return 0;
+    
+
     if (!arm_feature(env, ARM_FEATURE_VFP))
         return 1;
 
@@ -3588,8 +3613,8 @@ static int disas_vfp_insn(CPUARMState *env, DisasContext *s, uint32_t insn) {
                 }
             }
             break;
-        case 0xc:
-        case 0xd:
+        case 0xc: /* VFP data processing */
+        case 0xd: /* VFP data processing */
             if ((insn & 0x03e00000) == 0x00400000) {
                 /* two-register transfer */
                 rn = (insn >> 16) & 0xf;
@@ -6834,6 +6859,7 @@ static int disas_coproc_insn(CPUARMState *env, DisasContext *s, uint32_t insn) {
             return 1;
         case 10:
         case 11:
+            //float
             return disas_vfp_insn(env, s, insn);
         case 14:
             /* Coprocessors 7-15 are architecturally reserved by ARM.
@@ -9069,6 +9095,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
             } else {
                 if (insn & (1 << 28))
                     goto illegal_op;
+                // float
                 if (disas_coproc_insn(env, s, insn))
                     goto illegal_op;
             }
