@@ -639,6 +639,9 @@ void s2e_initialize(int argc, char **argv, void *translator, const char *s2e_con
     }
 }
 
+#define NUMS_ROM 5
+#define NUMS_RAM 5
+
 int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_rom) {
     bool ok;
     int rom_num = g_s2e->getConfig()->getListSize("mem.rom");
@@ -654,10 +657,13 @@ int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_r
         return -1;
     }
 
-    if (rom_num > 2 || ram_num > 2) {
-        std::cout << "Invalid memory region number, at most two rams and two roms can be used\n";
+    if (rom_num > NUMS_ROM || ram_num > NUMS_RAM) {
+        std::cout << "Invalid memory region number, at most " << NUMS_RAM << " rams and " << NUMS_ROM << " roms can be used\n";
         return -1;
     }
+
+    // print rom and ram info
+    // g_s2e->getDebugStream() << "rom_num = " << rom_num << " ram_num = " << ram_num << "\n";
 
     s2e::ConfigFile *cfg = g_s2e->getConfig();
 
@@ -678,7 +684,7 @@ int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_r
             std::cout << "Could not parse " << ss.str() + "size" << "\n";
             return -1;
         }
-        std::cout << "Adding rom " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
+        g_s2e->getDebugStream() << "Adding rom " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
     } else {
         if ((*num + 1)> ram_num) {
             std::cout << "Only " << ram_num << " ram has been configured" << "\n";
@@ -696,7 +702,7 @@ int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_r
             std::cout << "Could not parse " << ss.str() + "size" << "\n";
             return -1;
         }
-        std::cout << "Adding ram " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
+        g_s2e->getDebugStream() << "Adding ram " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
     }
 
     return 0;
