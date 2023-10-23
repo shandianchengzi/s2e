@@ -79,7 +79,7 @@ LLVM_SRC_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LL
 # The Python script should only return a single word - the suffix of the Clang
 # binary to download. If an error message is printed to stderr, the Makefile
 # error will be triggered.
-CLANG_BINARY_SUFFIX=$(shell $(BUILD_SCRIPTS_SRC)/determine_clang_binary_suffix.py 2>&1)
+CLANG_BINARY_SUFFIX=x86_64-linux-gnu-ubuntu-18.04
 ifneq ($(words $(CLANG_BINARY_SUFFIX)), 1)
 $(error "Failed to determine Clang binary to download: $(CLANG_BINARY_SUFFIX)")
 endif
