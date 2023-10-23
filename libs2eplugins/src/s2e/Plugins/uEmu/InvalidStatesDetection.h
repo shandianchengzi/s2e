@@ -54,6 +54,7 @@ private:
     std::vector<uint32_t> kill_points;
     std::map<uint32_t, uint32_t> single_dead_loop;
     std::vector<uint32_t> alive_points;
+    std::vector<uint32_t> skip_points;
     bool cache_mode;
     bool init_cache_mode;
     bool alive_point_flag;

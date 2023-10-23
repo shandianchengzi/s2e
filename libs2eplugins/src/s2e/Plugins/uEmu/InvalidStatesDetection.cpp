@@ -261,6 +261,12 @@ void InvalidStatesDetection::initialize() {
         alive_points.push_back(*it);
     }
 
+    auto skip_keys = cfg->getIntegerList(getConfigKey() + ".skipPoints");
+    foreach2 (it, skip_keys.begin(), skip_keys.end()) {
+        getDebugStream() << "Add skip point address = " << hexval(*it) << "\n";
+        skip_points.push_back(*it);
+    }
+
     if (cache_mode) {
         getWarningsStream() << "Invalid States Detection is unabled in cache mode\n";
         return;
@@ -473,6 +479,11 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         g_s2e_allow_interrupt = 1;
     } else {
         g_s2e_allow_interrupt = 0;
+    }
+
+    uint16_t buf = 0x4770; // bx lr
+    for (auto skip_point : skip_points) {
+        state->mem()->write(skip_point, &buf, sizeof(buf));
     }
 
     // update re and new tb number
