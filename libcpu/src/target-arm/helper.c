@@ -763,6 +763,10 @@ void do_interrupt_v7m(CPUARMState *env) {
     exception = (unsigned long)(*armcpu+0x8b50);
 
     lr = 0xfffffff1;
+    int to_switch_sp = 0;
+    if (env->v7m.exception == 0 && env->v7m.control & R_V7M_CONTROL_SPSEL_MASK){
+        to_switch_sp = 1;
+    }
     // When the current stack is SP_process, switch to SP_Main
     if (env->v7m.control & R_V7M_CONTROL_SPSEL_MASK){
         lr |= 4;
@@ -770,10 +774,7 @@ void do_interrupt_v7m(CPUARMState *env) {
     }
     if (env->v7m.exception == 0)
         lr |= 8;
-    int to_switch_sp = 0;
-    if (env->v7m.exception == 0 && env->v7m.control & R_V7M_CONTROL_SPSEL_MASK){
-        to_switch_sp = 1;
-    }
+
     // HPRINTF("interreput = 0x%x\n",env->exception_index);
     /* For exceptions we just mark as pending on the NVIC, and let that
        handle it.  */
