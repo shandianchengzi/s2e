@@ -1963,9 +1963,9 @@ void PeripheralModelLearning::onLearningTerminationDetection(S2EExecutionState *
         if (*actual_end == true) {
             break;
         }
-        // data regs do not count
+        // data regs do not count and impossible irq regs not count
         if (plgState->get_type_flag_ph_it(std::get<1>(itairq.first)) != T1 ||
-            irq_data_phs[std::get<1>(itairq.first)] == 2) {
+            irq_data_phs[std::get<1>(itairq.first)] == 2 || impossible_irq_values[itairq.first].size() > 0) {
             continue;
         }
 
