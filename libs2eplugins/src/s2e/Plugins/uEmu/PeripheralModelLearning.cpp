@@ -1269,11 +1269,10 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
         }
         case T3: {
             if (plgState->get_concrete_t3_flag(phaddr) == 1) {
-                *value = plgState->get_t3_type_ph_it_front(phaddr);
-                plgState->pop_t3_type_ph_it(phaddr);
-                plgState->push_t3_type_ph_back(phaddr, *value);
+                // choose random value when an register is read more than t3 times
+                *value = rand()% ((uint64_t) 1 << (size * 8));
                 all_peripheral_no--;
-                getDebugStream() << " value come from T3 loop2 type pc = " << hexval(pc) << " value = " << hexval(value)
+                getDebugStream() << " value come from T3 loop2 type pc = " << hexval(pc) << " value = " << hexval(*value)
                                  << "\n";
                 *createSymFlag = false;
                 return;
