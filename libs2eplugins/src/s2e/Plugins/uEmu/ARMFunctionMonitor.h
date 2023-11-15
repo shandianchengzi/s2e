@@ -34,6 +34,7 @@ public:
     }
 
     void initialize();
+    void init_symbol_map();
 
     sigc::signal<void, S2EExecutionState *, uint32_t /* return pc */> onARMFunctionReturnEvent;
 
@@ -44,6 +45,7 @@ private:
     std::map<uint32_t, uint32_t> function_map;
     uint32_t function_parameter_num;
     uint32_t caller_level;
+    std::string syms_file;
 
     void onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb, uint64_t pc);
     void onFunctionCall(S2EExecutionState *state, uint64_t pc, unsigned source_type);

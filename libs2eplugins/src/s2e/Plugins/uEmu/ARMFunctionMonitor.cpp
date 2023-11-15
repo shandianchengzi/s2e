@@ -77,6 +77,47 @@ template <typename T> static bool getConcolicValue(S2EExecutionState *state, uns
     return false;
 }
 
+// define the symbol map and let it empty
+std::map<uint32_t, std::string> symbol_map;
+
+// a func to init the symbol map from the file '~/huawei-fe/samples/d1_iot_mqtt_example/syms.yml'
+// the content of the file is like:
+// symbols:
+//   0x80000: '_hdf_text_start'
+//   0x80040: 'FSPI_Reset.isra.4'
+//   0x80080: 'HAL_FSPI_XferStart'
+//   0x801a0: 'HAL_FSPI_XferData'
+//   0x80374: 'HAL_FSPI_XferDone'
+//   0x803b8: 'HAL_FSPI_SpiXfer'
+//   0x80434: 'HAL_FSPI_Init'
+//   0x804c4: 'HAL_FSPI_XmmcSetting'
+void ARMFunctionMonitor::init_symbol_map() {
+    // print the start
+    g_s2e->getDebugStream() << "init symbol map\n";
+    // read the file
+    std::ifstream fin(syms_file.c_str());
+    if (!fin) {
+        g_s2e->getWarningsStream() << "Open syms file " << syms_file << " failed! Please check the file path!\n";
+        exit(-1);
+    }
+    // read the file line by line
+    std::string line;
+    while (getline(fin, line)) {
+        // skip the line which starts with 'symbols:'
+         if (line.find("symbols:") != std::string::npos) {
+            continue;
+        }
+        // get the address and symbol
+        std::string address = line.substr(0, line.find(":"));
+        std::string symbol = line.substr(line.find(":") + 1);
+        // convert the address to uint32_t
+        uint32_t address_int = std::stoul(address, nullptr, 16);
+        // insert the address and symbol to the symbol map
+        symbol_map[address_int] = symbol;
+        // print the address and symbol
+    }
+}
+
 uint64_t FNV1aHash(std::vector<uint64_t> data) {
     const uint64_t fnv_prime = 0xcbf29ce484222325;
     uint64_t data_hash = 0x100000001b3;
@@ -123,19 +164,29 @@ void ARMFunctionMonitor::initialize() {
     bool ok;
     function_parameter_num = s2e()->getConfig()->getInt(getConfigKey() + ".functionParameterNum", 3, &ok);
     caller_level = s2e()->getConfig()->getInt(getConfigKey() + ".callerLevel", 3, &ok);
+    syms_file = s2e()->getConfig()->getString(getConfigKey() + ".symsFile", "none", &ok);
 
     if (!ok || function_parameter_num > 4 || caller_level > 5) {
         getWarningsStream()
             << "Currently, we only support at most four function parameters and five level caller levels for t2 type\n";
+        getWarningsStream() << "function parameters number is " << function_parameter_num
+                         << " caller_level = " << caller_level 
+                         << " syms_file = " << syms_file << "\n";
         exit(-1);
     } else {
         getDebugStream() << "function parameters number is " << function_parameter_num
-                         << " caller_level = " << caller_level << "\n";
+                         << " caller_level = " << caller_level 
+                         << " syms_file = " << syms_file << "\n";
     }
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
         sigc::mem_fun(*this, &ARMFunctionMonitor::onTranslateBlockStart));
     s2e()->getCorePlugin()->onTranslateBlockEnd.connect(sigc::mem_fun(*this, &ARMFunctionMonitor::onTranslateBlockEnd));
+
+    if (syms_file != "none") {
+        getDebugStream() << "syms file is " << syms_file << "\n";
+        init_symbol_map();
+    }
 }
 
 void ARMFunctionMonitor::onTranslateBlockStart(ExecutionSignal *signal, S2EExecutionState *state, TranslationBlock *tb,
@@ -193,6 +244,10 @@ void ARMFunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t calle
 
 void ARMFunctionMonitor::onFunctionReturn(S2EExecutionState *state, uint64_t return_pc) {
     DECLARE_PLUGINSTATE(ARMFunctionMonitorState, state);
+    // if return_pc in symbol_map key, print the function name
+    if(syms_file != "none" && symbol_map.find(return_pc) != symbol_map.end()) {
+        getDebugStream() << "[Symbols debug] block address = " << hexval(return_pc) << " symbol = " << symbol_map[return_pc] << "\n";
+    }
     std::vector<uint32_t> call_stack = plgState->get_call_stack();
     if (call_stack.size() == 0) {
         return;
