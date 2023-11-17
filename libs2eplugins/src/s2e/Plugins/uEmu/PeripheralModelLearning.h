@@ -129,6 +129,7 @@ private:
     bool enable_extended_irq_mode;
     bool enable_fuzzing;
     bool allow_new_phs;
+    std::vector<uint32_t> fuzz_peripherals;
     std::vector<uint32_t> valid_phs;
 
     time_t start, end;

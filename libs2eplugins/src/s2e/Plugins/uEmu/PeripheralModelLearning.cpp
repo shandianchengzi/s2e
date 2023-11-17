@@ -514,6 +514,11 @@ void PeripheralModelLearning::initialize() {
     if (!allow_new_phs) {
         getWarningsStream() << "Not allow new peripherals registers in fuzzing mode\n";
     }
+    auto fuzz_peripherals_key = s2e()->getConfig()->getIntegerList(getConfigKey() + ".fuzzPeripherals");
+    foreach2 (it, fuzz_peripherals_key.begin(), fuzz_peripherals_key.end()) {
+        getDebugStream() << "Add fuzz peripheral address = " << hexval(*it) << "\n";
+        fuzz_peripherals.push_back(*it);
+    }
 
     onARMFunctionConnection = s2e()->getPlugin<ARMFunctionMonitor>();
     onARMFunctionConnection->onARMFunctionCallEvent.connect(
@@ -1100,6 +1105,19 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
             getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
                              << " pc = " << hexval(pc) << " return value set as zero"
                              << " size = " << size << "\n";
+            *createSymFlag = false;
+            *value = 0x0;
+            return;
+        }
+    }
+
+    // if phaddr in fuzz_peripherals, then return 0
+    for(auto it : fuzz_peripherals) {
+        if (it == phaddr) {
+            getDebugStream() << " Meet fuzzing peripheral addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                             << " return value set as zero"
+                             << " size = " << size << "\n";
+            plgState->insert_type_flag_phs(phaddr, T3);
             *createSymFlag = false;
             *value = 0x0;
             return;
