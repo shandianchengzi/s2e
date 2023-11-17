@@ -219,7 +219,7 @@ public:
         current_irq_num = irq_num;
     }
 };
-}
+} // namespace
 
 void InvalidStatesDetection::initialize() {
 
@@ -234,7 +234,7 @@ void InvalidStatesDetection::initialize() {
     max_loop_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_inv2", 2000, &ok);
     terminate_tb_num = s2e()->getConfig()->getInt(getConfigKey() + ".bb_terminate", 30000, &ok);
     if (cache_mode) {
-        terminate_tb_num = terminate_tb_num*0.8;
+        terminate_tb_num = terminate_tb_num * 0.8;
     }
     initial_terminate_tb_num = terminate_tb_num;
     tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
@@ -283,6 +283,14 @@ void InvalidStatesDetection::initialize() {
 void InvalidStatesDetection::onTranslateBlockEnd(ExecutionSignal *signal, S2EExecutionState *state,
                                                  TranslationBlock *tb, uint64_t pc, bool staticTarget,
                                                  uint64_t staticTargetPc) {
+
+    // kill if the interrupt is 3~7
+    if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 2 &&
+        state->regs()->getExceptionIndex() < 7) {
+        std::string reason_str =
+            "Kill State due to system fault interrupt:" + std::to_string(state->regs()->getExceptionIndex());
+        onInvalidStatesKill(state, pc, SYSTEMFAULTINTTERRUPT, reason_str);
+    }
     signal->connect(
         sigc::bind(sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidLoopDetection), (unsigned) tb->se_tb_type));
 }
@@ -337,7 +345,7 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
 
     if (plgState->inctbnum(pc)) {
         getInfoStream() << "The unqiue number of the executed basic blocks in current state is "
-                            << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
+                        << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
     }
 
     // we should make sure new tb in normal mode will be executed after interrupt
@@ -397,7 +405,7 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
     if (plgState->getnewtbnum() > 200 && plgState->getretbnum() > terminate_tb_num &&
         (state->regs()->getInterruptFlag() == 0)) {
         bool actual_end = false;
-        if (terminate_tb_num > 2*initial_terminate_tb_num) {
+        if (terminate_tb_num > 2 * initial_terminate_tb_num) {
             actual_end = true;
         }
         onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
@@ -492,7 +500,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     } else {
         if (plgState->inctbnum(pc)) {
             getInfoStream() << "InvalidStatesDetection in learning mode new tb num = " << plgState->getnewtbnum()
-                                << " pc = " << hexval(pc) << "\n";
+                            << " pc = " << hexval(pc) << "\n";
         }
     }
 
@@ -501,7 +509,7 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     std::vector<uint32_t> conregs = getRegs(state, pc);
 
     getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
-                             << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
+                         << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
 
     // kill points defined by users
     if (kill_point_flag) {

@@ -21,7 +21,7 @@ typedef std::pair<uint32_t /* pc */, uint32_t /* reg num */> UniquePcRegMap;
 typedef std::vector<uint32_t> ConRegs;
 typedef std::deque<ConRegs> CacheConregs;
 typedef llvm::DenseMap<uint32_t, uint32_t> TBCounts;
-enum InvalidStatesType { DL1, DL2, LL1, LL2, UKP, IM };
+enum InvalidStatesType { DL1, DL2, LL1, LL2, UKP, IM, SYSTEMFAULTINTTERRUPT };
 
 class InvalidStatesDetection : public Plugin {
     S2E_PLUGIN
@@ -36,7 +36,8 @@ public:
 
     void initialize(void);
 
-    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */, uint64_t /* unique tb num */>
+    sigc::signal<void, S2EExecutionState *, uint32_t /* PC */, InvalidStatesType /* invalid state type */,
+                 uint64_t /* unique tb num */>
         onInvalidStatesEvent;
 
     sigc::signal<void, S2EExecutionState *, bool * /* succuess or not */, uint64_t /* unique tb num */>
