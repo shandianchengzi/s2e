@@ -104,7 +104,7 @@ void ARMFunctionMonitor::init_symbol_map() {
     std::string line;
     while (getline(fin, line)) {
         // skip the line which starts with 'symbols:'
-         if (line.find("symbols:") != std::string::npos) {
+        if (line.find("symbols:") != std::string::npos) {
             continue;
         }
         // get the address and symbol
@@ -164,19 +164,17 @@ void ARMFunctionMonitor::initialize() {
     bool ok;
     function_parameter_num = s2e()->getConfig()->getInt(getConfigKey() + ".functionParameterNum", 3, &ok);
     caller_level = s2e()->getConfig()->getInt(getConfigKey() + ".callerLevel", 3, &ok);
-    syms_file = s2e()->getConfig()->getString(getConfigKey() + ".symsFile", "none", &ok);
+    syms_file = s2e()->getConfig()->getString(getConfigKey() + ".symsFile", "none");
 
     if (!ok || function_parameter_num > 4 || caller_level > 5) {
         getWarningsStream()
             << "Currently, we only support at most four function parameters and five level caller levels for t2 type\n";
         getWarningsStream() << "function parameters number is " << function_parameter_num
-                         << " caller_level = " << caller_level 
-                         << " syms_file = " << syms_file << "\n";
+                            << " caller_level = " << caller_level << " syms_file = " << syms_file << "\n";
         exit(-1);
     } else {
         getDebugStream() << "function parameters number is " << function_parameter_num
-                         << " caller_level = " << caller_level 
-                         << " syms_file = " << syms_file << "\n";
+                         << " caller_level = " << caller_level << " syms_file = " << syms_file << "\n";
     }
 
     s2e()->getCorePlugin()->onTranslateBlockStart.connect(
@@ -245,8 +243,9 @@ void ARMFunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t calle
 void ARMFunctionMonitor::onFunctionReturn(S2EExecutionState *state, uint64_t return_pc) {
     DECLARE_PLUGINSTATE(ARMFunctionMonitorState, state);
     // if return_pc in symbol_map key, print the function name
-    if(syms_file != "none" && symbol_map.find(return_pc) != symbol_map.end()) {
-        getDebugStream() << "[Symbols debug] block address = " << hexval(return_pc) << " symbol = " << symbol_map[return_pc] << "\n";
+    if (syms_file != "none" && symbol_map.find(return_pc) != symbol_map.end()) {
+        getDebugStream() << "[Symbols debug] block address = " << hexval(return_pc)
+                         << " symbol = " << symbol_map[return_pc] << "\n";
     }
     std::vector<uint32_t> call_stack = plgState->get_call_stack();
     if (call_stack.size() == 0) {
