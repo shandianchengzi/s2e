@@ -544,6 +544,10 @@ void PeripheralModelLearning::initialize() {
             sigc::mem_fun(*this, &PeripheralModelLearning::onStateForkDecide));
         onSymbolicAddressConnection = s2e()->getCorePlugin()->onSymbolicAddress.connect(
             sigc::mem_fun(*this, &PeripheralModelLearning::onSymbolicAddress));
+        onSymbolicDataAccessConcreteMemoryConn = s2e()->getCorePlugin()->onSymbolicDataAccessConcreteMemory.connect(
+            sigc::mem_fun(*this, &PeripheralModelLearning::onSymbolicDataAccessConcreteMemory));
+        onBeforeSymbolicDataMemoryAccessConn = s2e()->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.connect(
+            sigc::mem_fun(*this, &PeripheralModelLearning::onBeforeSymbolicDataMemoryAccess));
     }
 
     hw::SymbolicHardware *symbolicPeripheralConnection = s2e()->getPlugin<hw::SymbolicHardware>();
@@ -3151,6 +3155,20 @@ void PeripheralModelLearning::onSymbolicAddress(S2EExecutionState *state, ref<Ex
     uint32_t curPc;
     curPc = state->regs()->getPc();
     symbolic_address_count[curPc]++;
+}
+
+void PeripheralModelLearning::onSymbolicDataAccessConcreteMemory(S2EExecutionState *state, uint64_t concreteAddr,
+                                                                 klee::ref<klee::Expr> symbVal, bool isWrite) {
+    s2e()->getDebugStream() << "[DataInputChannelDetector] onSymbolicDataAccessConcreteMemory"
+                            << "[concrete address: " << hexval(concreteAddr) << "] "
+                            << "[symbolic value: " << symbVal << "] "
+                            << "\n";
+    // TODO: concretize symbolic Data that accesses concrete memory
+}
+
+void PeripheralModelLearning::onBeforeSymbolicDataMemoryAccess(S2EExecutionState *state, klee::ref<klee::Expr> addr,
+                                                               klee::ref<klee::Expr> val, bool isWrite) {
+    // for onSymbolicDataAccessConcreteMemory can be emitted
 }
 
 uint32_t PeripheralModelLearning::switchModefromFtoL(S2EExecutionState *state, uint32_t phaddr, unsigned size,

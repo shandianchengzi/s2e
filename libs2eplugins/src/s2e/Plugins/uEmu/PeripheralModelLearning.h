@@ -71,6 +71,8 @@ private:
     sigc::connection onStateForkDecideConnection;
     sigc::connection onStateSwitchConnection;
     sigc::connection onSymbolicAddressConnection;
+    sigc::connection onSymbolicDataAccessConcreteMemoryConn;
+    sigc::connection onBeforeSymbolicDataMemoryAccessConn;
     sigc::connection onInterruptExitonnection;
     InvalidStatesDetection *onInvalidStateDectionConnection;
     ARMFunctionMonitor *onARMFunctionConnection;
@@ -192,6 +194,10 @@ public:
                            bool *conditionFork);
     void onSymbolicAddress(S2EExecutionState *state, klee::ref<klee::Expr> virtualAddress, uint64_t concreteAddress,
                            bool &concretize, CorePlugin::symbolicAddressReason reason);
+    void onSymbolicDataAccessConcreteMemory(S2EExecutionState *state, uint64_t concreteAddr,
+                                            klee::ref<klee::Expr> symbVal, bool isWrite);
+    void onBeforeSymbolicDataMemoryAccess(S2EExecutionState *state, klee::ref<klee::Expr> addr,
+                                          klee::ref<klee::Expr> val, bool isWrite);
     void onARMFunctionReturn(S2EExecutionState *state, uint32_t return_pc);
     void onARMFunctionCall(S2EExecutionState *state, uint32_t caller_pc, uint64_t function_hash);
 };
