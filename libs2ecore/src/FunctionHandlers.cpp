@@ -188,7 +188,7 @@ static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionS
 
     g_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.emit(s2eState, vaddr, value, flags);
 
-    if (isa<klee::ConstantExpr>(vaddr) && isa<klee::Expr>(value) && !value->isZero()) {
+    if (isa<klee::ConstantExpr>(vaddr) && !isa<klee::ConstantExpr>(value)) {
         g_s2e->getCorePlugin()->onSymbolicDataAccessConcreteMemory.emit(
             s2eState, cast<klee::ConstantExpr>(vaddr)->getZExtValue(), value, flags);
     }
