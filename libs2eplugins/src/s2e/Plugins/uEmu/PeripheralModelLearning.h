@@ -154,6 +154,7 @@ private:
     void saveKBtoFile(S2EExecutionState *state, uint64_t tb_num);
     void writeTIRQPeripheralstoKB(S2EExecutionState *state, std::ofstream &fPHKB);
     void identifyDataPeripheralRegs(S2EExecutionState *state, std::ofstream &fPHKB);
+    void printMem(S2EExecutionState *state, uint32_t addr);
 
 public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* t3 rest count */,

@@ -1012,7 +1012,7 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
 void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type,
                                              uint32_t address, unsigned size, uint32_t *value, bool *createSymFlag,
                                              std::stringstream *ss) {
-
+    printMem(state, 0x2002ff80);
     uint32_t phaddr = address;
     uint32_t pc = state->regs()->getPc();
 
@@ -3159,15 +3159,24 @@ void PeripheralModelLearning::onSymbolicAddress(S2EExecutionState *state, ref<Ex
 
 void PeripheralModelLearning::onSymbolicDataAccessConcreteMemory(S2EExecutionState *state, uint64_t concreteAddr,
                                                                  klee::ref<klee::Expr> symbVal, bool isWrite) {
-    getDebugStream(state) << "onSymbolicDataAccessConcreteMemory"
+    DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
+    // TODO: concretize symbolic Data that accesses concrete memory
+    if (!isWrite) {
+        getDebugStream(state) << "Read: onSymbolicDataAccessConcreteMemory"
+                              << "[concrete address: " << hexval(concreteAddr) << "] "
+                              << "[symbolic value: " << symbVal << "] "
+                              << "\n";
+        return;
+    }
+    getDebugStream(state) << "Write: onSymbolicDataAccessConcreteMemory"
                           << "[concrete address: " << hexval(concreteAddr) << "] "
                           << "[symbolic value: " << symbVal << "] "
                           << "\n";
-    // TODO: concretize symbolic Data that accesses concrete memory
-    if (!isWrite) {
+    if (concreteAddr < 0x20000000 || concreteAddr >= 0x40000000) {
+        getDebugStream(state) << "Write: concrete address is not in the range of memory"
+                              << "\n";
         return;
     }
-    DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     ReadPeripheralMap read_size_phs = plgState->get_readphs();
 
     ArrayVec results;
@@ -3198,8 +3207,9 @@ void PeripheralModelLearning::onSymbolicDataAccessConcreteMemory(S2EExecutionSta
 
         uint64_t LSB = ((uint64_t) 1 << (read_size_phs[perifAddr].first * 8));
         uint32_t val = condConcreteVal & (LSB - 1);
-
-        getDebugStream(state) << "solve symbolic value: "
+        state->mem()->write(concreteAddr, &val, sizeof(val));
+        plgState->insert_type_flag_phs(perifAddr, T3);
+        getDebugStream(state) << "concretize symbolic Data that accesses concrete memory, update peripheral to T3"
                               << "[peripheral address: " << hexval(perifAddr) << "]"
                               << "[pc: " << hexval(pc) << "]"
                               << "[hash of pc and context: " << hexval(hashVal) << "]"
@@ -3369,6 +3379,14 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
         }
     }
     learning_mode_states.clear();
+}
+
+void PeripheralModelLearning::printMem(S2EExecutionState *state, uint32_t addr) {
+    uint32_t val;
+    state->mem()->read(addr, &val, sizeof(val));
+    getDebugStream(state) << "[mem addr: " << hexval(addr) << "] "
+                          << "[value: " << val << "] "
+                          << "\n";
 }
 
 // only used for no invalid state test version
