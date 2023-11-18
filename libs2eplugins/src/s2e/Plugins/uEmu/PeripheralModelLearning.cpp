@@ -3159,11 +3159,54 @@ void PeripheralModelLearning::onSymbolicAddress(S2EExecutionState *state, ref<Ex
 
 void PeripheralModelLearning::onSymbolicDataAccessConcreteMemory(S2EExecutionState *state, uint64_t concreteAddr,
                                                                  klee::ref<klee::Expr> symbVal, bool isWrite) {
-    s2e()->getDebugStream() << "[DataInputChannelDetector] onSymbolicDataAccessConcreteMemory"
-                            << "[concrete address: " << hexval(concreteAddr) << "] "
-                            << "[symbolic value: " << symbVal << "] "
-                            << "\n";
+    getDebugStream(state) << "onSymbolicDataAccessConcreteMemory"
+                          << "[concrete address: " << hexval(concreteAddr) << "] "
+                          << "[symbolic value: " << symbVal << "] "
+                          << "\n";
     // TODO: concretize symbolic Data that accesses concrete memory
+    if (!isWrite) {
+        return;
+    }
+    DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
+    ReadPeripheralMap read_size_phs = plgState->get_readphs();
+
+    ArrayVec results;
+    findSymbolicObjects(symbVal, results);
+    for (int i = results.size() - 1; i >= 0; --i) {
+        uint32_t perifAddr;
+        uint32_t pc;
+        uint64_t hashVal;
+        uint64_t no;
+        auto &result = results[i];
+        std::vector<uint8_t> data;
+
+        getPeripheralExecutionState(result->getName(), &perifAddr, &pc, &hashVal, &no);
+
+        for (unsigned s = 0; s < result->getSize(); ++s) {
+            ref<Expr> e = state->concolics->evaluate(result, s);
+            if (!isa<ConstantExpr>(e)) {
+                getWarningsStream(state) << "Failed to evaluate concrete value\n";
+                pabort("Failed to evaluate concrete value");
+            }
+
+            uint8_t byteVal = dyn_cast<ConstantExpr>(e)->getZExtValue();
+            data.push_back(byteVal);
+        }
+
+        uint32_t condConcreteVal =
+            data[0] | ((uint32_t) data[1] << 8) | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
+
+        uint64_t LSB = ((uint64_t) 1 << (read_size_phs[perifAddr].first * 8));
+        uint32_t val = condConcreteVal & (LSB - 1);
+
+        getDebugStream(state) << "solve symbolic value: "
+                              << "[peripheral address: " << hexval(perifAddr) << "]"
+                              << "[pc: " << hexval(pc) << "]"
+                              << "[hash of pc and context: " << hexval(hashVal) << "]"
+                              << "[number of value: " << no << "]"
+                              << "[value: " << hexval(val) << "]"
+                              << "\n";
+    }
 }
 
 void PeripheralModelLearning::onBeforeSymbolicDataMemoryAccess(S2EExecutionState *state, klee::ref<klee::Expr> addr,
