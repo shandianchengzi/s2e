@@ -164,9 +164,9 @@ static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionS
 
     // 1st arg: virtual address
     klee::ref<Expr> vaddr = args[0];
-    if (isa<klee::ConstantExpr>(vaddr)) {
-        return;
-    }
+    // if (isa<klee::ConstantExpr>(vaddr)) {
+    //     return;
+    // }
 
     // 3rd arg: width
     Expr::Width width = cast<klee::ConstantExpr>(args[2])->getZExtValue() * 8;
@@ -187,6 +187,11 @@ static void handlerBeforeMemoryAccess(klee::Executor *executor, klee::ExecutionS
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
 
     g_s2e->getCorePlugin()->onBeforeSymbolicDataMemoryAccess.emit(s2eState, vaddr, value, flags);
+
+    if (isa<klee::ConstantExpr>(vaddr) && isa<klee::Expr>(value) && !value->isZero()) {
+        g_s2e->getCorePlugin()->onSymbolicDataAccessConcreteMemory.emit(
+            s2eState, cast<klee::ConstantExpr>(vaddr)->getZExtValue(), value, flags);
+    }
 }
 
 void handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,

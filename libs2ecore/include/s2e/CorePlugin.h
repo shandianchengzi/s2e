@@ -508,6 +508,16 @@ public:
                 uint64_t /* address */>
         onInvalidPCAccess;
 
+    ///
+    /// Signal that is emitted before accessing memory at symbolic address.
+    ///
+    sigc::signal<void,
+                S2EExecutionState*,
+                uint64_t /* concrete address */,
+                klee::ref<klee::Expr> /* symbolic Data */,
+                bool /* is write */>
+        onSymbolicDataAccessConcreteMemory;
+
     // clang-format on
 };
 
