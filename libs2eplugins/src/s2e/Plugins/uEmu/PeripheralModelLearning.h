@@ -12,9 +12,9 @@
 #include <inttypes.h>
 #include <s2e/CorePlugin.h>
 #include <s2e/Plugin.h>
+#include <s2e/Plugins/SymbolicHardware/SymbolicHardware.h>
 #include <s2e/Plugins/uEmu/ARMFunctionMonitor.h>
 #include <s2e/Plugins/uEmu/InvalidStatesDetection.h>
-#include <s2e/Plugins/SymbolicHardware/SymbolicHardware.h>
 #include <s2e/S2EExecutionState.h>
 
 namespace s2e {
@@ -92,8 +92,8 @@ private:
     UniquePeripheralSizeMap cache_dr_type_size;
     //  knowledge extraction mode
     std::map<uint32_t /* pc */, uint32_t /* count */> alive_points_count;
-    TypeFlagPeripheralMap
-        irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq handle. 1 and 3 cannot be data reg.
+    TypeFlagPeripheralMap irq_data_phs; // 2: donates data reg in interrupt which should not meet conditions in irq
+                                        // handle. 1 and 3 cannot be data reg.
     AllKnowledgeBaseNoMap cache_all_cache_phs;
     IRQSRMap possible_irq_srs;
     TIRQSPeripheralMap possible_irq_values;
@@ -148,16 +148,14 @@ private:
                                uint32_t *value, uint64_t *cw_value);
     bool getIRQEntryfromKB(std::string variablePeripheralName, uint32_t *irq_no, uint32_t *type, uint32_t *phaddr,
                            uint32_t *cr_phaddr, uint32_t *value, uint32_t *cr_value);
-    bool getDREntryfromKB(std::string variablePeripheralName, uint32_t *type,
-                           uint32_t *phaddr, uint32_t *size);
+    bool getDREntryfromKB(std::string variablePeripheralName, uint32_t *type, uint32_t *phaddr, uint32_t *size);
     void saveKBtoFile(S2EExecutionState *state, uint64_t tb_num);
     void writeTIRQPeripheralstoKB(S2EExecutionState *state, std::ofstream &fPHKB);
     void identifyDataPeripheralRegs(S2EExecutionState *state, std::ofstream &fPHKB);
 
 public:
-    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */,
-                 uint32_t /* t3 rest count */, uint32_t /* size */, uint32_t * /* data input */,
-                 bool * /* enable fuzz */>
+    sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* t3 rest count */,
+                 uint32_t /* size */, uint32_t * /* data input */, bool * /* enable fuzz */>
         onDataInput;
 
     sigc::signal<void, S2EExecutionState *, bool /* fuzzing to learning mode */> onModeSwitch;
@@ -177,9 +175,9 @@ public:
     void onPeripheralRead(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size,
                           uint32_t *NLPsymbolicvalue, bool *flag, std::stringstream *ss);
     void onLearningMode(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size,
-                          uint32_t *uEmusymbolicvalue, bool *flag, std::stringstream *ss);
+                        uint32_t *uEmusymbolicvalue, bool *flag, std::stringstream *ss);
     void onFuzzingMode(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr, unsigned size,
-                          uint32_t *uEmusymbolicvalue, bool *flag, std::stringstream *ss);
+                       uint32_t *uEmusymbolicvalue, bool *flag, std::stringstream *ss);
     void onPeripheralWrite(S2EExecutionState *state, SymbolicHardwareAccessType type, uint32_t phaddr,
                            bool writeSymFlag, uint32_t writeconcretevalue);
     void onFork(S2EExecutionState *state, const std::vector<S2EExecutionState *> &newStates,
@@ -196,7 +194,6 @@ public:
                            bool &concretize, CorePlugin::symbolicAddressReason reason);
     void onARMFunctionReturn(S2EExecutionState *state, uint32_t return_pc);
     void onARMFunctionCall(S2EExecutionState *state, uint32_t caller_pc, uint64_t function_hash);
-
 };
 
 } // namespace plugins
