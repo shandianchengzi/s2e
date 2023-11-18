@@ -508,6 +508,12 @@ public:
                 uint64_t /* address */>
         onInvalidPCAccess;
 
+    sigc::signal<void,
+                 S2EExecutionState*,
+                 uint64_t /* concrete address */,
+                 klee::ref<klee::Expr> /* symbolic value */,
+                 unsigned /* flags */>
+        onAfterSymbolicDataConcreteAddressAccess;
     // clang-format on
 };
 

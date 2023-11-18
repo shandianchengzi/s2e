@@ -193,7 +193,8 @@ void handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::K
                               std::vector<klee::ref<klee::Expr>> &args) {
     auto corePlugin = g_s2e->getCorePlugin();
 
-    if (corePlugin->onAfterSymbolicDataMemoryAccess.empty() && corePlugin->onConcreteDataMemoryAccess.empty()) {
+    if (corePlugin->onAfterSymbolicDataConcreteAddressAccess.empty() &&
+        corePlugin->onAfterSymbolicDataMemoryAccess.empty() && corePlugin->onConcreteDataMemoryAccess.empty()) {
         return;
     }
 
@@ -229,6 +230,10 @@ void handlerAfterMemoryAccess(Executor *executor, ExecutionState *state, klee::K
             klee::Expr::getMinBytesForWidth(width), flags);
     } else {
         g_s2e->getCorePlugin()->onAfterSymbolicDataMemoryAccess.emit(s2eState, vaddr, haddr, value, flags);
+    }
+    if (isa<klee::ConstantExpr>(vaddr) && !isa<klee::ConstantExpr>(value)) {
+        g_s2e->getCorePlugin()->onAfterSymbolicDataConcreteAddressAccess.emit(
+            s2eState, cast<klee::ConstantExpr>(vaddr)->getZExtValue(), value, flags);
     }
 }
 
