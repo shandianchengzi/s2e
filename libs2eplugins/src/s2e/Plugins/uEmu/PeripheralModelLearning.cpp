@@ -3189,37 +3189,11 @@ void PeripheralModelLearning::onConcreteDataMemoryAccess(S2EExecutionState *, ui
 }
 void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecutionState *state, uint64_t concreteAddr,
                                                                        klee::ref<klee::Expr> symbVal, unsigned flags) {
+    getDebugStream(state) << "onAfterSymbolicDataConcreteAddressAccess"
+                          << "\n";
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     // TODO: concretize symbolic Data that accesses concrete memory
     uint32_t accessPc = state->regs()->getPc();
-    if (flags != MEM_TRACE_FLAG_WRITE) {
-        getDebugStream(state) << "Not Write: onAfterSymbolicDataConcreteAddressAccess"
-                              << "[concrete address: " << hexval(concreteAddr) << "] "
-                              << "[symbolic value: " << symbVal << "] "
-                              << "[access pc: " << hexval(accessPc) << "] "
-                              << "[flags: " << flags << "]"
-                              << "\n";
-        return;
-    }
-    getDebugStream(state) << "Write: onAfterSymbolicDataConcreteAddressAccess"
-                          << "[concrete address: " << hexval(concreteAddr) << "] "
-                          << "[symbolic value: " << symbVal << "] "
-                          << "[access pc: " << hexval(accessPc) << "] "
-                          << "\n";
-    bool inRange = false;
-    if (!inRange && !bsses.empty()) {
-        for (auto bss : bsses) {
-            if (concreteAddr >= bss.first && concreteAddr <= bss.second) {
-                inRange = true;
-                break;
-            }
-        }
-    }
-    if (!inRange) {
-        getDebugStream(state) << "Write: concrete address is in the range of bss"
-                              << "\n";
-        return;
-    }
     ReadPeripheralMap read_size_phs = plgState->get_readphs();
 
     ArrayVec results;
@@ -3233,9 +3207,46 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         std::vector<uint8_t> data;
 
         getPeripheralExecutionState(result->getName(), &perifAddr, &pc, &hashVal, &no);
+
+        if (flags != MEM_TRACE_FLAG_WRITE) {
+            getDebugStream(state) << "NotWrite"
+                                  << "[flags: " << flags << "]"
+                                  << "[peripheral address: " << hexval(perifAddr) << "] "
+                                  << "[access pc: " << hexval(accessPc) << "] "
+                                  << "[concrete address: " << hexval(concreteAddr) << "] "
+                                  << "\n"
+                                  << "[symbolic value: " << symbVal << "] "
+                                  << "\n";
+            return;
+        }
+        bool inRange = false;
+        if (!inRange && !bsses.empty()) {
+            for (auto bss : bsses) {
+                if (concreteAddr >= bss.first && concreteAddr <= bss.second) {
+                    inRange = true;
+                    break;
+                }
+            }
+        }
+        if (!inRange) {
+            getDebugStream(state) << "Write but: concrete address is not in the range of bss"
+                                  << "[peripheral address: " << hexval(perifAddr) << "] "
+                                  << "[access pc: " << hexval(accessPc) << "] "
+                                  << "[concrete address: " << hexval(concreteAddr) << "] "
+                                  << "\n"
+                                  << "[symbolic value: " << symbVal << "] "
+                                  << "\n";
+            return;
+        }
+
         uint32_t perifTyp = plgState->get_type_flag_ph_it(perifAddr);
         if (perifTyp != T1 && perifTyp != T2) {
-            getDebugStream(state) << "Write: relate peripheral is not T1/T2"
+            getDebugStream(state) << "Write but: relate peripheral is not T1/T2"
+                                  << "[peripheral address: " << hexval(perifAddr) << "] "
+                                  << "[access pc: " << hexval(accessPc) << "] "
+                                  << "[concrete address: " << hexval(concreteAddr) << "] "
+                                  << "\n"
+                                  << "[symbolic value: " << symbVal << "] "
                                   << "\n";
             return;
         }
@@ -3260,14 +3271,17 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         printMem(state, concreteAddr);
         plgState->insert_type_flag_phs(perifAddr, T3);
         plgState->insert_t3_type_ph_back(perifAddr, val);
-        getDebugStream(state) << "concretize symbolic Data that accesses concrete memory, update peripheral to T3"
-                              << "[access pc: " << hexval(accessPc) << "] "
-                              << "[peripheral address: " << hexval(perifAddr) << "]"
-                              << "[pc: " << hexval(pc) << "]"
-                              << "[hash of pc and context: " << hexval(hashVal) << "]"
-                              << "[number of value: " << no << "]"
-                              << "[value: " << hexval(val) << "]"
-                              << "\n";
+        getDebugStream(state)
+            << "Write: concretize symbolic Data that accesses concrete memory, update peripheral to T3"
+            << "\n"
+            << "[peripheral address: " << hexval(perifAddr) << "] "
+            << "[access pc: " << hexval(accessPc) << "] "
+            << "[concrete address: " << hexval(concreteAddr) << "] "
+            << "[read pc: " << hexval(pc) << "] "
+            << "[hash of pc and context: " << hexval(hashVal) << "] "
+            << "[number of value: " << no << "] "
+            << "[value: " << hexval(val) << "] "
+            << "\n";
     }
 }
 uint32_t PeripheralModelLearning::switchModefromFtoL(S2EExecutionState *state, uint32_t phaddr, unsigned size,
