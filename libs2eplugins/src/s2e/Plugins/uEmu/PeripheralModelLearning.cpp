@@ -1073,6 +1073,19 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                          << " reading times = " << plgState->get_readphs_count(phaddr)
                          << " peripheral no = " << all_peripheral_no - 1 << "\n";
 
+    // if phaddr in fuzz_peripherals, then return 0
+    for (auto it : fuzz_peripherals) {
+        if (it == phaddr) {
+            getDebugStream() << " Meet fuzzing peripheral addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                             << " return value set as zero"
+                             << " size = " << size << "\n";
+            plgState->insert_type_flag_phs(phaddr, T3);
+            *createSymFlag = false;
+            *value = 0x0;
+            return;
+        }
+    }
+
     // first find peripheral type
     TypeFlagPeripheralMap type_flag_phs = plgState->get_type_flag_phs();
     TypeFlagPeripheralMap::iterator itf = type_flag_phs.find(phaddr);
@@ -1117,19 +1130,6 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
             getDebugStream() << " In learning mode, reading data from fuzzing input addr = " << hexval(phaddr)
                              << " pc = " << hexval(pc) << " return value set as zero"
                              << " size = " << size << "\n";
-            *createSymFlag = false;
-            *value = 0x0;
-            return;
-        }
-    }
-
-    // if phaddr in fuzz_peripherals, then return 0
-    for (auto it : fuzz_peripherals) {
-        if (it == phaddr) {
-            getDebugStream() << " Meet fuzzing peripheral addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                             << " return value set as zero"
-                             << " size = " << size << "\n";
-            plgState->insert_type_flag_phs(phaddr, T3);
             *createSymFlag = false;
             *value = 0x0;
             return;
