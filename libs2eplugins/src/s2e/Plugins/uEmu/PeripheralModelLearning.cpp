@@ -512,11 +512,13 @@ void PeripheralModelLearning::initialize() {
     if (!allow_new_phs) {
         getWarningsStream() << "Not allow new peripherals registers in fuzzing mode\n";
     }
+
     auto fuzz_peripherals_key = s2e()->getConfig()->getIntegerList(getConfigKey() + ".fuzzPeripherals");
     foreach2 (it, fuzz_peripherals_key.begin(), fuzz_peripherals_key.end()) {
         getDebugStream() << "Add fuzz peripheral address = " << hexval(*it) << "\n";
         fuzz_peripherals.push_back(*it);
     }
+    parseMemConfig();
 
     onARMFunctionConnection = s2e()->getPlugin<ARMFunctionMonitor>();
     onARMFunctionConnection->onARMFunctionCallEvent.connect(
@@ -975,14 +977,14 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
                 read_cache_phs.erase(it++); // remove t1 type
                 continue;
             } else {
-                getInfoStream() << "The third kind of data register phaddr = " << hexval(it->first)
-                                << " count = " << it->second.second << "\n";
-                if (plgState->get_dt1_type_flag_ph_it(it->first) == 1 && it->second.second > 0x10 &&
-                    it->second.second < 200 && !enable_fuzzing) {
-                    read_cache_data_phs[it->first] = it->second;
-                    read_cache_phs.erase(it++);
-                    continue;
-                }
+                // getInfoStream() << "The third kind of data register phaddr = " << hexval(it->first)
+                //                 << " count = " << it->second.second << "\n";
+                // if (plgState->get_dt1_type_flag_ph_it(it->first) == 1 && it->second.second > 0x10 &&
+                //     it->second.second < 200 && !enable_fuzzing) {
+                //     read_cache_data_phs[it->first] = it->second;
+                //     read_cache_phs.erase(it++);
+                //     continue;
+                // }
             }
         } else {
             read_cache_phs.erase(it++);
@@ -1122,7 +1124,7 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
     }
 
     // if phaddr in fuzz_peripherals, then return 0
-    for(auto it : fuzz_peripherals) {
+    for (auto it : fuzz_peripherals) {
         if (it == phaddr) {
             getDebugStream() << " Meet fuzzing peripheral addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                              << " return value set as zero"
@@ -1324,7 +1326,8 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                 }
                 plgState->insert_concrete_t3_flag(phaddr, 1);
                 plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
-                *value = plgState->get_t3_type_ph_it_front(phaddr);
+                // *value = plgState->get_t3_type_ph_it_front(phaddr);
+                *value = rand() % ((uint64_t) 1 << (size * 8));
                 plgState->pop_t3_type_ph_it(phaddr);
                 plgState->push_t3_type_ph_back(phaddr, *value);
                 all_peripheral_no--;
@@ -1354,7 +1357,8 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                             }
                             plgState->insert_concrete_t3_flag(phaddr, 1);
                             plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
-                            *value = plgState->get_t3_type_ph_it_front(phaddr);
+                            // *value = plgState->get_t3_type_ph_it_front(phaddr);
+                            *value = rand() % ((uint64_t) 1 << (size * 8));
                             plgState->pop_t3_type_ph_it(phaddr);
                             plgState->push_t3_type_ph_back(phaddr, *value);
                             all_peripheral_no--;
@@ -1373,8 +1377,9 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                                  << " value = " << hexval(plgState->get_t3_type_ph_it_back(phaddr))
                                  << " no = " << all_peripheral_no - 1 << "\n";
 
-                *value = plgState->get_t3_type_ph_it_back(phaddr);
-                *createSymFlag = true;
+                // *value = plgState->get_t3_type_ph_it_back(phaddr);
+                *value = rand() % ((uint64_t) 1 << (size * 8));
+                *createSymFlag = false;
                 return;
             }
         }
@@ -3186,10 +3191,12 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
                                                                        klee::ref<klee::Expr> symbVal, unsigned flags) {
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     // TODO: concretize symbolic Data that accesses concrete memory
+    uint32_t accessPc = state->regs()->getPc();
     if (flags != MEM_TRACE_FLAG_WRITE) {
         getDebugStream(state) << "Not Write: onAfterSymbolicDataConcreteAddressAccess"
                               << "[concrete address: " << hexval(concreteAddr) << "] "
                               << "[symbolic value: " << symbVal << "] "
+                              << "[access pc: " << hexval(accessPc) << "] "
                               << "[flags: " << flags << "]"
                               << "\n";
         return;
@@ -3197,9 +3204,19 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
     getDebugStream(state) << "Write: onAfterSymbolicDataConcreteAddressAccess"
                           << "[concrete address: " << hexval(concreteAddr) << "] "
                           << "[symbolic value: " << symbVal << "] "
+                          << "[access pc: " << hexval(accessPc) << "] "
                           << "\n";
-    if (concreteAddr < 0x20000000 || concreteAddr >= 0x40000000) {
-        getDebugStream(state) << "Write: concrete address is not in the range of memory"
+    bool inRange = false;
+    if (!inRange && !bsses.empty()) {
+        for (auto bss : bsses) {
+            if (concreteAddr >= bss.first && concreteAddr <= bss.second) {
+                inRange = true;
+                break;
+            }
+        }
+    }
+    if (!inRange) {
+        getDebugStream(state) << "Write: concrete address is in the range of bss"
                               << "\n";
         return;
     }
@@ -3216,6 +3233,12 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         std::vector<uint8_t> data;
 
         getPeripheralExecutionState(result->getName(), &perifAddr, &pc, &hashVal, &no);
+        uint32_t perifTyp = plgState->get_type_flag_ph_it(perifAddr);
+        if (perifTyp != T1 && perifTyp != T2) {
+            getDebugStream(state) << "Write: relate peripheral is not T1/T2"
+                                  << "\n";
+            return;
+        }
         for (unsigned s = 0; s < result->getSize(); ++s) {
             ref<Expr> e = state->concolics->evaluate(result, s);
             if (!isa<ConstantExpr>(e)) {
@@ -3238,6 +3261,7 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         plgState->insert_type_flag_phs(perifAddr, T3);
         plgState->insert_t3_type_ph_back(perifAddr, val);
         getDebugStream(state) << "concretize symbolic Data that accesses concrete memory, update peripheral to T3"
+                              << "[access pc: " << hexval(accessPc) << "] "
                               << "[peripheral address: " << hexval(perifAddr) << "]"
                               << "[pc: " << hexval(pc) << "]"
                               << "[hash of pc and context: " << hexval(hashVal) << "]"
@@ -3409,6 +3433,68 @@ void PeripheralModelLearning::printMem(S2EExecutionState *state, uint32_t addr) 
     getDebugStream(state) << "[mem addr: " << hexval(addr) << "] "
                           << "[value: " << hexval(val) << "] "
                           << "\n";
+}
+
+void PeripheralModelLearning::parseMemConfig() {
+    bool ok;
+    ConfigFile *cfg = s2e()->getConfig();
+    int rom_num = cfg->getListSize("mem.rom");
+    int ram_num = cfg->getListSize("mem.ram");
+    int bss_num = cfg->getListSize("mem.bss");
+
+    for (int i = 1; i <= rom_num; i++) {
+        std::stringstream ss;
+        ss << "mem.rom"
+           << "[" << i << "]";
+        uint64_t baseaddr = cfg->getInt(ss.str() + "[1]", 0, &ok);
+        if (!ok) {
+            getDebugStream() << "Could not parse " << ss.str() + "baseaddr"
+                             << "\n";
+        }
+        uint64_t size = cfg->getInt(ss.str() + "[2]", 0, &ok);
+        if (!ok) {
+            getDebugStream() << "Could not parse " << ss.str() + "size"
+                             << "\n";
+        }
+        roms[baseaddr] = size;
+        getDebugStream() << "parse config: rom " << i << " baseaddr:" << hexval(baseaddr) << " size:" << hexval(size)
+                         << "\n";
+    }
+    for (int i = 1; i <= ram_num; i++) {
+        std::stringstream ss;
+        ss << "mem.ram"
+           << "[" << i << "]";
+        uint64_t baseaddr = cfg->getInt(ss.str() + "[1]", 0, &ok);
+        if (!ok) {
+            getDebugStream() << "Could not parse " << ss.str() + "baseaddr"
+                             << "\n";
+        }
+        uint64_t size = cfg->getInt(ss.str() + "[2]", 0, &ok);
+        if (!ok) {
+            getDebugStream() << "Could not parse " << ss.str() + "size"
+                             << "\n";
+        }
+        rams[baseaddr] = size;
+        getDebugStream() << "parse config: ram " << i << " baseaddr:" << hexval(baseaddr) << " size:" << hexval(size)
+                         << "\n";
+    }
+    for (int i = 1; i <= bss_num; i++) {
+        std::stringstream ss;
+        ss << "mem.bss"
+           << "[" << i << "]";
+        uint64_t base = cfg->getInt(ss.str() + "[1]", 0, &ok);
+        if (!ok) {
+            getDebugStream() << "Could not parse " << ss.str() + "base"
+                             << "\n";
+        }
+        uint64_t end = cfg->getInt(ss.str() + "[2]", 0, &ok);
+        if (!ok) {
+            getDebugStream() << "Could not parse " << ss.str() + "end"
+                             << "\n";
+        }
+        bsses[base] = end;
+        getDebugStream() << "parse config: bss " << i << " base:" << hexval(base) << " end:" << hexval(end) << "\n";
+    }
 }
 
 // only used for no invalid state test version

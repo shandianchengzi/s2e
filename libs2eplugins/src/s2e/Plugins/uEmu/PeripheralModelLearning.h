@@ -137,6 +137,9 @@ private:
 
     time_t start, end;
     uint64_t durationtime;
+    std::map<uint64_t, uint64_t> roms;
+    std::map<uint64_t, uint64_t> rams;
+    std::map<uint64_t, uint64_t> bsses;
 
     template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool parseConfigIoT();
@@ -157,6 +160,7 @@ private:
     void writeTIRQPeripheralstoKB(S2EExecutionState *state, std::ofstream &fPHKB);
     void identifyDataPeripheralRegs(S2EExecutionState *state, std::ofstream &fPHKB);
     void printMem(S2EExecutionState *state, uint32_t addr);
+    void parseMemConfig();
 
 public:
     sigc::signal<void, S2EExecutionState *, uint32_t /* physicalAddress */, uint32_t /* t3 rest count */,
