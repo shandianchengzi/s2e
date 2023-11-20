@@ -1023,7 +1023,6 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                                              uint32_t address, unsigned size, uint32_t *value, bool *createSymFlag,
                                              std::stringstream *ss) {
 
-    printMem(state, 0x2002ff80);
     uint32_t phaddr = address;
     uint32_t pc = state->regs()->getPc();
 
@@ -3208,7 +3207,7 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
 
         getPeripheralExecutionState(result->getName(), &perifAddr, &pc, &hashVal, &no);
 
-        if (flags != MEM_TRACE_FLAG_WRITE) {
+        if (!(flags & MEM_TRACE_FLAG_WRITE)) {
             getDebugStream(state) << "NotWrite"
                                   << "[flags: " << flags << "]"
                                   << "[peripheral address: " << hexval(perifAddr) << "] "
