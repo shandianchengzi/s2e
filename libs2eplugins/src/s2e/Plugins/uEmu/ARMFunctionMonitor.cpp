@@ -58,7 +58,7 @@ public:
     // return functionmap;
     /*}*/
 };
-}
+} // namespace
 
 template <typename T> static bool getConcolicValue(S2EExecutionState *state, unsigned offset, T *value) {
     auto size = sizeof(T);
@@ -223,16 +223,20 @@ void ARMFunctionMonitor::onFunctionCall(S2EExecutionState *state, uint64_t calle
     uint32_t lr = state->regs()->getLr();
     if (source_type == TB_CALL) {
         return_address = caller_pc + 4;
-        getDebugStream() << "direct call lr = " << hexval(lr) << "\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "direct call lr = " << hexval(lr) << "\n";
     } else if (source_type == TB_CALL_IND) {
         return_address = caller_pc + 2;
-        getDebugStream() << "indirect call lr = " << hexval(lr) << "\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "indirect call lr = " << hexval(lr) << "\n";
     } else {
-        getWarningsStream() << "should not be here!!!\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "should not be here, lr = " << hexval(lr) << "\n";
         return;
     }
-    getDebugStream() << "caller pc = " << hexval(caller_pc) << " hash = " << hexval(sum_hash)
-                     << " return address = " << hexval(return_address) << "\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "caller pc = " << hexval(caller_pc) << ", hash = " << hexval(sum_hash)
+                         << ", return address = " << hexval(return_address) << "\n";
     plgState->push_currect_callerpc(caller_pc);
     if (function_map.find(caller_pc) == function_map.end()) {
         function_map[caller_pc] = return_address;
@@ -244,8 +248,9 @@ void ARMFunctionMonitor::onFunctionReturn(S2EExecutionState *state, uint64_t ret
     DECLARE_PLUGINSTATE(ARMFunctionMonitorState, state);
     // if return_pc in symbol_map key, print the function name
     if (syms_file != "none" && symbol_map.find(return_pc) != symbol_map.end()) {
-        getDebugStream() << "[Symbols debug] block address = " << hexval(return_pc)
-                         << " symbol = " << symbol_map[return_pc] << "\n";
+        getDebugStream(state) << "[DEBUG] - "
+                              << "Symbols debug, block address = " << hexval(return_pc)
+                              << ", symbol = " << symbol_map[return_pc] << "\n";
     }
     std::vector<uint32_t> call_stack = plgState->get_call_stack();
     if (call_stack.size() == 0) {
@@ -256,11 +261,13 @@ void ARMFunctionMonitor::onFunctionReturn(S2EExecutionState *state, uint64_t ret
         if (function_map[last_callerpc] == return_pc) {
             plgState->pop_current_callstack();
             onARMFunctionReturnEvent.emit(state, return_pc);
-            getDebugStream() << "last caller_pc = " << hexval(last_callerpc) << " return pc = " << hexval(return_pc)
-                             << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << "last caller pc = " << hexval(last_callerpc)
+                                 << ", return pc = " << hexval(return_pc) << "\n";
         }
     } else {
-        getWarningsStream() << "invalid last caller pc = " << hexval(last_callerpc) << "\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "invalid last caller pc = " << hexval(last_callerpc) << "\n";
     }
 }
 

@@ -240,35 +240,41 @@ void InvalidStatesDetection::initialize() {
     tb_interval = s2e()->getConfig()->getInt(getConfigKey() + ".tbInterval", 3000, &ok);
 
     if (!ok || cache_tb_num <= 0 || terminate_tb_num <= 0) {
-        getWarningsStream() << "Could not set correct cache and max repeat tb number, \n";
+        getWarningsStream() << "[WARN] - "
+                            << "Could not set correct cache and max repeat tb number \n";
         return;
     }
-    getDebugStream() << "cache tb num: " << cache_tb_num << " terminate_tb_num: " << terminate_tb_num
-                     << " max_loop_tb_num: " << max_loop_tb_num << "\n";
+    getInfoStream() << "[INFO] - "
+                    << "cache tb num =  " << cache_tb_num << ", terminate_tb_num = " << terminate_tb_num
+                    << ", max_loop_tb_num = " << max_loop_tb_num << "\n";
 
     kill_point_flag = false;
     alive_point_flag = false;
     ConfigFile *cfg = s2e()->getConfig();
     auto kill_keys = cfg->getIntegerList(getConfigKey() + ".killPoints");
     foreach2 (it, kill_keys.begin(), kill_keys.end()) {
-        getDebugStream() << "Add kill point address = " << hexval(*it) << "\n";
+        getInfoStream() << "[INFO] - "
+                        << "Add kill point address = " << hexval(*it) << "\n";
         kill_points.push_back(*it);
     }
 
     auto alive_keys = cfg->getIntegerList(getConfigKey() + ".alivePoints");
     foreach2 (it, alive_keys.begin(), alive_keys.end()) {
-        getDebugStream() << "Add alive point address = " << hexval(*it) << "\n";
+        getInfoStream() << "[INFO] -"
+                        << "Add alive point address = " << hexval(*it) << "\n";
         alive_points.push_back(*it);
     }
 
     auto skip_keys = cfg->getIntegerList(getConfigKey() + ".skipPoints");
     foreach2 (it, skip_keys.begin(), skip_keys.end()) {
-        getDebugStream() << "Add skip point address = " << hexval(*it) << "\n";
+        getInfoStream() << "[INFO] - "
+                        << "Add skip point address = " << hexval(*it) << "\n";
         skip_points.push_back(*it);
     }
 
     if (cache_mode) {
-        getWarningsStream() << "Invalid States Detection is unabled in cache mode\n";
+        getWarningsStream() << "[WARN] - "
+                            << " Invalid States Detection is unabled in cache mode\n";
         return;
     }
 
@@ -339,13 +345,14 @@ static std::vector<uint32_t> getRegs(S2EExecutionState *state, uint32_t pc) {
 void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64_t pc) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
 
-    getDebugStream() << "InvalidStatesDetection in cache mode " << plgState->getnewtbnum() << " pc = " << hexval(pc)
-                     << " disable_interrupt_count = " << disable_interrupt_count
-                     << " interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "InvalidStatesDetection in cache mode, new tb num = " << plgState->getnewtbnum()
+                         << ", pc = " << hexval(pc) << ", disable_interrupt_count = " << disable_interrupt_count
+                         << ", interrupt flag = " << state->regs()->getInterruptFlag() << "\n";
 
     if (plgState->inctbnum(pc)) {
-        getInfoStream() << "The unqiue number of the executed basic blocks in current state is "
-                        << plgState->getnewtbnum() << " pc = " << hexval(pc) << "\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "new tb num = " << plgState->getnewtbnum() << ", pc = " << hexval(pc) << "\n";
     }
 
     // we should make sure new tb in normal mode will be executed after interrupt
@@ -366,7 +373,8 @@ void InvalidStatesDetection::onCacheModeMonitor(S2EExecutionState *state, uint64
 
     if (!state->regs()->getInterruptFlag()) {
         if (plgState->gettbnum() != 0 && plgState->gettbnum() % tb_interval == 0) {
-            getDebugStream() << " force exit every max loop tb num " << plgState->gettbnum() << "\n";
+            getInfoStream() << "[INFO] - "
+                            << "force exit every max loop tb num = " << plgState->gettbnum() << "\n";
             g_s2e_allow_interrupt = 1;
             s2e()->getExecutor()->setCpuExitRequest();
         }
@@ -380,8 +388,8 @@ void InvalidStatesDetection::onInvalidStatesKill(S2EExecutionState *state, uint6
     onInvalidStatesEvent.emit(state, pc, type, plgState->getnewtbnum());
     std::string s;
     llvm::raw_string_ostream ss(s);
-    ss << reason_str << state->getID() << " pc = " << hexval(state->regs()->getPc()) << " tb num "
-       << plgState->getnewtbnum() << "\n";
+    ss << reason_str << state->getID() << ", pc = " << hexval(state->regs()->getPc())
+       << ", tb num = " << plgState->getnewtbnum() << "\n";
     ss.flush();
     s2e()->getExecutor()->terminateState(*state, s);
 }
@@ -395,7 +403,8 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
 
         invalidPCAccessConnection = s2e()->getCorePlugin()->onInvalidPCAccess.connect(
             sigc::mem_fun(*this, &InvalidStatesDetection::onInvalidPCAccess));
-        getInfoStream() << "mode switch!! path killer is enable\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "mode switch!! path killer is enable\n";
         plgState->reset_allcache();
         cache_mode = false;
         return false;
@@ -410,7 +419,8 @@ bool InvalidStatesDetection::onModeSwitchandTermination(S2EExecutionState *state
         }
         onLearningTerminationEvent.emit(state, &actual_end, plgState->getnewtbnum());
         if (actual_end) {
-            getInfoStream(state) << " mode switch current pc = " << hexval(pc) << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << " mode switch current pc = " << hexval(pc) << "\n";
             cache_mode = true;
             plgState->reset_allcache();
             invalidPCAccessConnection.disconnect();
@@ -449,8 +459,9 @@ void InvalidStatesDetection::onKillandAlivePoints(S2EExecutionState *state, uint
 void InvalidStatesDetection::onInvalidPCAccess(S2EExecutionState *state, uint64_t addr) {
     DECLARE_PLUGINSTATE(InvalidStatesDetectionState, state);
     if (!init_cache_mode) {
-        getWarningsStream() << "Invalid memory (" << hexval(addr) << ") access\n";
-        std::string reason_str = "Kill State due to invalid memory access:";
+        getWarningsStream() << "[WARN] - "
+                            << "access invalid memory address = " << hexval(addr) << "\n";
+        std::string reason_str = "Kill State due to invalid memory access, ";
         onInvalidStatesKill(state, state->regs()->getPc(), IM, reason_str);
     } else {
         bool actual_end = true;
@@ -499,8 +510,9 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         plgState->inctbnum2(pc); // only counter new tb in irq
     } else {
         if (plgState->inctbnum(pc)) {
-            getInfoStream() << "InvalidStatesDetection in learning mode new tb num = " << plgState->getnewtbnum()
-                            << " pc = " << hexval(pc) << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << "Learning mode, new tb num = " << plgState->getnewtbnum() << ", pc = " << hexval(pc)
+                                 << "\n";
         }
     }
 
@@ -508,8 +520,9 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     plgState->setcachenum(cache_tb_num);
     std::vector<uint32_t> conregs = getRegs(state, pc);
 
-    getInfoStream(state) << state->regs()->getInterruptFlag() << " current pc = " << hexval(pc) << " re tb num "
-                         << plgState->getretbnum() << " concrete mode: " << conregs[1] << "\n";
+    getDebugStream(state) << "[DEBUG] - "
+                          << "interrupt flag = " << state->regs()->getInterruptFlag() << ", pc = " << hexval(pc)
+                          << ", re tb num = " << plgState->getretbnum() << ", concrete mode: " << conregs[1] << "\n";
 
     // kill points defined by users
     if (kill_point_flag) {
@@ -531,7 +544,8 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
         g_s2e_allow_interrupt = 2; // continue wait for irq
         plgState->setloopflag(false);
         plgState->inserttbregs(conregs);
-        getWarningsStream() << " cannot kill dead loop caused by alive tb in loop\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "cannot kill dead loop caused by alive tb in loop\n";
         s2e()->getExecutor()->setCpuExitRequest();
         return;
     }
@@ -561,7 +575,8 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                     std::string reason_str = "Kill State due to dead loop (multi-tbs):";
                     onInvalidStatesKill(state, pc, DL2, reason_str);
                 } else {
-                    getWarningsStream() << " cannot kill dead loop in concrete mode pc = " << hexval(pc) << "\n";
+                    getWarningsStream(state) << "[WARN] - "
+                                             << "cannot kill dead loop in concrete mode pc = " << hexval(pc) << "\n";
                     g_s2e_allow_interrupt = 2; // continue wait for irq
                     plgState->setloopflag(false);
                     plgState->inserttbregs(conregs);
@@ -573,8 +588,9 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                 return;
             }
         } else {
-            getDebugStream() << " state: " << state->getID() << " loop reg " << k - 2 << " = " << hexval(loopregs[k])
-                             << " cache reg = " << k - 2 << " is " << hexval(conregs[k]) << " different \n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << "loop reg " << k - 2 << " = " << hexval(loopregs[k]) << ", cache reg = " << k - 2
+                                  << " is " << hexval(conregs[k]) << " different \n";
             if (k > 1 && !state->regs()->getInterruptFlag()) {
                 UniquePcRegMap uniquepcregmap = std::make_pair(pc, k - 2);
                 if (plgState->judgelongloopregs(uniquepcregmap, conregs[k])) {
@@ -617,8 +633,10 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                     }
                     onInvalidStatesKill(state, pc, DL1, reason_str);
                 } else {
-                    getWarningsStream() << " cannot kill dead single loop in concrete mode" << plgState->getnewtbnum()
-                                        << "\n";
+                    getWarningsStream(state)
+                        << "[WARN] - "
+                        << "cannot kill dead single loop in concrete mode, new tb num = " << plgState->getnewtbnum()
+                        << "\n";
                     plgState->inserttbregs(conregs);
                     s2e()->getExecutor()->setCpuExitRequest();
                     return;
@@ -632,8 +650,9 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
                 plgState->inserttbregs(conregs); // insert current tb before assign loop tb
                 plgState->assignloopregs(i);     // assign loop tb
                 plgState->setloopflag(true);     // next round compare loop tb first
-                getDebugStream(state) << " Same as the " << i << " current pc = " << hexval(pc)
-                                      << " cachereg pc = " << hexval(cacheregs[0]) << " \n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "Same as the " << i << " current pc = " << hexval(pc)
+                                      << ", cache reg pc = " << hexval(cacheregs[0]) << " \n";
                 return;
             }
         } else {
@@ -646,7 +665,8 @@ void InvalidStatesDetection::onInvalidLoopDetection(S2EExecutionState *state, ui
     // monitor long loop in single tb circle
     if (std::get<0>(last_re_reg_map) == pc) {
         UniquePcRegMap uniquepcregmap = std::make_pair(pc, std::get<1>(last_re_reg_map));
-        getDebugStream(state) << " pc = " << hexval(std::get<0>(last_re_reg_map)) << " long reg "
+        getDebugStream(state) << "[DEBUG] - "
+                              << "pc = " << hexval(std::get<0>(last_re_reg_map)) << ", long reg "
                               << hexval(std::get<1>(last_re_reg_map)) << " is " << hexval(std::get<2>(last_re_reg_map))
                               << " different \n";
         if (plgState->judgelongloopregs(uniquepcregmap, std::get<2>(last_re_reg_map))) {

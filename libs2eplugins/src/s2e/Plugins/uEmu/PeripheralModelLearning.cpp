@@ -494,7 +494,8 @@ void PeripheralModelLearning::initialize() {
     bool ok;
 
     if (!parseConfigIoT()) {
-        getWarningsStream() << "Could not parse peripheral config\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Could not parse peripheral config\n";
         exit(-1);
     }
 
@@ -502,7 +503,8 @@ void PeripheralModelLearning::initialize() {
     durationtime = 0;
     all_peripheral_no = 0;
     firmwareName = s2e()->getConfig()->getString(getConfigKey() + ".firmwareName", "x.elf");
-    getInfoStream() << "firmware name is " << firmwareName << "\n";
+    getInfoStream() << "[INFO] - "
+                    << "firmware name = " << firmwareName << "\n";
     enable_extended_irq_mode = s2e()->getConfig()->getBool(getConfigKey() + ".enableExtendedInterruptMode", false);
     auto_mode_switch = s2e()->getConfig()->getBool(getConfigKey() + ".autoModeSwitch", false);
     enable_fuzzing = s2e()->getConfig()->getBool(getConfigKey() + ".useFuzzer", false);
@@ -510,7 +512,8 @@ void PeripheralModelLearning::initialize() {
     t3_max_symbolic_count = s2e()->getConfig()->getInt(getConfigKey() + ".limitSymNum", 10, &ok);
     allow_new_phs = s2e()->getConfig()->getBool(getConfigKey() + ".allowNewPhs", true);
     if (!allow_new_phs) {
-        getWarningsStream() << "Not allow new peripherals registers in fuzzing mode\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Not allow new peripherals registers in fuzzing mode\n";
     }
 
     auto fuzz_peripherals_key = s2e()->getConfig()->getIntegerList(getConfigKey() + ".fuzzPeripherals");
@@ -535,7 +538,8 @@ void PeripheralModelLearning::initialize() {
     if (g_s2e_cache_mode) {
         fileName = s2e()->getConfig()->getString(getConfigKey() + ".cacheFileName", "statename");
         if (!readKBfromFile(fileName)) {
-            getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
+            getWarningsStream() << "[WARN] - "
+                                << "Could not read peripheral regs from cache file, filename = " << fileName << "\n";
             exit(-1);
         }
     } else {
@@ -576,7 +580,8 @@ template <typename T> bool PeripheralModelLearning::parseRangeList(ConfigFile *c
 
     int ranges = cfg->getListSize(key, &ok);
     if (!ok) {
-        getWarningsStream() << "Could not parse ranges: " << key << "\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Could not parse ranges = " << key << "\n";
         return false;
     }
 
@@ -585,20 +590,22 @@ template <typename T> bool PeripheralModelLearning::parseRangeList(ConfigFile *c
         ss << key << "[" << (i + 1) << "]";
         uint64_t start = cfg->getInt(ss.str() + "[1]", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Could not parse start port: " << ss.str() + "[1]"
+            getWarningsStream() << "[WARN] - "
+                                << "Could not parse start port = " << ss.str() + "[1]"
                                 << "\n";
             return false;
         }
 
         uint64_t end = cfg->getInt(ss.str() + "[2]", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Could not parse port range: " << ss.str() + "[2]"
+            getWarningsStream() << "[WARN] - "
+                                << "Could not parse port range =  " << ss.str() + "[2]"
                                 << "\n";
             return false;
         }
 
         if (!(start <= end)) {
-            getWarningsStream() << hexval(start) << " is greater than " << hexval(end) << "\n";
+            getWarningsStream() << "[WARN] - " << hexval(start) << " is greater than " << hexval(end) << "\n";
             return false;
         }
 
@@ -628,12 +635,14 @@ bool PeripheralModelLearning::getDREntryfromKB(std::string variablePeripheralNam
                                                uint32_t *size) {
     boost::smatch what;
     if (!boost::regex_match(variablePeripheralName, what, KBDRPeripheralRegEx)) {
-        getWarningsStream() << "match false\n";
+        getWarningsStream() << "[WARN] - "
+                            << "match false\n";
         return false;
     }
 
     if (what.size() != 5) {
-        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        getWarningsStream() << "[WARN] - "
+                            << "wrong size = " << what.size() << "\n";
         return false;
     }
 
@@ -641,7 +650,8 @@ bool PeripheralModelLearning::getDREntryfromKB(std::string variablePeripheralNam
     if (modeStr == "fuzz") {
         *type = T3;
     } else {
-        getWarningsStream() << "Unrecognized DR Regs Format!\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Unrecognized DR Regs Format!\n";
         return false;
     }
 
@@ -659,12 +669,14 @@ bool PeripheralModelLearning::getIRQEntryfromKB(std::string variablePeripheralNa
                                                 uint32_t *cr_value) {
     boost::smatch what;
     if (!boost::regex_match(variablePeripheralName, what, KBIRQPeripheralRegEx)) {
-        getWarningsStream() << "match false\n";
+        getWarningsStream() << "[WARN] - "
+                            << "match false\n";
         return false;
     }
 
     if (what.size() != 7) {
-        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        getWarningsStream() << "[WARN] - "
+                            << "wrong size = " << what.size() << "\n";
         return false;
     }
 
@@ -672,7 +684,8 @@ bool PeripheralModelLearning::getIRQEntryfromKB(std::string variablePeripheralNa
     if (modeStr == "tirqc") {
         *type = TIRQC;
     } else {
-        getWarningsStream() << "Unrecognized Peripheral Regs!\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Unrecognized Peripheral Regs!\n";
         return false;
     }
 
@@ -696,12 +709,14 @@ bool PeripheralModelLearning::getGeneralEntryfromKB(std::string variablePeripher
                                                     uint64_t *ch_value) {
     boost::smatch what;
     if (!boost::regex_match(variablePeripheralName, what, KBGeneralPeripheralRegEx)) {
-        getWarningsStream() << "match false\n";
+        getWarningsStream() << "[WARN] - "
+                            << "match false\n";
         return false;
     }
 
     if (what.size() != 6) {
-        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        getWarningsStream() << "[WARN] - "
+                            << "wrong size = " << what.size() << "\n";
         return false;
     }
 
@@ -719,7 +734,8 @@ bool PeripheralModelLearning::getGeneralEntryfromKB(std::string variablePeripher
     } else if (modeStr == "tirqs") {
         *type = TIRQS;
     } else {
-        getWarningsStream() << "Unrecognized Peripheral Regs!\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Unrecognized Peripheral Regs!\n";
         return false;
     }
 
@@ -741,7 +757,8 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
     std::string line;
     fPHKB.open(fileName, std::ios::in);
     if (!fPHKB) {
-        getWarningsStream() << "Could not open cache peripheral knowledge base file: " << fileName << " \n";
+        getWarningsStream() << "[WARN] - "
+                            << "Could not open cache peripheral knowledge base file, file name = " << fileName << " \n";
         return false;
     }
 
@@ -785,7 +802,8 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
                 cache_type_irqs_flag[std::make_tuple(cwirq_value, phaddr, pc)] = 1;
                 cache_tirqs_type_phs[std::make_tuple(cwirq_value, phaddr, pc)].push_back(value);
             } else {
-                getWarningsStream() << "Unrecognized perpherial\n";
+                getWarningsStream() << "[WARN] - "
+                                    << "Unrecognized perpherial\n";
             }
             valid_phs.push_back(phaddr);
         } else {
@@ -814,7 +832,8 @@ bool PeripheralModelLearning::readKBfromFile(std::string fileName) {
                 cache_type_irqc_flag[std::make_pair(irq_no, phaddr)] = 2;
                 cache_tirqc_type_phs[std::make_pair(irq_no, phaddr)][cr_phaddr][cr_value].push_back(value);
             } else {
-                getWarningsStream() << "unrecognized perpherial\n";
+                getWarningsStream() << "[WARN] - "
+                                    << "unrecognized perpherial\n";
             }
         } else {
             return false;
@@ -894,9 +913,10 @@ void PeripheralModelLearning::writeTIRQPeripheralstoKB(S2EExecutionState *state,
                        tirqc_type_phs[std::make_pair(std::get<0>(itpossirqs.first), std::get<1>(itpossirqs.first))]
                                .size() > 1) {
                 plgState->insert_irq_flag_phs(std::get<1>(itpossirqs.first), 1);
-                getInfoStream()
+                getInfoStream(state)
+                    << "[INFO] - "
                     << "tirqs_" << hexval(std::get<1>(itpossirqs.first)) << "_" << hexval(std::get<2>(itpossirqs.first))
-                    << "_" << hexval(std::get<0>(itpossirqs.first)) << " size = "
+                    << "_" << hexval(std::get<0>(itpossirqs.first)) << ", size = "
                     << tirqc_type_phs[std::make_pair(std::get<0>(itpossirqs.first), std::get<1>(itpossirqs.first))]
                            .size()
                     << "\n";
@@ -959,8 +979,9 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
             continue;
         } else if (type_flag_phs[it->first] == T1) {
             if (irq_data_phs[it->first] == 2) { // data regs in irq
-                getInfoStream() << "The first kind of data register phaddr = " << hexval(it->first)
-                                << " count = " << it->second.second << "\n";
+                getInfoStream(state) << "[INFO] - "
+                                     << "The first kind of data register phaddr = " << hexval(it->first)
+                                     << ", count = " << it->second.second << "\n";
                 read_cache_data_phs[it->first] = it->second;
                 read_cache_phs.erase(it++);
                 continue;
@@ -970,8 +991,9 @@ void PeripheralModelLearning::identifyDataPeripheralRegs(S2EExecutionState *stat
             } else if (plgState->get_lock_t1_type_flag(it->first) == 1) {
                 if (PT1_phs[it->first] == 1 && mulit_value_dr[it->first] == 1 && it->second.second > 0x30 &&
                     !enable_fuzzing) { // mulit values in pt1 is also dr
-                    getInfoStream() << "The second kind of data register phaddr = " << hexval(it->first)
-                                    << " count = " << it->second.second << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << "The second kind of data register phaddr = " << hexval(it->first)
+                                         << ", count = " << it->second.second << "\n";
                     read_cache_data_phs[it->first] = it->second;
                 }
                 read_cache_phs.erase(it++); // remove t1 type
@@ -1035,21 +1057,25 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
 
     if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1) {
         if (plgState->get_type_flag_ph_it(phaddr) == T0) {
-            getInfoStream() << " In learning mode, reading T0 usa as symbolic pc with phaddr = " << hexval(phaddr)
-                            << " pc = " << hexval(pc) << " return value set as written"
-                            << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << "In learning mode, reading T0 usa as symbolic pc with phaddr = " << hexval(phaddr)
+                                 << ", pc = " << hexval(pc) << " return value set as written"
+                                 << "\n";
             *value = plgState->get_writeph(phaddr) & (LSB - 1);
             *createSymFlag = false;
             return;
         } else {
             if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
-                getInfoStream() << " In learning mode, reading reg usa as symbolic pc with phaddr = " << hexval(phaddr)
-                                << " pc = " << hexval(pc) << " return value in external interrupt"
-                                << "\n";
+                getInfoStream(state) << "[INFO] - "
+                                     << "In learning mode, reading reg usa as symbolic pc with phaddr = "
+                                     << hexval(phaddr) << ", pc = " << hexval(pc)
+                                     << " return value in external interrupt"
+                                     << "\n";
             } else {
-                getInfoStream() << " In learning mode, reading reg use as symbolic pc with phaddr = " << hexval(phaddr)
-                                << " pc = " << hexval(pc) << " return value set as zero"
-                                << "\n";
+                getInfoStream(state) << "[INFO] - "
+                                     << "In learning mode, reading reg use as symbolic pc with phaddr = "
+                                     << hexval(phaddr) << ", pc = " << hexval(pc) << " return value set as zero"
+                                     << "\n";
                 value = 0;
                 *createSymFlag = false;
                 return;
@@ -1068,16 +1094,18 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
     plgState->insert_t0_type_flag_phs(phaddr, 1);
     all_peripheral_no++;
 
-    getInfoStream(state) << (*ss).str() << " size " << hexval(size) << " sum_hash = " << hexval(sum_hash)
-                         << " reading times = " << plgState->get_readphs_count(phaddr)
-                         << " peripheral no = " << all_peripheral_no - 1 << "\n";
+    getInfoStream(state) << "[INFO] - " << (*ss).str() << " size = " << hexval(size)
+                         << ", sum_hash = " << hexval(sum_hash)
+                         << ", reading times = " << plgState->get_readphs_count(phaddr)
+                         << ", peripheral no = " << all_peripheral_no - 1 << "\n";
 
     // if phaddr in fuzz_peripherals, then return 0
     for (auto it : fuzz_peripherals) {
         if (it == phaddr) {
-            getDebugStream() << " Meet fuzzing peripheral addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                             << " return value set as zero"
-                             << " size = " << size << "\n";
+            getDebugStream(state) << "[DEBUG] -"
+                                  << " Meet fuzzing peripheral addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                  << " return value set as zero"
+                                  << " size = " << size << "\n";
             plgState->insert_type_flag_phs(phaddr, T3);
             *createSymFlag = false;
             *value = 0x0;
@@ -1137,9 +1165,10 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
 
     switch (plgState->get_type_flag_ph_it(phaddr)) {
         case T0: {
-            getInfoStream() << " T0 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                            << " value = " << hexval(plgState->get_writeph(phaddr)) << " size = " << hexval(size)
-                            << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << "T0 type ph addr = " << hexval(phaddr) << ", pc = " << hexval(pc)
+                                 << ", value = " << hexval(plgState->get_writeph(phaddr)) << ", size = " << hexval(size)
+                                 << "\n";
             if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
                 irq_crs[state->regs()->getExceptionIndex()][phaddr] = plgState->get_writeph(phaddr);
             }
@@ -1200,10 +1229,11 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                     possible_irq_srs[std::make_pair(phaddr, pc)] = state->regs()->getExceptionIndex();
                 }
                 plgState->insert_current_irq_values(phaddr, IRQS_value);
-                getInfoStream() << " IRQ T1(SR) type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                << " value = " << hexval(IRQS_value)
-                                << " possible size = " << possible_irq_values[uniqueirqsphs].size()
-                                << " already size = " << already_used_irq_values[uniqueirqsphs].size() << "\n";
+                getInfoStream(state) << "[INFO] - "
+                                     << "IRQ T1(SR) type ph addr = " << hexval(phaddr) << ", pc = " << hexval(pc)
+                                     << ", value = " << hexval(IRQS_value)
+                                     << ", possible size = " << possible_irq_values[uniqueirqsphs].size()
+                                     << ", already size = " << already_used_irq_values[uniqueirqsphs].size() << "\n";
                 if (already_used_irq_values[uniqueirqsphs].size() == possible_irq_values[uniqueirqsphs].size() &&
                     possible_irq_values[uniqueirqsphs].size() != 0 &&
                     (possible_irq_values[uniqueirqsphs].size() > 2 || plgState->get_readphs_count(phaddr) > 1000)) {
@@ -1280,14 +1310,16 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                             plgState->insert_pt1_type_flag_phs(UniquePeripheral(phaddr, pc), 2);
                             *value = plgState->get_pt1_type_ph_it(UniquePeripheral(phaddr, pc));
                             if (plgState->get_readphs_count(phaddr) > 200) {
-                                getDebugStream()
+                                getDebugStream(state)
+                                    << "[DEBUG] - "
                                     << " CON PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                     << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                                 all_peripheral_no--;
                                 *createSymFlag = false;
                                 return;
                             } else {
-                                getDebugStream()
+                                getDebugStream(state)
+                                    << "[DEBUG] - "
                                     << " Sym PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                     << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                                 plgState->insert_cachephs(phaddr, all_peripheral_no - 1, *value);
@@ -1304,8 +1336,9 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                 // choose random value when an register is read more than t3 times
                 *value = rand() % ((uint64_t) 1 << (size * 8));
                 all_peripheral_no--;
-                getDebugStream() << " value come from T3 loop2 type pc = " << hexval(pc)
-                                 << " value = " << hexval(*value) << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " value come from T3 loop2 type pc = " << hexval(pc)
+                                      << " value = " << hexval(*value) << "\n";
                 *createSymFlag = false;
                 return;
             } else if (plgState->get_t3_type_ph_size(phaddr) > 5 ||
@@ -1319,9 +1352,10 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                 plgState->clear_t3_type_phs(phaddr);
                 for (auto ituncache : ituncaches) {
                     plgState->push_t3_type_ph_back(phaddr, ituncache.second);
-                    getDebugStream() << " T3 loop1 to loop2 type phaddr = " << hexval(phaddr)
-                                     << " value = " << hexval(ituncache.second) << " no = " << hexval(ituncache.first)
-                                     << "\n";
+                    getDebugStream(state)
+                        << "[DEBUG] - "
+                        << " T3 loop1 to loop2 type phaddr = " << hexval(phaddr)
+                        << " value = " << hexval(ituncache.second) << " no = " << hexval(ituncache.first) << "\n";
                 }
                 plgState->insert_concrete_t3_flag(phaddr, 1);
                 plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
@@ -1330,8 +1364,9 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                 plgState->pop_t3_type_ph_it(phaddr);
                 plgState->push_t3_type_ph_back(phaddr, *value);
                 all_peripheral_no--;
-                getDebugStream() << " value come from T3 loop1 type phaddr = " << hexval(phaddr)
-                                 << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " value come from T3 loop1 type phaddr = " << hexval(phaddr)
+                                      << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
                 *createSymFlag = false;
                 return;
             } else {
@@ -1350,9 +1385,10 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                             plgState->clear_t3_type_phs(phaddr);
                             for (auto ituncache : ituncaches) {
                                 plgState->push_t3_type_ph_back(phaddr, ituncache.second);
-                                getDebugStream() << "2 T3 loop1 to loop2 type phaddr = " << hexval(phaddr)
-                                                 << " value = " << hexval(ituncache.second)
-                                                 << " no = " << hexval(ituncache.first) << "\n";
+                                getDebugStream(state) << "[DEBUG] - "
+                                                      << "2 T3 loop1 to loop2 type phaddr = " << hexval(phaddr)
+                                                      << " value = " << hexval(ituncache.second)
+                                                      << " no = " << hexval(ituncache.first) << "\n";
                             }
                             plgState->insert_concrete_t3_flag(phaddr, 1);
                             plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
@@ -1361,20 +1397,23 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
                             plgState->pop_t3_type_ph_it(phaddr);
                             plgState->push_t3_type_ph_back(phaddr, *value);
                             all_peripheral_no--;
-                            getDebugStream() << " value come from T3 loop1 type phaddr = " << hexval(phaddr)
-                                             << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
+                            getDebugStream(state) << "[DEBUG] - "
+                                                  << " value come from T3 loop1 type phaddr = " << hexval(phaddr)
+                                                  << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
                             *createSymFlag = false;
                             return;
                         }
                     }
                 }
-                getDebugStream() << "T3 size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "T3 size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
                 plgState->insert_cachephs(phaddr, all_peripheral_no - 1, 0);
                 plgState->insert_t3_size_ph_it(phaddr, plgState->get_readphs_count(phaddr));
-                getDebugStream() << " value come from T3 loop0 type phaddr = " << hexval(phaddr)
-                                 << " pc = " << hexval(pc)
-                                 << " value = " << hexval(plgState->get_t3_type_ph_it_back(phaddr))
-                                 << " no = " << all_peripheral_no - 1 << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " value come from T3 loop0 type phaddr = " << hexval(phaddr)
+                                      << " pc = " << hexval(pc)
+                                      << " value = " << hexval(plgState->get_t3_type_ph_it_back(phaddr))
+                                      << " no = " << all_peripheral_no - 1 << "\n";
 
                 // *value = plgState->get_t3_type_ph_it_back(phaddr);
                 *value = rand() % ((uint64_t) 1 << (size * 8));
@@ -1383,7 +1422,8 @@ void PeripheralModelLearning::onLearningMode(S2EExecutionState *state, SymbolicH
             }
         }
         default: {
-            getWarningsStream() << "ERROR Type of Peripheral\n";
+            getWarningsStream() << "[WARN] - "
+                                << "ERROR Type of Peripheral\n";
             exit(-1);
         }
     }
@@ -1413,8 +1453,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
     if (itf == cache_type_flag_phs.end()) {
         std::vector<uint32_t>::iterator itph = find(valid_phs.begin(), valid_phs.end(), phaddr);
         if (itph == valid_phs.end() && !allow_new_phs) {
-            getWarningsStream() << " date type concrete value from invalid ph addr = " << hexval(phaddr)
-                                << " pc = " << hexval(pc) << " value = " << 0x0 << "\n";
+            getWarningsStream(state) << "[WARN] - "
+                                     << "date type concrete value from invalid peripheral addr = " << hexval(phaddr)
+                                     << ", pc = " << hexval(pc) << ", value = " << 0x0 << "\n";
             onInvalidPHs.emit(state, phaddr);
             *value = 0x0;
             *createSymFlag = false;
@@ -1435,12 +1476,14 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 fuzzOk = true;
             }
             fuzz_size = cache_dr_type_size[phaddr];
-            getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                             << " value = " << hexval(fuzz_value) << " fuzz_size = " << fuzz_size << "\n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                  << " value = " << hexval(fuzz_value) << " fuzz_size = " << fuzz_size << "\n";
             onDataInput.emit(state, phaddr, cache_t3_type_phs[itf->first].size(), fuzz_size, &fuzz_value, &fuzzOk);
             if (cache_t3_type_phs[itf->first].size() == 0) {
-                getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                      << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
                 uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
                 fuzz_value = fuzz_value & (fuzz_LSB - 1);
                 *value = fuzz_value;
@@ -1451,8 +1494,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
             fuzz_size = size;
             onDataInput.emit(state, phaddr, 0, size, &fuzz_value, &fuzzOk);
             if (fuzzOk) {
-                getDebugStream() << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " data from fuzzing input addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                      << " value = " << hexval(fuzz_value) << " size = " << size << "\n";
                 uint64_t fuzz_LSB = ((uint64_t) 1 << (fuzz_size * 8));
                 fuzz_value = fuzz_value & (fuzz_LSB - 1);
                 *value = fuzz_value;
@@ -1463,8 +1507,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
     }
 
     uint64_t LSB = ((uint64_t) 1 << (size * 8));
-    getDebugStream() << " reading addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                     << " hash  = " << hexval(sum_hash) << " size =" << hexval(size) << "\n";
+    getDebugStream(state) << "[DEBUG] - "
+                          << " reading addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                          << " hash  = " << hexval(sum_hash) << " size =" << hexval(size) << "\n";
 
     switch (itf->second) {
         case T0: {
@@ -1472,8 +1517,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 irq_crs[state->regs()->getExceptionIndex()][phaddr] = plgState->get_writeph(phaddr);
             }
             *value = plgState->get_writeph(phaddr);
-            getDebugStream() << " T0 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                             << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << " T0 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                  << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
             *createSymFlag = false;
             return;
         }
@@ -1488,8 +1534,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                 IRQPhTuple uniqueirqsphs = std::make_tuple(state->regs()->getExceptionIndex(), itf->first, pc);
                 if (cache_t1_type_flag_phs[UniquePeripheral(phaddr, pc)] == 1) {
                     *value = cache_t1_type_phs[UniquePeripheral(phaddr, pc)].second & (LSB - 1);
-                    getDebugStream() << " TIRQ T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                     << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
+                    getDebugStream(state) << "[DEBUG] - "
+                                          << " TIRQ T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                          << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
                     *createSymFlag = false;
                     return;
                 } else if (cache_type_irqs_flag[uniqueirqsphs] == 1) {
@@ -1499,8 +1546,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                         cache_tirqs_type_phs[uniqueirqsphs].begin(), cache_tirqs_type_phs[uniqueirqsphs].end(), *value);
                     cache_tirqs_type_phs[uniqueirqsphs].erase(itirq_rand);
                     cache_tirqs_type_phs[uniqueirqsphs].push_back(*value); // refill to t3 cache for next fuzzing
-                    getDebugStream() << " TIRQS type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                     << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
+                    getDebugStream(state) << "[DEBUG] - "
+                                          << " TIRQS type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                          << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
                     *createSymFlag = false;
                     return;
                 } else if (cache_type_irqc_flag[std::make_pair(state->regs()->getExceptionIndex(), itf->first)] == 2) {
@@ -1517,7 +1565,8 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                                 *value = cache_tirqc_phs.second[plgState->get_writeph(cache_tirqc_phs.first)][rand_no] &
                                          (LSB - 1);
                             }
-                            getDebugStream()
+                            getDebugStream(state)
+                                << "[DEBUG] - "
                                 << " TIRQC type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
                                 << " value = " << hexval(*value) << " cr phaddr = " << hexval(cache_tirqc_phs.first)
                                 << " cr value =" << hexval(plgState->get_writeph(cache_tirqc_phs.first)) << " size = "
@@ -1525,7 +1574,8 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                             *createSymFlag = false;
                             return;
                         } else if (plgState->get_writeph(cache_tirqc_phs.first) == 0) {
-                            getDebugStream()
+                            getDebugStream(state)
+                                << "[DEBUG] - "
                                 << " TIRQC type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc) << " value = 0"
                                 << " cr phaddr = " << hexval(cache_tirqc_phs.first)
                                 << " cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first)) << "\n";
@@ -1537,12 +1587,13 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                                 for (auto sr_value : cr_values.second) {
                                     if ((sr_value & 0xff) & plgState->get_writeph(cache_tirqc_phs.first)) {
                                         plgState->insert_current_irq_values(phaddr, sr_value);
-                                        getInfoStream()
-                                            << " Change mode due to TIRQC type ph addr = " << hexval(phaddr)
-                                            << " pc = " << hexval(pc) << " sr value = " << hexval(sr_value)
-                                            << " cr phaddr = " << hexval(cache_tirqc_phs.first)
-                                            << " cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first))
-                                            << " irq no = " << state->regs()->getExceptionIndex() << "\n";
+                                        getInfoStream(state)
+                                            << "[INFO] - "
+                                            << "Change mode due to TIRQC type ph addr = " << hexval(phaddr)
+                                            << ", pc = " << hexval(pc) << ", sr value = " << hexval(sr_value)
+                                            << ", cr phaddr = " << hexval(cache_tirqc_phs.first)
+                                            << ", cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first))
+                                            << ", irq no = " << state->regs()->getExceptionIndex() << "\n";
                                         concreteValue = sr_value & (LSB - 1);
                                         *createSymFlag = true;
                                         *value = switchModefromFtoL(state, phaddr, size, concreteValue);
@@ -1550,11 +1601,13 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                                     }
                                 }
                             }
-                            getInfoStream() << " Change mode due to TIRQC type ph addr = " << hexval(phaddr)
-                                            << " pc = " << hexval(pc) << " sr value = " << 0x0
-                                            << " cr phaddr = " << hexval(cache_tirqc_phs.first)
-                                            << " cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first))
-                                            << " irq no = " << state->regs()->getExceptionIndex() << "\n";
+                            getInfoStream(state)
+                                << "[INFO] - "
+                                << "Change mode due to TIRQC type ph addr = " << hexval(phaddr)
+                                << ", pc = " << hexval(pc) << ", sr value = " << 0x0
+                                << ", cr phaddr = " << hexval(cache_tirqc_phs.first)
+                                << ", cr value = " << hexval(plgState->get_writeph(cache_tirqc_phs.first))
+                                << ", irq no = " << state->regs()->getExceptionIndex() << "\n";
                             concreteValue = 0x0 & (LSB - 1);
                             *createSymFlag = true;
                             *value = switchModefromFtoL(state, phaddr, size, concreteValue);
@@ -1563,13 +1616,15 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                     }
                 } else if (cache_t1_type_flag_phs[UniquePeripheral(phaddr, pc)] == 2) {
                     *value = cache_pt1_type_phs[UniquePeripheral(phaddr, pc)].second & (LSB - 1);
-                    getDebugStream() << " TIRQ PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                     << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
+                    getDebugStream(state) << "[DEBUG] - "
+                                          << " TIRQ PT1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                          << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
                     *createSymFlag = false;
                     return;
                 } else {
-                    getInfoStream() << " New periperal in IRQ change mode ph addr = " << hexval(phaddr)
-                                    << " pc = " << hexval(pc) << " size =" << hexval(size) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << "New periperal in IRQ change mode ph addr = " << hexval(phaddr)
+                                         << ", pc = " << hexval(pc) << ", size =" << hexval(size) << "\n";
                     concreteValue = 0x0 & (LSB - 1);
                     *createSymFlag = true;
                     *value = switchModefromFtoL(state, phaddr, size, concreteValue);
@@ -1580,9 +1635,10 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                     CWMap::iterator itt2 = cache_t2_type_phs[UniquePeripheral(phaddr, pc)].find(sum_hash);
                     if (itt2 != cache_t2_type_phs[UniquePeripheral(phaddr, pc)].end()) {
                         *value = cache_t2_type_phs[UniquePeripheral(phaddr, pc)][sum_hash] & (LSB - 1);
-                        getDebugStream() << " T2 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                         << "caller pc hash = " << hexval(sum_hash) << " value = " << hexval(value)
-                                         << " size =" << hexval(size) << "\n";
+                        getDebugStream(state) << "[DEBUG] - "
+                                              << " T2 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                              << "caller pc hash = " << hexval(sum_hash) << " value = " << hexval(value)
+                                              << " size =" << hexval(size) << "\n";
                         *createSymFlag = false;
                         return;
                     } else {
@@ -1598,11 +1654,13 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                         } else if (cache_t1_type_flag_phs[UniquePeripheral(phaddr, pc)] == 2) {
                             *value = cache_pt1_type_phs[UniquePeripheral(phaddr, pc)].second & (LSB - 1);
                         } else {
-                            getWarningsStream() << "unrecognized cache peripheral type1!\n";
+                            getWarningsStream(state) << "[WARN] - "
+                                                     << "unrecognized cache peripheral type1!\n";
                             exit(-1);
                         }
-                        getDebugStream() << " T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                         << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
+                        getDebugStream(state) << "[DEBUG] - "
+                                              << " T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                              << " value = " << hexval(*value) << " size =" << hexval(size) << "\n";
                         *createSymFlag = false;
                         return;
                     } else {
@@ -1629,8 +1687,9 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
                         cache_t3_type_phs[itf->first].push_back(*value);
                     }
                 }
-                getDebugStream() << " t3 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " t3 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
+                                      << " value = " << hexval(*value) << " size = " << hexval(size) << "\n";
                 *createSymFlag = false;
                 return;
             } else {
@@ -1641,7 +1700,8 @@ void PeripheralModelLearning::onFuzzingMode(S2EExecutionState *state, SymbolicHa
             }
         }
         default: {
-            getWarningsStream() << "unrecognized cache peripheral type!\n";
+            getWarningsStream(state) << "[WARN] - "
+                                     << "unrecognized cache peripheral type!\n";
             exit(-1);
         }
     }
@@ -1664,11 +1724,14 @@ void PeripheralModelLearning::onPeripheralWrite(S2EExecutionState *state, Symbol
     plgState->insert_all_rw_phs(phaddr, 1);
 
     if (!writeSymFlag) {
-        getDebugStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue)
-                         << "\n";
+        getDebugStream(state) << "[DEBUG] - "
+                              << "writing mmio, address = " << hexval(phaddr)
+                              << ", concrete value = " << hexval(writeConcreteValue) << "\n";
         plgState->update_writeph((uint32_t) phaddr, writeConcreteValue);
     } else {
-        getDebugStream() << "writing mmio " << hexval(phaddr) << " value: " << hexval(writeConcreteValue) << "\n";
+        getDebugStream(state) << "[DEBUG] - "
+                              << "writing mmio, address" << hexval(phaddr) << ", value = " << hexval(writeConcreteValue)
+                              << "\n";
         plgState->update_writeph((uint32_t) phaddr, writeConcreteValue);
 
         TypeFlagPeripheralMap type_flag_phs = plgState->get_type_flag_phs();
@@ -1676,18 +1739,21 @@ void PeripheralModelLearning::onPeripheralWrite(S2EExecutionState *state, Symbol
         if (itf != type_flag_phs.end()) {
             if (plgState->get_type_flag_ph_it(phaddr) == T1 && plgState->get_lock_t1_type_flag(phaddr) != 1) {
                 if (!state->regs()->getInterruptFlag()) {
-                    getInfoStream() << " mmio " << hexval(phaddr) << " change to T0\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << "mmio " << hexval(phaddr) << " change to T0\n";
                     plgState->insert_type_flag_phs(phaddr, T0);
                 } else {
                     if (plgState->get_readphs_count(phaddr) == 1) {
-                        getInfoStream() << "IRQ mmio " << hexval(phaddr) << " change to T0\n";
+                        getInfoStream(state) << "[INFO] - "
+                                             << "IRQ mmio " << hexval(phaddr) << " change to T0\n";
                         plgState->insert_type_flag_phs(phaddr, T0);
                     } else {
                         for (auto back_sr : possible_irq_srs) { // backup dt1 in interrupt
                             if (back_sr.first.first == phaddr && back_sr.second == state->regs()->getExceptionIndex()) {
-                                getInfoStream() << " backup all T0 T1 phaddr " << hexval(phaddr)
-                                                << " pc = " << hexval(back_sr.first.second)
-                                                << " value = " << hexval(writeConcreteValue) << "\n";
+                                getInfoStream(state) << "[INFO] - "
+                                                     << "backup all T0 T1 phaddr addr = " << hexval(phaddr)
+                                                     << ", pc = " << hexval(back_sr.first.second)
+                                                     << ", value = " << hexval(writeConcreteValue) << "\n";
                                 plgState->insert_pdata_type_phs(back_sr.first, writeConcreteValue);
                                 plgState->insert_dt1_type_flag_phs(
                                     phaddr, 2); // regs which receive other regs values can not be data registers.
@@ -1718,14 +1784,16 @@ bool PeripheralModelLearning::getPeripheralExecutionState(std::string variablePe
                                                           uint32_t *pc, uint64_t *ch_value, uint64_t *no) {
     boost::smatch what;
     if (!boost::regex_match(variablePeripheralName, what, PeripheralModelLearningRegEx)) {
-        getWarningsStream() << "match false"
+        getWarningsStream() << "[WARN] - "
+                            << "match false"
                             << "\n";
         exit(0);
         return false;
     }
 
     if (what.size() != 4) {
-        getWarningsStream() << "wrong size = " << what.size() << "\n";
+        getWarningsStream() << "[WARN] - "
+                            << "wrong size = " << what.size() << "\n";
         exit(0);
         return false;
     }
@@ -1749,7 +1817,8 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
 
     end = time(NULL);
     durationtime = durationtime + (end - start);
-    getInfoStream(state) << "Learning time = " << durationtime << "s\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "Learning time = " << durationtime << "s\n";
 
     T1BNPeripheralMap t1_type_phs = plgState->get_t1_type_phs();
     T1BNPeripheralMap pt1_type_phs = plgState->get_pt1_type_phs();
@@ -1810,7 +1879,8 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
                 if (plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 2 &&
                     plgState->get_dt1_type_flag_ph_it(itpt1.first.first) != 1) {
                     if (itpt1.second.second.second == 0xd0d0d0d) {
-                        getInfoStream() << "unlock possible dr = " << hexval(itpt1.first.first) << "\n";
+                        getInfoStream(state) << "[INFO] - "
+                                             << "unlock possible dr = " << hexval(itpt1.first.first) << "\n";
                         plgState->insert_lock_t1_type_flag(itpt1.first.first, 0);
                         plgState->insert_dt1_type_flag_phs(itpt1.first.first, 1);
                     } else if (itpt1.second.second.second == 0) {
@@ -1874,13 +1944,16 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
             } else {
                 max_t3_size = plgState->get_readphs_count(ituncaches.first);
             }
-            getDebugStream() << "t3 size = " << max_t3_size
-                             << " read count = " << plgState->get_readphs_count(ituncaches.first) << "\n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << "t3 size = " << max_t3_size
+                                  << " read count = " << plgState->get_readphs_count(ituncaches.first) << "\n";
             T3_phs[ituncaches.first] = 1;
             std::vector<uint32_t> unique_T3_values;
             for (auto ituncache_vec : ituncaches_vec) {
                 unique_T3_values.push_back(ituncache_vec.second);
-                getDebugStream() << "ut3_" << hexval(ituncaches.first) << "_" << hexval(ituncache_vec.second) << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "ut3_" << hexval(ituncaches.first) << "_" << hexval(ituncache_vec.second)
+                                      << "\n";
             }
             std::sort(unique_T3_values.begin(), unique_T3_values.end());
             unique_T3_values.erase(std::unique(unique_T3_values.begin(), unique_T3_values.end()),
@@ -1960,15 +2033,17 @@ void PeripheralModelLearning::saveKBtoFile(S2EExecutionState *state, uint64_t tb
 
     fPHKB.close();
 
-    getInfoStream(state) << "=========KB Extraction Phase Finish===========\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "=========KB Extraction Phase Finish===========\n";
 }
 
 void PeripheralModelLearning::onARMFunctionCall(S2EExecutionState *state, uint32_t caller_pc, uint64_t function_hash) {
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     if (state->regs()->getInterruptFlag()) {
         if (state->regs()->getExceptionIndex() > 15 && !g_s2e_cache_mode) {
-            getDebugStream() << "irq num " << state->regs()->getExceptionIndex() << " caller PC = " << hexval(caller_pc)
-                             << "\n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << "irq num " << state->regs()->getExceptionIndex()
+                                  << " caller PC = " << hexval(caller_pc) << "\n";
             updateIRQKB(state, state->regs()->getExceptionIndex(), 1);
         }
         plgState->insert_hashstack(state->regs()->getExceptionIndex(), function_hash);
@@ -1990,7 +2065,8 @@ void PeripheralModelLearning::onLearningTerminationDetection(S2EExecutionState *
                                                              uint64_t tb_num) {
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
 
-    getInfoStream() << "Terminate live state:" << state->getID() << " tb num " << tb_num << "\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "Terminate live state, tb num = " << tb_num << "\n";
 
     for (auto itairq : already_used_irq_values) {
         // already wait for so many bbs
@@ -2005,11 +2081,13 @@ void PeripheralModelLearning::onLearningTerminationDetection(S2EExecutionState *
 
         if (itairq.second.size() != possible_irq_values[itairq.first].size() &&
             possible_irq_values[itairq.first].size() > 1) {
-            getWarningsStream() << "ph addr = " << hexval(std::get<1>(itairq.first))
-                                << " pc = " << hexval(std::get<2>(itairq.first))
-                                << " irq no = " << std::get<0>(itairq.first)
-                                << " already trigger number of irq values = " << itairq.second.size()
-                                << " total number of irq values = " << possible_irq_values[itairq.first].size() << "\n";
+            getWarningsStream(state) << "[WARN] - "
+                                     << "peripheral addr = " << hexval(std::get<1>(itairq.first))
+                                     << ", pc = " << hexval(std::get<2>(itairq.first))
+                                     << ", irq no = " << std::get<0>(itairq.first)
+                                     << ", already trigger number of irq values = " << itairq.second.size()
+                                     << ", total number of irq values = " << possible_irq_values[itairq.first].size()
+                                     << "\n";
             *actual_end = false;
             return;
         }
@@ -2018,7 +2096,8 @@ void PeripheralModelLearning::onLearningTerminationDetection(S2EExecutionState *
     if (enable_fuzzing && auto_mode_switch) {
         updateGeneralKB(state, 0, Valid);
         saveKBtoFile(state, tb_num);
-        getInfoStream() << " Mode auto switch from KB phase to dynamic phase!!\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "Mode auto switch from KB phase to dynamic phase!!\n";
         switchModefromLtoF(state);
         *actual_end = true;
     } else {
@@ -2038,13 +2117,16 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
 
     // record every termination points for alive point identification
     alive_points_count[state->regs()->getPc()]++;
-    getDebugStream() << "kill pc = " << hexval(state->regs()->getPc()) << " lr = " << hexval(state->regs()->getLr())
-                     << " alive point count " << alive_points_count[state->regs()->getPc()] << "\n";
+    getDebugStream(state) << "[DEBUG] - "
+                          << "kill pc = " << hexval(state->regs()->getPc())
+                          << " lr = " << hexval(state->regs()->getLr()) << " alive point count "
+                          << alive_points_count[state->regs()->getPc()] << "\n";
     if ((alive_points_count[state->regs()->getPc()] > t2_max_context ||
          (alive_points_count[state->regs()->getPc()] > state->getID() / 3 && state->getID() > 10)) &&
         (type == DL1 || type == LL1) && !enable_fuzzing) {
-        getWarningsStream() << "====KB extraction phase failed! Please add the alive point: " << hexval(pc)
-                            << " and re-run the learning parse====\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "====KB extraction phase failed! Please add the alive point: " << hexval(pc)
+                                 << " and re-run the learning parse====\n";
         exit(-1);
     }
     // remove current state in cache interrupt states
@@ -2052,7 +2134,8 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
         auto itirqs = irq_states.begin();
         for (; itirqs != irq_states.end();) {
             if (*itirqs == state) {
-                getDebugStream() << "delete currecnt state in irq states " << (*itirqs)->getID() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "delete currecnt state in irq states " << (*itirqs)->getID() << "\n";
                 irq_states.erase(itirqs);
             } else {
                 itirqs++;
@@ -2065,7 +2148,8 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
         auto itles = learning_mode_states.begin();
         for (; itles != learning_mode_states.end();) {
             if (*itles == state) {
-                getDebugStream() << "delete current state in learning state " << (*itles)->getID() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "delete current state in learning state " << (*itles)->getID() << "\n";
                 learning_mode_states.erase(itles);
             } else {
                 itles++;
@@ -2079,9 +2163,10 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
         for (auto &it : plgState->getlastfork_phs()) {
             for (auto &itch : it.second) {
                 if (type_flag_phs[it.first.first] == T3) {
-                    getDebugStream() << " t3 loop phs = " << hexval(it.first.first)
-                                     << " pc = " << hexval(it.first.second) << " value = " << hexval(itch.second.second)
-                                     << " maybe is incorrect\n";
+                    getDebugStream(state)
+                        << "[DEBUG] - "
+                        << " t3 loop phs = " << hexval(it.first.first) << " pc = " << hexval(it.first.second)
+                        << " value = " << hexval(itch.second.second) << " maybe is incorrect\n";
                     // plgState->erase_t3_type_ph_it(it.first.first, itch.second.second);
                     break;
                 }
@@ -2095,9 +2180,10 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
         for (auto &it : plgState->irq_getlastfork_phs(state->regs()->getExceptionIndex())) {
             for (auto &itch : it.second) {
                 if (type_flag_phs[it.first.first] == T3) {
-                    getDebugStream() << " t3 loop phs = " << hexval(it.first.first)
-                                     << " pc = " << hexval(it.first.second) << " value = " << hexval(itch.second.second)
-                                     << "\n";
+                    getDebugStream(state)
+                        << "[DEBUG] - "
+                        << " t3 loop phs = " << hexval(it.first.first) << " pc = " << hexval(it.first.second)
+                        << " value = " << hexval(itch.second.second) << "\n";
                     break;
                 } else if (type_flag_phs[it.first.first] == T1 && state->regs()->getExceptionIndex() > 15) {
                     IRQPhTuple uniqueirqsphs =
@@ -2114,9 +2200,10 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
                     if (itirq != possible_irq_values[uniqueirqsphs].end()) {
                         possible_irq_values[uniqueirqsphs].erase(itirq);
                         impossible_irq_values[uniqueirqsphs].push_back(itch.second.second);
-                        getDebugStream() << " remove irq phs = " << hexval(it.first.first)
-                                         << " pc = " << hexval(it.first.second)
-                                         << " value = " << hexval(itch.second.second) << "\n";
+                        getDebugStream(state)
+                            << "[DEBUG] - "
+                            << " remove irq phs = " << hexval(it.first.first) << " pc = " << hexval(it.first.second)
+                            << " value = " << hexval(itch.second.second) << "\n";
                         break;
                     }
                 }
@@ -2129,7 +2216,8 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
         auto cfss = unsearched_condition_fork_states[i].begin();
         for (; cfss != unsearched_condition_fork_states[i].end();) {
             if (*cfss == state) {
-                getDebugStream() << "delete current state in unused cache t1 state " << (*cfss)->getID() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "delete current state in unused cache t1 state " << (*cfss)->getID() << "\n";
                 unsearched_condition_fork_states[i].erase(cfss);
             } else {
                 cfss++;
@@ -2144,9 +2232,10 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
             for (int i = 1; i < unsearched_condition_fork_states.back().size();
                  ++i) { // last it is current state so not add current state
                 false_type_phs_fork_states.push_back(unsearched_condition_fork_states.back()[i]);
-                getDebugStream() << " remove useless loop fork state in above condition "
-                                 << unsearched_condition_fork_states.back()[i]->getID()
-                                 << " size = " << unsearched_condition_fork_states.back().size() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " remove useless loop fork state in above condition "
+                                      << unsearched_condition_fork_states.back()[i]->getID()
+                                      << " size = " << unsearched_condition_fork_states.back().size() << "\n";
             }
             std::vector<S2EExecutionState *> unsbfs;
             unsbfs.clear();
@@ -2164,9 +2253,10 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
             for (int i = 1; i < unsearched_condition_fork_states.back().size();
                  ++i) { // last it is current state so not add current state
                 false_type_phs_fork_states.push_back(unsearched_condition_fork_states.back()[i]);
-                getDebugStream() << " remove useless loop fork state in above condition "
-                                 << unsearched_condition_fork_states.back()[i]->getID()
-                                 << " size = " << unsearched_condition_fork_states.back().size() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " remove useless loop fork state in above condition "
+                                      << unsearched_condition_fork_states.back()[i]->getID()
+                                      << " size = " << unsearched_condition_fork_states.back().size() << "\n";
             }
             std::vector<S2EExecutionState *> unsbfs;
             unsbfs.clear();
@@ -2182,7 +2272,8 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
         for (auto firqs : irq_states) {
             if (find(false_type_phs_fork_states.begin(), false_type_phs_fork_states.end(), firqs) ==
                 false_type_phs_fork_states.end()) {
-                getDebugStream() << "Kill Fork State in interrupt:" << firqs->getID() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "Kill Fork State in interrupt:" << firqs->getID() << "\n";
                 false_type_phs_fork_states.push_back(firqs);
             }
         }
@@ -2203,8 +2294,9 @@ bool PeripheralModelLearning::ConcreteT3Regs(S2EExecutionState *state) {
             klee::ref<klee::ConstantExpr> ce;
             ce = dyn_cast<klee::ConstantExpr>(state->concolics->evaluate(expr));
             concreteData = ce->getZExtValue();
-            getDebugStream() << " symbolic reg" << i << " = " << expr << " concrete value = " << hexval(concreteData)
-                             << "\n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << " symbolic reg" << i << " = " << expr
+                                  << " concrete value = " << hexval(concreteData) << "\n";
             state->regs()->write(offset, &concreteData, sizeof(concreteData));
         }
     }
@@ -2230,7 +2322,8 @@ void PeripheralModelLearning::onStateForkDecide(S2EExecutionState *state, bool *
         if (symbolic_address_count[curPc] > 0) {
             getDebugStream(state) << "can not fork at Symbolic Address: " << hexval(curPc) << "\n";
             plgState->insert_symbolicpc_ph_it(std::make_pair(phaddr, pc));
-            getWarningsStream(state) << "Add symbolic phaddr = " << hexval(phaddr) << " pc = " << hexval(pc) << "\n";
+            getWarningsStream(state) << "[WARN] - "
+                                     << "Add symbolic phaddr = " << hexval(phaddr) << ", pc = " << hexval(pc) << "\n";
             *doFork = false;
             *conditionFork = false;
             continue;
@@ -2239,16 +2332,18 @@ void PeripheralModelLearning::onStateForkDecide(S2EExecutionState *state, bool *
         // let go circle of condition in symbolic pc forking
         if (plgState->get_symbolicpc_ph_it(UniquePeripheral(phaddr, pc)) == 1 &&
             plgState->get_type_flag_ph_it(phaddr) != T1) {
-            getWarningsStream(state) << "condition random in symbolic address " << hexval(phaddr)
-                                     << " pc = " << hexval(pc) << "\n";
+            getWarningsStream(state) << "[WARN] - "
+                                     << "condition random in symbolic address = " << hexval(phaddr)
+                                     << ", pc = " << hexval(pc) << "\n";
             plgState->inc_symbolicpc_ph_count(UniquePeripheral(phaddr, pc));
             *conditionFork = plgState->get_symbolicpc_ph_count(UniquePeripheral(phaddr, pc)) % 2;
             return;
         }
 
         if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
-            getInfoStream(state) << "condition false in external irq " << hexval(phaddr) << " pc = " << hexval(pc)
-                                 << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << "condition false in external irq, phaddr = " << hexval(phaddr)
+                                 << ", pc = " << hexval(pc) << "\n";
             *conditionFork = false;
             return;
         }
@@ -2270,7 +2365,8 @@ void PeripheralModelLearning::onStateForkDecide(S2EExecutionState *state, bool *
                     *conditionFork = true;
                     ref<Expr> e = state->concolics->evaluate(condition);
                     if (!isa<ConstantExpr>(e)) {
-                        getWarningsStream() << "Failed to evaluate concrete value\n";
+                        getWarningsStream(state) << "[WARN] - "
+                                                 << "Failed to evaluate concrete value\n";
                         pabort("Failed to evaluate concrete value");
                     }
 
@@ -2284,7 +2380,8 @@ void PeripheralModelLearning::onStateForkDecide(S2EExecutionState *state, bool *
             if (plgState->get_concrete_t3_flag(phaddr) == 1) {
                 ConcreteT3Regs(state);
                 *conditionFork = false;
-                getWarningsStream() << " condition false for already t3 phaddr = " << hexval(phaddr) << "\n";
+                getWarningsStream(state) << "[WARN] - "
+                                         << " condition false for already t3 phaddr = " << hexval(phaddr) << "\n";
             } else {
                 *conditionFork = true;
                 *doFork = true;
@@ -2331,11 +2428,12 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
 
             getPeripheralExecutionState(arr->getName(), &phaddr, &pc, &ch_value, &no);
 
-            // getDebugStream() << "The symbol name of value is " << arr->getName() << "\n";
+            // getDebugStream(state) << "[DEBUG] - " << "The symbol name of value is " << arr->getName() << "\n";
             for (unsigned s = 0; s < arr->getSize(); ++s) {
                 ref<Expr> e = newStates[k]->concolics->evaluate(arr, s);
                 if (!isa<ConstantExpr>(e)) {
-                    getWarningsStream() << "Failed to evaluate concrete value\n";
+                    getWarningsStream(state) << "[WARN] - "
+                                             << "Failed to evaluate concrete value\n";
                     pabort("Failed to evaluate concrete value");
                 }
 
@@ -2362,8 +2460,9 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
             // insert p flag for external irq
             if ((newStates[k]->regs()->getInterruptFlag() && newStates[k]->regs()->getExceptionIndex() > 15) ||
                 (plgState->get_irq_flag_ph_it(phaddr) == 1 || plgState->get_irq_flag_ph_it(phaddr) == 2)) {
-                getInfoStream(newStates[k]) << " Note: all possible IRQ value of phaddr = " << hexval(phaddr)
-                                            << " pc = " << hexval(pc) << " value = " << hexval(value) << "\n";
+                getInfoStream(newStates[k]) << "[INFO] - "
+                                            << "Note: all possible IRQ value of phaddr = " << hexval(phaddr)
+                                            << ", pc = " << hexval(pc) << ", value = " << hexval(value) << "\n";
                 if (possible_irq_srs.find(std::make_pair(phaddr, pc)) != possible_irq_srs.end()) {
                     // save all possible value for t3 phs
                     IRQPhTuple uniqueirqsphs =
@@ -2376,14 +2475,16 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
                                      impossible_irq_values[uniqueirqsphs].end(),
                                      value) == impossible_irq_values[uniqueirqsphs].end()) {
                                 getInfoStream(newStates[k])
-                                    << " Note: New IRQ value of phaddr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                    << " value = " << hexval(value) << "\n";
+                                    << "[INFO] - "
+                                    << "Note: New IRQ value of phaddr = " << hexval(phaddr) << ", pc = " << hexval(pc)
+                                    << ", value = " << hexval(value) << "\n";
                                 possible_irq_values[uniqueirqsphs].push_back(value);
                             }
                         }
                     }
                 } else {
-                    getDebugStream() << "T0 type\n";
+                    getDebugStream(state) << "[DEBUG] - "
+                                          << "T0 type\n";
                 }
             }
 
@@ -2400,11 +2501,13 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
                         plgState->insert_t3_type_ph_back(phaddr, value);
                         if (plgState->get_t2_type_flag_ph_it(uniquePeripheral) == T2) {
                             plgState->erase_t2_type_phs(uniquePeripheral);
-                            getInfoStream(newStates[k]) << " Note: t2 change to t3 phaddr = " << hexval(phaddr)
-                                                        << " size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
+                            getInfoStream(newStates[k]) << "[INFO] - "
+                                                        << "Note: t2 change to t3 phaddr = " << hexval(phaddr)
+                                                        << ", size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
                         } else {
-                            getInfoStream(newStates[k]) << " Note: t1 change to t3 phaddr = " << hexval(phaddr)
-                                                        << " size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
+                            getInfoStream(newStates[k]) << "[INFO] - "
+                                                        << "Note: t1 change to t3 phaddr = " << hexval(phaddr)
+                                                        << ", size = " << plgState->get_t3_type_ph_size(phaddr) << "\n";
                         }
                     }
                 }
@@ -2418,16 +2521,19 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
                      value) == all_fork_states_value_map[uniquehashPeripheral].end()) {
                 all_fork_states_value_map[uniquehashPeripheral].push_back(value);
                 if (all_fork_states_value_map[uniquehashPeripheral].size() > 2) {
-                    getInfoStream() << " Find mulit value phaddr = " << hexval(phaddr)
-                                    << " size = " << all_fork_states_value_map[uniquehashPeripheral].size() << "\n";
+                    getInfoStream(newStates[k])
+                        << "[INFO] - "
+                        << "Find mulit value phaddr = " << hexval(phaddr)
+                        << ", size = " << all_fork_states_value_map[uniquehashPeripheral].size() << "\n";
                     mulit_value_dr[phaddr] = 1;
                 }
             }
             plgState->insert_cachephs(phaddr, no, value);
             plgState->insert_condition_ph_it(phaddr);
-            getInfoStream(newStates[k]) << " all cache phaddr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                                        << " value = " << hexval(value) << " no = " << no
-                                        << " width = " << hexval(read_size_phs[phaddr].first) << "\n";
+            getInfoStream(newStates[k]) << "[INFO] - "
+                                        << "all cache phaddr = " << hexval(phaddr) << ", pc = " << hexval(pc)
+                                        << "value = " << hexval(value) << " no = " << no
+                                        << "width = " << hexval(read_size_phs[phaddr].first) << "\n";
 
             if (plgState->get_type_flag_ph_it(phaddr) == T3) {
                 plgState->insert_t3_type_ph_back(phaddr, value);
@@ -2447,18 +2553,21 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
                     for (auto ituncache : ituncaches) {
                         plgState->push_t3_type_ph_back(phaddr, ituncache.second);
                     }
-                    getWarningsStream(newStates[k]) << " Note: concrete t3 phaddr = " << hexval(phaddr) << "\n";
+                    getWarningsStream(newStates[k]) << "[WARN] - "
+                                                    << " Note: concrete t3 phaddr = " << hexval(phaddr) << "\n";
                     plgState->insert_concrete_t3_flag(phaddr, 1);
                     ConcreteT3Regs(newStates[k]);
                 }
             } else {
                 if (newStates[k]->regs()->getInterruptFlag() == 0) {
-                    getDebugStream(newStates[k])
-                        << " backup all T0 T1 phaddr " << hexval(phaddr) << " value = " << hexval(value) << "\n";
+                    getDebugStream(newStates[k]) << "[DEBUG] - "
+                                                 << "backup all T0 T1 phaddr, address = " << hexval(phaddr)
+                                                 << ", value = " << hexval(value) << "\n";
                     plgState->insert_pdata_type_phs(uniquePeripheral, value);
                     if (plgState->get_type_flag_ph_it(phaddr) == T1 && value != 0 && newStates[k] == state) {
                         plgState->insert_lock_t1_type_flag(phaddr, 1);
-                        getDebugStream() << "Note: lock t1 " << hexval(phaddr) << "\n";
+                        getDebugStream(state) << "[DEBUG] - "
+                                              << "Note: lock t1 " << hexval(phaddr) << "\n";
                     }
                 }
             }
@@ -2475,7 +2584,8 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
         // push fork states in interrupt
         if (newStates[k]->regs()->getInterruptFlag()) {
             if (newStates[k] != state) {
-                getDebugStream() << "push irq state" << newStates[k]->getID() << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << "push irq state" << newStates[k]->getID() << "\n";
                 irq_states.push_back(newStates[k]);
             }
         }
@@ -2516,7 +2626,8 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
                 unsearched_condition_fork_states.back().push_back(newStates[k]);
             }
         }
-        getWarningsStream(state) << "fork cond in the loop !!" << hexval(current_pc) << "\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "fork cond in the loop !! pc = " << hexval(current_pc) << "\n";
         return;
     } else {
         // set fork flag
@@ -2544,7 +2655,8 @@ void PeripheralModelLearning::onFork(S2EExecutionState *state, const std::vector
         // interrupt mode
         if (newStates[k]->regs()->getInterruptFlag()) {
             if (newStates[k]->regs()->getExceptionIndex() > 15) {
-                getDebugStream() << " donot store irq phs \n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " donot store irq phs \n";
             } else {
                 if (newStates[k] == state) {
                     updateGeneralKB(newStates[k], newStates[k]->regs()->getExceptionIndex(), Valid);
@@ -2600,11 +2712,14 @@ void PeripheralModelLearning::onStateKill(S2EExecutionState *state) {
             auto cfss = unsearched_condition_fork_states[i].begin();
             for (; cfss != unsearched_condition_fork_states[i].end();) {
                 if (*cfss == state) {
-                    getDebugStream() << i << " delete cache condition state " << state->getID() << "\n";
+                    getDebugStream(state)
+                        << "[DEBUG] - " << i << " delete cache condition state " << state->getID() << "\n";
                     unsearched_condition_fork_states[i].erase(cfss);
                     if (unsearched_condition_fork_states[i].size() == 0) {
-                        getInfoStream() << "the empty condition unique fork state is " << i << " total condtions is "
-                                        << unsearched_condition_fork_states.size() << "\n";
+                        getInfoStream(state)
+                            << "[INFO] - "
+                            << "the empty condition unique fork state = " << i
+                            << ", total condtions = " << unsearched_condition_fork_states.size() << "\n";
                         ForkStateStack::iterator cdss = unsearched_condition_fork_states.begin() + i;
                         unsearched_condition_fork_states.erase(cdss);
                         i--;
@@ -2645,9 +2760,11 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
         }
     }
 
-    getInfoStream() << " irq cr count = " << hexval(irq_crs.count(irq_no))
-                    << " cr phs size = " << hexval(irq_cr_phs.size()) << " sr phs size = " << hexval(irq_sr_phs.size())
-                    << " irq regs count = " << hexval(current_irq_phs.size()) << "\n";
+    getInfoStream(state) << "[INFO] - "
+                         << " irq cr count = " << hexval(irq_crs.count(irq_no))
+                         << ", cr phs size = " << hexval(irq_cr_phs.size())
+                         << ", sr phs size = " << hexval(irq_sr_phs.size())
+                         << ", irq regs count = " << hexval(current_irq_phs.size()) << "\n";
     // in case no cr value in condtion
     if (!crflag) {
         if (irq_crs.count(irq_no) > 0 && irq_cr_phs.size() <= 1 && irq_sr_phs.size() > 0) {
@@ -2656,7 +2773,8 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
             for (auto &irq_sr_ph : irq_sr_phs) {
                 sr_phaddr = irq_sr_ph.first;
                 value = irq_sr_ph.second;
-                getDebugStream() << " control sr type irq phs = " << hexval(sr_phaddr) << "\n";
+                getDebugStream(state) << "[DEBUG] - "
+                                      << " control sr type irq phs = " << hexval(sr_phaddr) << "\n";
                 if (plgState->get_irq_flag_ph_it(sr_phaddr) == 2) {
                     uint32_t cr_phaddr;
                     for (auto itcr : irq_crs[irq_no]) {
@@ -2665,9 +2783,10 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
                     }
                     plgState->insert_tirqc_type_phs(irq_no, sr_phaddr, cr_phaddr, plgState->get_writeph(cr_phaddr),
                                                     value);
-                    getInfoStream() << " Add Empty TIRQC type ph addr = " << hexval(sr_phaddr)
-                                    << " value = " << hexval(value) << " cr phaddr = " << hexval(cr_phaddr)
-                                    << " cr value =" << hexval(plgState->get_writeph(cr_phaddr)) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << "Add Empty TIRQC type ph addr = " << hexval(sr_phaddr)
+                                         << ", value = " << hexval(value) << ", cr phaddr = " << hexval(cr_phaddr)
+                                         << ", cr value =" << hexval(plgState->get_writeph(cr_phaddr)) << "\n";
                 } else if (enable_fuzzing) {
                     // TODO: how add fuzzing mode judegment
                     plgState->insert_irq_flag_phs(irq_sr_ph.first, 1);
@@ -2676,7 +2795,8 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
         } else if (irq_crs.count(irq_no) > 0 && irq_cr_phs.size() == 1 && irq_sr_phs.size() == 1) {
             for (auto &irq_sr_ph : irq_sr_phs) {
                 if (plgState->get_irq_flag_ph_it(irq_sr_ph.first) != 2) {
-                    getWarningsStream() << " CR irq phs2 " << hexval(irq_sr_ph.first) << "\n";
+                    getWarningsStream(state) << "[WARN] - "
+                                             << " CR irq phs2 = " << hexval(irq_sr_ph.first) << "\n";
                     // plgState->insert_irq_flag_phs(irq_sr_ph.first, 1);
                 }
             }
@@ -2688,24 +2808,29 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
             for (auto &irq_sr_ph : irq_sr_phs) {
                 // TODO: deal with previous values
                 if (enable_fuzzing && fixed_type_irq_flag[irq_sr_ph.first] == 1) {
-                    getWarningsStream() << "Do not change first IRQ type during fuzzing, keep phaddr "
-                                        << hexval(irq_sr_ph.first) << ".\n";
+                    getWarningsStream(state)
+                        << "[WARN] - "
+                        << "Do not change first IRQ type during fuzzing, keep phaddr = " << hexval(irq_sr_ph.first)
+                        << ".\n";
                 } else {
                     plgState->insert_irq_flag_phs(irq_sr_ph.first, 2);
                     plgState->insert_tirqc_type_phs(irq_no, irq_sr_ph.first, last_cr_phaddr, irq_cr_phs[last_cr_phaddr],
                                                     irq_sr_ph.second);
-                    getInfoStream() << " Add TIRQC type ph addr = " << hexval(irq_sr_ph.first)
-                                    << " value = " << hexval(irq_sr_ph.second)
-                                    << " cr phaddr = " << hexval(last_cr_phaddr)
-                                    << " cr value =" << hexval(irq_cr_phs[last_cr_phaddr]) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << " Add TIRQC type ph addr = " << hexval(irq_sr_ph.first)
+                                         << " value = " << hexval(irq_sr_ph.second)
+                                         << " cr phaddr = " << hexval(last_cr_phaddr)
+                                         << " cr value =" << hexval(irq_cr_phs[last_cr_phaddr]) << "\n";
                 }
             }
         } else {
-            getInfoStream() << " CR size = " << irq_cr_phs.size() << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << " CR size = " << irq_cr_phs.size() << "\n";
             for (auto &irq_sr_ph : irq_sr_phs) {
                 if (plgState->get_irq_flag_ph_it(irq_sr_ph.first) != 2) {
                     plgState->insert_irq_flag_phs(irq_sr_ph.first, 1);
-                    getDebugStream() << " CR irq phs1 " << hexval(irq_sr_ph.first) << "\n";
+                    getDebugStream(state) << "[DEBUG] - "
+                                          << " CR irq phs1 " << hexval(irq_sr_ph.first) << "\n";
                 } else if (irq_crs.count(irq_no) == 1) {
                     uint32_t cr_phaddr;
                     for (auto itcr : irq_crs[irq_no]) {
@@ -2713,9 +2838,10 @@ void PeripheralModelLearning::updateIRQKB(S2EExecutionState *state, uint32_t irq
                         break;
                     }
                     // IRQPhTuple uniqueirqsphs = std::make_tuple(irq_no, irq_sr_ph.first, irq_sr_ph.second);
-                    getWarningsStream() << " Add possible TIRQC type ph addr = " << hexval(irq_sr_ph.first)
-                                        << " cr phaddr = " << hexval(cr_phaddr)
-                                        << " cr value =" << hexval(plgState->get_writeph(cr_phaddr)) << "\n";
+                    getWarningsStream(state) << "[WARN] - "
+                                             << " Add possible TIRQC type ph addr = " << hexval(irq_sr_ph.first)
+                                             << ", cr phaddr = " << hexval(cr_phaddr)
+                                             << ", cr value =" << hexval(plgState->get_writeph(cr_phaddr)) << "\n";
                     for (auto &irq_sr_ph : irq_sr_phs) {
                         plgState->insert_tirqc_type_phs(irq_no, irq_sr_ph.first, cr_phaddr,
                                                         plgState->get_writeph(cr_phaddr), irq_sr_ph.second);
@@ -2732,7 +2858,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
 
     AllKnowledgeBaseMap last_fork_phs;
     if (irq_num > 15) {
-        getWarningsStream() << "do store phs in external irqs\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "do store phs in external irqs\n";
     } else if (irq_num == 0) {
         last_fork_phs = plgState->getlastfork_phs();
     } else {
@@ -2745,8 +2872,10 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
             for (auto &itch : it.second) {
                 if (type_flag_phs[it.first.first] == T0) {
                     if (itch.second.second == plgState->get_writeph(it.first.first)) {
-                        getDebugStream() << " t0 phs = " << hexval(it.first.first) << " write = " << hexval(itch.first)
-                                         << " value = " << hexval(itch.second.second) << "\n";
+                        getDebugStream(state)
+                            << "[DEBUG] - "
+                            << " t0 phs = " << hexval(it.first.first) << " write = " << hexval(itch.first)
+                            << " value = " << hexval(itch.second.second) << "\n";
                         // plgState->insert_t0_type_flag_phs(it.first.first, 1);
                         break;
                     }
@@ -2773,11 +2902,13 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                                  itt1->second.second.second);
                                     plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
                                     plgState->insert_t2_type_flag_phs(it.first, T2);
-                                    getInfoStream() << " Note: t1 change to t2 phaddr = " << hexval(it.first.first)
-                                                    << " pc = " << hexval(it.first.second)
-                                                    << " hash = " << hexval(itt1->second.first)
-                                                    << " value = " << hexval(itt1->second.second.second) << "\n";
-                                    getInfoStream()
+                                    getInfoStream(state) << "[INFO] - "
+                                                         << " Note: t1 change to t2 phaddr = " << hexval(it.first.first)
+                                                         << " pc = " << hexval(it.first.second)
+                                                         << " hash = " << hexval(itt1->second.first)
+                                                         << " value = " << hexval(itt1->second.second.second) << "\n";
+                                    getInfoStream(state)
+                                        << "[INFO] - "
                                         << " Note: t1 change to t2 phaddr = " << hexval(it.first.first)
                                         << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                         << " value = " << hexval(itch.second.second) << "\n";
@@ -2785,7 +2916,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 }
                             } else {
                                 plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << "VUpdate t1 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
@@ -2800,10 +2932,12 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                         if (itpt1->second.first == itch.first) {
                                             plgState->insert_type_flag_phs(it.first.first, T3);
                                             getInfoStream(state)
+                                                << "[INFO] - "
                                                 << " Note: pt1 change to t3 phaddr = " << hexval(it.first.first)
                                                 << " pc = " << hexval(it.first.second)
                                                 << " value = " << hexval(itpt1->second.second.second) << "\n";
                                             getInfoStream(state)
+                                                << "[INFO] - "
                                                 << " Note: pt1 change to t3 phaddr = " << hexval(it.first.first)
                                                 << " pc = " << hexval(it.first.second)
                                                 << " value = " << hexval(itch.second.second) << "\n";
@@ -2811,32 +2945,37 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                                              itpt1->second.second.second);
                                             plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
                                             plgState->erase_pt1_type_ph_it(it.first);
-                                            getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
-                                                            << " pc = " << hexval(itpt1->first.second) << "\n";
+                                            getInfoStream(state) << "[INFO] - "
+                                                                 << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                                 << " pc = " << hexval(itpt1->first.second) << "\n";
                                             break;
                                         } else {
                                             plgState->insert_t2_type_phs(it.first, itpt1->second.first,
                                                                          itpt1->second.second.second);
                                             plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
-                                            getInfoStream()
+                                            getInfoStream(state)
+                                                << "[INFO] - "
                                                 << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
                                                 << " pc = " << hexval(it.first.second)
                                                 << " hash = " << hexval(itpt1->second.first)
                                                 << " value = " << hexval(itpt1->second.second.second) << "\n";
-                                            getInfoStream()
+                                            getInfoStream(state)
+                                                << "[INFO] - "
                                                 << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
                                                 << " pc = " << hexval(it.first.second)
                                                 << " hash = " << hexval(itch.first)
                                                 << " value = " << hexval(itch.second.second) << "\n";
                                             plgState->insert_t2_type_flag_phs(it.first, T2);
                                             plgState->erase_pt1_type_ph_it(it.first);
-                                            getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
-                                                            << " pc = " << hexval(itpt1->first.second) << "\n";
+                                            getInfoStream(state) << "[INFO] - "
+                                                                 << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                                 << " pc = " << hexval(itpt1->first.second) << "\n";
                                             continue;
                                         }
                                     } else {
                                         plgState->insert_pt1_type_phs(it.first, itch.first, itch.second);
-                                        getInfoStream()
+                                        getInfoStream(state)
+                                            << "[INFO] - "
                                             << "  Update possible1 t1 phs = " << hexval(it.first.first)
                                             << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                             << " value = " << hexval(itch.second.second) << "\n";
@@ -2844,7 +2983,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 }
                             } else {
                                 plgState->insert_pt1_type_phs(it.first, itch.first, itch.second);
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << "  Add pt1 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
@@ -2859,20 +2999,24 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 plgState->insert_type_flag_phs(it.first.first, T3);
                                 plgState->insert_t3_type_ph_back(it.first.first, itt2->second);
                                 plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
-                                getInfoStream(state) << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
+                                getInfoStream(state) << "[INFO] - "
+                                                     << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
                                                      << " pc = " << hexval(it.first.second)
                                                      << " value = " << hexval(itt2->second) << "\n";
-                                getInfoStream(state) << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
+                                getInfoStream(state) << "[INFO] - "
+                                                     << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
                                                      << " pc = " << hexval(it.first.second)
                                                      << " value = " << hexval(itch.second.second) << "\n";
                                 break;
                             } else if (plgState->get_cache_phs(it.first.first).size() > 100) {
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << " already many times t2 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
                             } else {
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << " already t2 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
@@ -2890,6 +3034,7 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 for (auto itt2v : loop_type_ph_vector) {
                                     plgState->insert_t3_type_ph_back(it.first.first, itt2v);
                                     getInfoStream(state)
+                                        << "[INFO] - "
                                         << " Note: t2 oversize we will change t2 change to t3 phaddr = "
                                         << hexval(it.first.first) << " pc = " << hexval(it.first.second)
                                         << " value = " << hexval(itt2v) << "\n";
@@ -2900,7 +3045,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 break;
                             } else {
                                 plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << "Add pt2 phs = " << hexval(it.first.first) << " pc = " << hexval(it.first.second)
                                     << " hash = " << hexval(itch.first) << " value = " << hexval(itch.second.second)
                                     << " total size = " << itt2s.size() << "\n";
@@ -2909,13 +3055,15 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                     }
                 } else if (type_flag_phs[it.first.first] == T3) {
                     plgState->insert_cachephs(it.first.first, itch.second.first, itch.second.second);
-                    getInfoStream() << " Add t3 loop phs = " << hexval(it.first.first)
-                                    << " no = " << hexval(itch.second.first)
-                                    << " value = " << hexval(itch.second.second) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << " Add t3 loop phs = " << hexval(it.first.first)
+                                         << " no = " << hexval(itch.second.first)
+                                         << " value = " << hexval(itch.second.second) << "\n";
                     plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
                     break;
                 } else {
-                    getWarningsStream() << "Unknown Type!!!!\n";
+                    getWarningsStream(state) << "[WARN] - "
+                                             << "Unknown Type!!!!\n";
                 }
             }
         }
@@ -2926,18 +3074,21 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
         for (auto &it : last_fork_phs) {
             for (auto &itch : it.second) {
                 if (type_flag_phs[it.first.first] == T0) {
-                    getWarningsStream() << "Return back to T1 ph = " << hexval(it.first.first) << "\n";
+                    getWarningsStream(state) << "[WARN] - "
+                                             << "Return back to T1 ph = " << hexval(it.first.first) << "\n";
                     plgState->insert_type_flag_phs(it.first.first, T1);
                     plgState->insert_lock_t1_type_flag(it.first.first, 1);
                     plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
-                    getInfoStream() << "  Add t1 phs = " << hexval(it.first.first)
-                                    << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
-                                    << " value = " << hexval(itch.second.second) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << "  Add t1 phs = " << hexval(it.first.first)
+                                         << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
+                                         << " value = " << hexval(itch.second.second) << "\n";
                     for (auto t0_ph : plgState->get_t0_type_phs(it.first.first)) { // move all previous t0 to t1
                         if (t0_ph.first != it.first.second) {
                             plgState->insert_pt1_type_phs(std::make_pair(it.first.first, t0_ph.first),
                                                           t0_ph.second.first, t0_ph.second.second);
-                            getInfoStream()
+                            getInfoStream(state)
+                                << "[INFO] - "
                                 << "  Add pt1 phs = " << hexval(it.first.first) << " pc = " << hexval(t0_ph.first)
                                 << " hash = " << hexval(t0_ph.second.first)
                                 << " value = " << hexval(t0_ph.second.second.second) << "\n";
@@ -2954,20 +3105,24 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 plgState->insert_t3_type_ph_back(it.first.first, itt2->second);
                                 plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
                                 getInfoStream(state)
+                                    << "[INFO] - "
                                     << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itt2->second) << "\n";
-                                getInfoStream(state) << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
+                                getInfoStream(state) << "[INFO] - "
+                                                     << " Note: t2 change to t3 phaddr = " << hexval(it.first.first)
                                                      << " pc = " << hexval(it.first.second)
                                                      << " value = " << hexval(itch.second.second) << "\n";
                                 break;
                             } else if (plgState->get_cache_phs(it.first.first).size() > 100) {
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << " already many times t2 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
                             } else {
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << " already t2 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
@@ -2985,6 +3140,7 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 for (auto itt2v : loop_type_ph_vector) {
                                     plgState->insert_t3_type_ph_back(it.first.first, itt2v);
                                     getInfoStream(state)
+                                        << "[INFO] - "
                                         << " Note: t2 oversize we will change t2 change to t3 phaddr = "
                                         << hexval(it.first.first) << " pc = " << hexval(it.first.second)
                                         << " value = " << hexval(itt2v) << "\n";
@@ -2996,7 +3152,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                             } else {
                                 plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
                                 plgState->insert_pt2_type_flag_ph_it(it.first, itch.first, 3);
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << "Add lock t2 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << " total size = " << itt2s.size()
@@ -3011,10 +3168,12 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 itt1->second.second.first != itch.second.first) { // different value and no
                                 if (itt1->second.first == itch.first) {           // same hash
                                     plgState->insert_type_flag_phs(it.first.first, T3);
-                                    getInfoStream(state) << " Note: t1 change to t3 phaddr = " << hexval(it.first.first)
+                                    getInfoStream(state) << "[INFO] - "
+                                                         << " Note: t1 change to t3 phaddr = " << hexval(it.first.first)
                                                          << " pc = " << hexval(it.first.second)
                                                          << " value = " << hexval(itt1->second.second.second) << "\n";
-                                    getInfoStream(state) << " Note: t1 change to t3 phaddr = " << hexval(it.first.first)
+                                    getInfoStream(state) << "[INFO] - "
+                                                         << " Note: t1 change to t3 phaddr = " << hexval(it.first.first)
                                                          << " pc = " << hexval(it.first.second)
                                                          << " value = " << hexval(itch.second.second) << "\n";
                                     plgState->insert_t3_type_ph_back(it.first.first, itt1->second.second.second);
@@ -3025,11 +3184,13 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                                                  itt1->second.second.second);
                                     plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
                                     plgState->insert_t2_type_flag_phs(it.first, T2);
-                                    getInfoStream() << " Note: t1 change to t2 phaddr = " << hexval(it.first.first)
-                                                    << " pc = " << hexval(it.first.second)
-                                                    << " hash = " << hexval(itt1->second.first)
-                                                    << " value = " << hexval(itt1->second.second.second) << "\n";
-                                    getInfoStream()
+                                    getInfoStream(state) << "[INFO] - "
+                                                         << " Note: t1 change to t2 phaddr = " << hexval(it.first.first)
+                                                         << " pc = " << hexval(it.first.second)
+                                                         << " hash = " << hexval(itt1->second.first)
+                                                         << " value = " << hexval(itt1->second.second.second) << "\n";
+                                    getInfoStream(state)
+                                        << "[INFO] - "
                                         << " Note: t1 change to t2 phaddr = " << hexval(it.first.first)
                                         << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                         << " value = " << hexval(itch.second.second) << "\n";
@@ -3037,7 +3198,8 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                 }
                             } else {
                                 plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << "  Update t1 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
@@ -3054,52 +3216,62 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                                     if (itpt1->second.first == itch.first) {           // same hash
                                         plgState->insert_type_flag_phs(it.first.first, T3);
                                         getInfoStream(state)
+                                            << "[INFO] - "
                                             << " Note: pt1 change to t3 phaddr = " << hexval(it.first.first)
                                             << " pc = " << hexval(it.first.second)
                                             << " value = " << hexval(itpt1->second.second.second) << "\n";
                                         getInfoStream(state)
+                                            << "[INFO] - "
                                             << " Note: pt1 change to t3 phaddr = " << hexval(it.first.first)
                                             << " pc = " << hexval(it.first.second)
                                             << " value = " << hexval(itch.second.second) << "\n";
                                         plgState->insert_t3_type_ph_back(it.first.first, itpt1->second.second.second);
                                         plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
                                         plgState->erase_pt1_type_ph_it(it.first);
-                                        getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
-                                                        << " pc = " << hexval(itpt1->first.second) << "\n";
+                                        getInfoStream(state) << "[INFO] - "
+                                                             << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                             << " pc = " << hexval(itpt1->first.second) << "\n";
                                         break;
                                     } else {
                                         plgState->insert_t2_type_phs(it.first, itpt1->second.first,
                                                                      itpt1->second.second.second);
                                         plgState->insert_t2_type_phs(it.first, itch.first, itch.second.second);
                                         plgState->insert_t2_type_flag_phs(it.first, T2);
-                                        getInfoStream() << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
-                                                        << " pc = " << hexval(it.first.second)
-                                                        << " hash = " << hexval(itpt1->second.first)
-                                                        << " value = " << hexval(itpt1->second.second.second) << "\n";
-                                        getInfoStream()
+                                        getInfoStream(state)
+                                            << "[INFO] - "
+                                            << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
+                                            << " pc = " << hexval(it.first.second)
+                                            << " hash = " << hexval(itpt1->second.first)
+                                            << " value = " << hexval(itpt1->second.second.second) << "\n";
+                                        getInfoStream(state)
+                                            << "[INFO] - "
                                             << " Note: pt1 change to t2 phaddr = " << hexval(it.first.first)
                                             << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                             << " value = " << hexval(itch.second.second) << "\n";
                                         plgState->erase_pt1_type_ph_it(it.first);
-                                        getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
-                                                        << " pc = " << hexval(itpt1->first.second) << "\n";
+                                        getInfoStream(state) << "[INFO] - "
+                                                             << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                             << " pc = " << hexval(itpt1->first.second) << "\n";
                                         continue;
                                     }
                                 } else {
                                     plgState->insert_lock_t1_type_flag(it.first.first, 1);
                                     plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
-                                    getInfoStream()
+                                    getInfoStream(state)
+                                        << "[INFO] - "
                                         << "  Add t1 phs = " << hexval(it.first.first)
                                         << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                         << " value = " << hexval(itch.second.second) << "\n";
                                     plgState->erase_pt1_type_ph_it(it.first);
-                                    getInfoStream() << "  Remove pt1 phs = " << hexval(itpt1->first.first)
-                                                    << " pc = " << hexval(itpt1->first.second) << "\n";
+                                    getInfoStream(state) << "[INFO] - "
+                                                         << "  Remove pt1 phs = " << hexval(itpt1->first.first)
+                                                         << " pc = " << hexval(itpt1->first.second) << "\n";
                                 }
                             } else {
                                 plgState->insert_lock_t1_type_flag(it.first.first, 1);
                                 plgState->insert_t1_type_phs(it.first, itch.first, itch.second);
-                                getInfoStream()
+                                getInfoStream(state)
+                                    << "[INFO] - "
                                     << "  Add t1 phs = " << hexval(it.first.first)
                                     << " pc = " << hexval(it.first.second) << " hash = " << hexval(itch.first)
                                     << " value = " << hexval(itch.second.second) << "\n";
@@ -3108,13 +3280,15 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
                     }
                 } else if (type_flag_phs[it.first.first] == T3) {
                     plgState->insert_cachephs(it.first.first, itch.second.first, itch.second.second);
-                    getInfoStream() << " Add t3 loop phs = " << hexval(it.first.first)
-                                    << " no = " << hexval(itch.second.first)
-                                    << " value = " << hexval(itch.second.second) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << " Add t3 loop phs = " << hexval(it.first.first)
+                                         << " no = " << hexval(itch.second.first)
+                                         << " value = " << hexval(itch.second.second) << "\n";
                     plgState->insert_t3_type_ph_back(it.first.first, itch.second.second);
                     break;
                 } else {
-                    getInfoStream() << "Unknown Type!!!!\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << "Unknown Type!!!!\n";
                 }
             }
         }
@@ -3124,13 +3298,15 @@ void PeripheralModelLearning::updateGeneralKB(S2EExecutionState *state, uint32_t
 void PeripheralModelLearning::onExceptionExit(S2EExecutionState *state, uint32_t irq_no) {
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
 
-    getInfoStream() << "Interrupt exit irq num = " << hexval(irq_no) << "\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "Interrupt exit irq num = " << hexval(irq_no) << "\n";
     // external irqs
     if (irq_no > 15) {
         if (irq_crs.count(irq_no) == 0) {
             for (auto irq_sr : irq_srs[irq_no]) {
                 if (plgState->get_irq_flag_ph_it(irq_sr) != 2 && irq_data_phs[irq_sr] != 2) {
-                    getInfoStream() << " status irq phs type 1 " << hexval(irq_sr) << "\n";
+                    getInfoStream(state) << "[INFO] - "
+                                         << " status irq phs type 1 " << hexval(irq_sr) << "\n";
                     plgState->insert_irq_flag_phs(irq_sr, 1);
                 }
             }
@@ -3147,17 +3323,19 @@ void PeripheralModelLearning::onExceptionExit(S2EExecutionState *state, uint32_t
 
 void PeripheralModelLearning::onStateSwitch(S2EExecutionState *currentState, S2EExecutionState *nextState) {
 
-    getDebugStream() << "next irq flag = " << nextState->regs()->getInterruptFlag()
-                     << " previous irq flag = " << currentState->regs()->getInterruptFlag() << "\n";
+    getDebugStream(currentState) << "[DEBUG] - "
+                          << "next irq flag = " << nextState->regs()->getInterruptFlag()
+                          << " previous irq flag = " << currentState->regs()->getInterruptFlag() << "\n";
 
     // phs model learning
-    getDebugStream() << nextState->regs()->getInterruptFlag()
-                     << " flag irq_no_new_branch_flag = " << irq_no_new_branch_flag
-                     << nextState->regs()->getInterruptFlag() << " flag no_new_branch_flag = " << no_new_branch_flag
-                     << "\n";
+    getDebugStream(currentState) << "[DEBUG] - " << nextState->regs()->getInterruptFlag()
+                          << " flag irq_no_new_branch_flag = " << irq_no_new_branch_flag
+                          << nextState->regs()->getInterruptFlag()
+                          << " flag no_new_branch_flag = " << no_new_branch_flag << "\n";
 
     if (find(learning_mode_states.begin(), learning_mode_states.end(), nextState) == learning_mode_states.end()) {
-        getWarningsStream() << "Learning state can not be switch to fuzzing state\n";
+        getWarningsStream(currentState) << "[WARN] - "
+                                        << "Learning state can not be switch to fuzzing state\n";
         exit(-1);
     }
 
@@ -3188,7 +3366,8 @@ void PeripheralModelLearning::onConcreteDataMemoryAccess(S2EExecutionState *, ui
 }
 void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecutionState *state, uint64_t concreteAddr,
                                                                        klee::ref<klee::Expr> symbVal, unsigned flags) {
-    getDebugStream(state) << "onAfterSymbolicDataConcreteAddressAccess"
+    getDebugStream(state) << "[INFO] - "
+                          << "onAfterSymbolicDataConcreteAddressAccess"
                           << "\n";
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     // TODO: concretize symbolic Data that accesses concrete memory
@@ -3208,13 +3387,11 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         getPeripheralExecutionState(result->getName(), &perifAddr, &pc, &hashVal, &no);
 
         if (!(flags & MEM_TRACE_FLAG_WRITE)) {
-            getDebugStream(state) << "NotWrite"
-                                  << "[flags: " << flags << "]"
-                                  << "[peripheral address: " << hexval(perifAddr) << "] "
-                                  << "[access pc: " << hexval(accessPc) << "] "
-                                  << "[concrete address: " << hexval(concreteAddr) << "] "
-                                  << "\n"
-                                  << "[symbolic value: " << symbVal << "] "
+            getDebugStream(state) << "[DEBUG] - "
+                                  << "NotWrite, IO flags = " << flags << ", peripheral address: " << hexval(perifAddr)
+                                  << ", access pc: " << hexval(accessPc)
+                                  << ", concrete address: " << hexval(concreteAddr) << "\n"
+                                  << "symbolic value: " << symbVal << "] "
                                   << "\n";
             return;
         }
@@ -3228,31 +3405,29 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
             }
         }
         if (!inRange) {
-            getDebugStream(state) << "Write but: concrete address is not in the range of bss"
-                                  << "[peripheral address: " << hexval(perifAddr) << "] "
-                                  << "[access pc: " << hexval(accessPc) << "] "
-                                  << "[concrete address: " << hexval(concreteAddr) << "] "
-                                  << "\n"
-                                  << "[symbolic value: " << symbVal << "] "
-                                  << "\n";
+            getDebugStream(state) << "[DEBUG] - "
+                                  << "Write but: concrete address is not in the range of bss, peripheral address = "
+                                  << hexval(perifAddr) << ", access pc: " << hexval(accessPc)
+                                  << ", concrete address: " << hexval(concreteAddr) << "\n"
+                                  << "symbolic value: " << symbVal << "\n";
             return;
         }
 
         uint32_t perifTyp = plgState->get_type_flag_ph_it(perifAddr);
         if (perifTyp != T1 && perifTyp != T2) {
-            getDebugStream(state) << "Write but: relate peripheral is not T1/T2"
-                                  << "[peripheral address: " << hexval(perifAddr) << "] "
-                                  << "[access pc: " << hexval(accessPc) << "] "
-                                  << "[concrete address: " << hexval(concreteAddr) << "] "
-                                  << "\n"
-                                  << "[symbolic value: " << symbVal << "] "
+            getDebugStream(state) << "[DEBUG] - "
+                                  << "Write but: relate peripheral is not T1/T2, peripheral address: "
+                                  << hexval(perifAddr) << ", access pc: " << hexval(accessPc)
+                                  << ", concrete address: " << hexval(concreteAddr) << "\n"
+                                  << "symbolic value: " << symbVal << "] "
                                   << "\n";
             return;
         }
         for (unsigned s = 0; s < result->getSize(); ++s) {
             ref<Expr> e = state->concolics->evaluate(result, s);
             if (!isa<ConstantExpr>(e)) {
-                getWarningsStream(state) << "Failed to evaluate concrete value\n";
+                getWarningsStream(state) << "[WARN] - "
+                                         << "Failed to evaluate concrete value\n";
                 pabort("Failed to evaluate concrete value");
             }
 
@@ -3270,24 +3445,21 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         printMem(state, concreteAddr);
         plgState->insert_type_flag_phs(perifAddr, T3);
         plgState->insert_t3_type_ph_back(perifAddr, val);
-        getDebugStream(state)
-            << "Write: concretize symbolic Data that accesses concrete memory, update peripheral to T3"
-            << "\n"
-            << "[peripheral address: " << hexval(perifAddr) << "] "
-            << "[access pc: " << hexval(accessPc) << "] "
-            << "[concrete address: " << hexval(concreteAddr) << "] "
-            << "[read pc: " << hexval(pc) << "] "
-            << "[hash of pc and context: " << hexval(hashVal) << "] "
-            << "[number of value: " << no << "] "
-            << "[value: " << hexval(val) << "] "
-            << "\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "Write: concretize symbolic Data that accesses concrete memory, update peripheral to T3"
+                             << "\n"
+                             << ", peripheral address: " << hexval(perifAddr) << ", access pc: " << hexval(accessPc)
+                             << ", concrete address: " << hexval(concreteAddr) << ", read pc: " << hexval(pc)
+                             << ", hash of pc and context: " << hexval(hashVal) << ", number of value: " << no
+                             << ", value: " << hexval(val) << "\n";
     }
 }
 uint32_t PeripheralModelLearning::switchModefromFtoL(S2EExecutionState *state, uint32_t phaddr, unsigned size,
                                                      uint32_t concreteValue) {
     DECLARE_PLUGINSTATE(PeripheralModelLearningState, state);
     uint32_t pc = state->regs()->getPc();
-    getInfoStream() << "New peripheral has found, ph addr = " << hexval(phaddr) << " pc = " << hexval(pc) << "\n";
+    getInfoStream(state) << "[INFO] - "
+                         << "New peripheral has found, ph addr = " << hexval(phaddr) << " pc = " << hexval(pc) << "\n";
 
     onModeSwitch.emit(state, true);
     g_s2e_cache_mode = false;
@@ -3297,8 +3469,9 @@ uint32_t PeripheralModelLearning::switchModefromFtoL(S2EExecutionState *state, u
         plgState->insert_type_flag_phs(ittp.first, ittp.second);
         plgState->insert_t0_type_flag_phs(ittp.first, 1);
         if (ittp.second == T3) {
-            getInfoStream() << "change mode T3 phaddr = " << hexval(ittp.first)
-                            << " size = " << cache_dr_type_size[ittp.first] << "\n";
+            getInfoStream(state) << "[INFO] - "
+                                 << "change mode T3 phaddr = " << hexval(ittp.first)
+                                 << " size = " << cache_dr_type_size[ittp.first] << "\n";
             plgState->inc_readphs(ittp.first, cache_dr_type_size[ittp.first]);
         }
     }
@@ -3376,12 +3549,14 @@ uint32_t PeripheralModelLearning::switchModefromFtoL(S2EExecutionState *state, u
         if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) {
             irq_crs[state->regs()->getExceptionIndex()][phaddr] = plgState->get_writeph(phaddr);
         }
-        getDebugStream() << " T0 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                         << " value = " << hexval(concreteValue) << "\n";
+        getDebugStream(state) << "[DEBUG] - "
+                              << "T0 type ph addr = " << hexval(phaddr) << ", pc = " << hexval(pc)
+                              << ", value = " << hexval(concreteValue) << "\n";
         return plgState->get_writeph(phaddr);
     } else {
-        getDebugStream() << " T1 type ph addr = " << hexval(phaddr) << " pc = " << hexval(pc)
-                         << " value = " << hexval(concreteValue) << "\n";
+        getDebugStream(state) << "[DEBUG] - "
+                              << "T1 type ph addr = " << hexval(phaddr) << ", pc = " << hexval(pc)
+                              << ", value = " << hexval(concreteValue) << "\n";
         plgState->insert_type_flag_phs(phaddr, T1);
         plgState->insert_pt1_type_flag_phs(UniquePeripheral(phaddr, pc), 1);
         if (state->regs()->getInterruptFlag() && state->regs()->getExceptionIndex() > 15) { // external irq handle
@@ -3422,7 +3597,8 @@ void PeripheralModelLearning::switchModefromLtoF(S2EExecutionState *state) {
 
     // TODO: updatge learning_mode_states in every kill and put the learning mode states to false states to kill
     if (!readKBfromFile(fileName)) {
-        getWarningsStream() << "Could not read peripheral regs from cache file" << fileName << "\n";
+        getWarningsStream(state) << "[WARN] - "
+                                 << "Could not read peripheral regs from cache file, filename = " << fileName << "\n";
         exit(-1);
     }
     onModeSwitch.emit(state, false);

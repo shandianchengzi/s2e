@@ -57,6 +57,7 @@ namespace {
 class SymbolicHardwareState : public PluginState {
 private:
     std::map<uint32_t /* phaddr */, uint32_t /* value */> all_phs;
+
 public:
     SymbolicHardwareState() {
         all_phs.clear();
@@ -81,10 +82,11 @@ public:
         return all_phs[phaddr];
     }
 };
-}
+} // namespace
 void SymbolicHardware::initialize() {
     if (!ARMMMIORangeConfig()) {
-        getWarningsStream() << "Could not parse config\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Could not parse config\n";
         exit(-1);
     }
 
@@ -104,7 +106,8 @@ template <typename T> bool SymbolicHardware::parseRangeList(ConfigFile *cfg, con
 
     int ranges = cfg->getListSize(key, &ok);
     if (!ok) {
-        getWarningsStream() << "Could not parse ranges: " << key << "\n";
+        getWarningsStream() << "[WARN] - "
+                            << "Could not parse ranges = " << key << "\n";
         return false;
     }
 
@@ -113,20 +116,22 @@ template <typename T> bool SymbolicHardware::parseRangeList(ConfigFile *cfg, con
         ss << key << "[" << (i + 1) << "]";
         uint64_t start = cfg->getInt(ss.str() + "[1]", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Could not parse start port: " << ss.str() + "[1]"
+            getWarningsStream() << "[WARN] - "
+                                << "Could not parse start port = " << ss.str() + "[1]"
                                 << "\n";
             return false;
         }
 
         uint64_t end = cfg->getInt(ss.str() + "[2]", 0, &ok);
         if (!ok) {
-            getWarningsStream() << "Could not parse port range: " << ss.str() + "[2]"
+            getWarningsStream() << "[WARN] - "
+                                << "Could not parse port range = " << ss.str() + "[2]"
                                 << "\n";
             return false;
         }
 
         if (!(start <= end)) {
-            getWarningsStream() << hexval(start) << " is greater than " << hexval(end) << "\n";
+            getWarningsStream() << "[WARN] - " << hexval(start) << " is greater than " << hexval(end) << "\n";
             return false;
         }
 
@@ -161,41 +166,42 @@ bool SymbolicHardware::ARMMMIORangeConfig(void) {
     m.first = 0x40000000;
     m.second = 0x5fffffff;
 
-    getDebugStream() << "Adding symbolic mmio range: " << hexval(m.first) << " - " << hexval(m.second) << "\n";
+    getInfoStream() << "[INFO] - "
+                    << "Adding symbolic mmio range: " << hexval(m.first) << " - " << hexval(m.second) << "\n";
     m_mmio.push_back(m);
 
     return true;
 }
 
 /*bool SymbolicHardware::parseConfig(void) {*/
-    //ConfigFile *cfg = s2e()->getConfig();
-    //auto keys = cfg->getListKeys(getConfigKey());
-    //for (auto key : keys) {
-        //std::stringstream ss;
-        //ss << getConfigKey() << "." << key;
-        //SymbolicPortRanges ports;
-        //if (!parseRangeList(cfg, ss.str() + ".ports", ports)) {
-            //return false;
-        //}
+// ConfigFile *cfg = s2e()->getConfig();
+// auto keys = cfg->getListKeys(getConfigKey());
+// for (auto key : keys) {
+// std::stringstream ss;
+// ss << getConfigKey() << "." << key;
+// SymbolicPortRanges ports;
+// if (!parseRangeList(cfg, ss.str() + ".ports", ports)) {
+// return false;
+//}
 
-        //for (auto port : ports) {
-            //getDebugStream() << "Adding symbolic port range " << hexval(port.first) << " - " << hexval(port.second)
-                             //<< "\n";
-            //m_ports.push_back(port);
-        //}
+// for (auto port : ports) {
+// getDebugStream() << "Adding symbolic port range " << hexval(port.first) << " - " << hexval(port.second)
+//<< "\n";
+// m_ports.push_back(port);
+//}
 
-        //SymbolicMmioRanges mmio;
-        //if (!parseRangeList(cfg, ss.str() + ".mmio", mmio)) {
-            //return false;
-        //}
+// SymbolicMmioRanges mmio;
+// if (!parseRangeList(cfg, ss.str() + ".mmio", mmio)) {
+// return false;
+//}
 
-        //for (auto m : mmio) {
-            //getDebugStream() << "Adding symbolic mmio range " << hexval(m.first) << " - " << hexval(m.second) << "\n";
-            //m_mmio.push_back(m);
-        //}
-    //}
+// for (auto m : mmio) {
+// getDebugStream() << "Adding symbolic mmio range " << hexval(m.first) << " - " << hexval(m.second) << "\n";
+// m_mmio.push_back(m);
+//}
+//}
 
-    //return true;
+// return true;
 /*}*/
 
 template <typename T, typename U> inline bool SymbolicHardware::isSymbolic(T ports, U port) {
@@ -238,7 +244,9 @@ klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *stat
     if (address >= 0x42000000 && address <= 0x43fffffc && bitbandFlag) {
         uint32_t phaddr = (address & 0x1FFFFFF) >> 7;
         phaddr = (phaddr << 2) | 0x40000000;
-        getDebugStream() << "bit band alias address = " << hexval(address) << " alias address = " << hexval(phaddr) << "\n";
+        getDebugStream(state) << "[DEBUG] -"
+                              << "bit band alias address = " << hexval(address)
+                              << ", alias address = " << hexval(phaddr) << "\n";
         address = phaddr;
     }
 
@@ -261,8 +269,10 @@ klee::ref<klee::Expr> SymbolicHardware::onReadPeripheral(S2EExecutionState *stat
     uint32_t hwModelValue = concreteValue;
     onSymbolicRegisterReadEvent.emit(state, type, address, size, &hwModelValue, &createSymFlag, &ss);
 
-    getDebugStream(g_s2e_state) << ss.str() << " size " << hexval(size) << " value = " << hexval(hwModelValue)
-                                << " sym = " << (createSymFlag ? "yes" : "no") << "\n";
+    getDebugStream(g_s2e_state) << "[DEBUG] - "
+                                << "mmio read, " << ss.str() << ", size = " << hexval(size)
+                                << ", value = " << hexval(hwModelValue) << ", sym = " << (createSymFlag ? "yes" : "no")
+                                << "\n";
 
     uint64_t LSB = ((uint64_t) 1 << (size * 8));
     hwModelValue = hwModelValue & (LSB - 1);
@@ -288,7 +298,9 @@ static klee::ref<klee::Expr> symbhw_symbportread(uint16_t port, unsigned size, u
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "reading from port " << hexval(port) << " value: " << concreteValue << "\n";
+        hw->getDebugStream(g_s2e_state) << "[DEBUG] - "
+                                        << "reading from port = " << hexval(port) << ", value = " << concreteValue
+                                        << "\n";
     }
 
     return hw->onReadPeripheral(g_s2e_state, SYMB_PORT, port, size, concreteValue);
@@ -298,7 +310,8 @@ static bool symbhw_symbportwrite(uint16_t port, const klee::ref<klee::Expr> &val
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "writing to port " << hexval(port) << " value: " << value << "\n";
+        hw->getDebugStream(g_s2e_state) << "[DEBUG] - "
+                                        << "writing to port = " << hexval(port) << ", value = " << value << "\n";
     }
 
     return !hw->isPortSymbolic(port);
@@ -317,7 +330,8 @@ static klee::ref<klee::Expr> symbhw_symbread(struct MemoryDesc *mr, uint64_t phy
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "reading mmio " << hexval(physaddress) << " value: " << value << "\n";
+        hw->getDebugStream(g_s2e_state) << "[DEBUG] - "
+                                        << "reading mmio, address = " << hexval(physaddress) << ", value = " << value << "\n";
     }
 
     unsigned size = value->getWidth() / 8;
@@ -330,26 +344,30 @@ static void symbhw_symbwrite(struct MemoryDesc *mr, uint64_t physaddress, const 
     SymbolicHardware *hw = static_cast<SymbolicHardware *>(opaque);
 
     if (DebugSymbHw) {
-        hw->getDebugStream(g_s2e_state) << "writing mmio " << hexval(physaddress) << " value: " << value << "\n";
+        hw->getDebugStream(g_s2e_state) << "[DEBUG] - "
+                                        << "writing mmio, address = " << hexval(physaddress) << ", value = " << value
+                                        << "\n";
     }
     hw->onWritePeripheral(g_s2e_state, physaddress, value);
 }
 
 void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phaddr,
-                                                const klee::ref<klee::Expr> &value) {
+                                         const klee::ref<klee::Expr> &value) {
     DECLARE_PLUGINSTATE(SymbolicHardwareState, state);
     // peripheral address bit-band alias
     uint32_t curMMIOvalue = 0;
     uint32_t bit_loc = 0, address_index = 0;
     bool bit_alias = false;
     if (phaddr >= 0x42000000 && phaddr <= 0x43fffffc && bitbandFlag) {
-        getInfoStream() << "write bit band alias address = " << hexval(phaddr) <<"\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "write bit band alias address = " << hexval(phaddr) << "\n";
         bit_loc = (phaddr & 0x7f) >> 2;
         address_index = (phaddr & 0x1FFFFFF) >> 7;
         phaddr = (address_index << 2) | 0x40000000;
         curMMIOvalue = plgState->get_phs_value(phaddr);
-        getInfoStream() << "write bit band alias address = " << hexval(phaddr)
-                         << " bit loc = " << hexval(bit_loc) << " cur value =" << hexval(curMMIOvalue) <<"\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "write bit band alias address = " << hexval(phaddr) << ", bit loc = " << hexval(bit_loc)
+                             << ", cur value =" << hexval(curMMIOvalue) << "\n";
         bit_alias = true;
     }
 
@@ -360,32 +378,35 @@ void SymbolicHardware::onWritePeripheral(S2EExecutionState *state, uint64_t phad
         bool WriteSymFlag = false;
         if (bit_alias) {
             if (writeConcreteValue) {
-                curMMIOvalue |= (uint32_t)(1<< bit_loc);
+                curMMIOvalue |= (uint32_t) (1 << bit_loc);
             } else {
-                curMMIOvalue &= (uint32_t)(~(1<< bit_loc));
+                curMMIOvalue &= (uint32_t) (~(1 << bit_loc));
             }
             writeConcreteValue = curMMIOvalue;
         }
-        getInfoStream() << "writing mmio " << hexval(phaddr) << " concrete value: " << hexval(writeConcreteValue) << "\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "writing mmio, address = " << hexval(phaddr)
+                             << ", concrete value = " << hexval(writeConcreteValue) << "\n";
         onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, WriteSymFlag, writeConcreteValue);
     } else {
         // evaluate symbolic regs
         klee::ref<klee::ConstantExpr> ce;
         ce = dyn_cast<klee::ConstantExpr>(g_s2e_state->concolics->evaluate(value));
         writeConcreteValue = ce->getZExtValue();
-        getInfoStream() << "writing mmio " << hexval(phaddr) << " symbolic to concrete value: " << hexval(writeConcreteValue) << "\n";
+        getInfoStream(state) << "[INFO] - "
+                             << "writing mmio, address = " << hexval(phaddr)
+                             << ", symbolic to concrete value = " << hexval(writeConcreteValue) << "\n";
         bool WriteSymFlag = true;
         if (bit_alias) {
             if (writeConcreteValue) {
-                curMMIOvalue |= (uint32_t)(1<< bit_loc);
+                curMMIOvalue |= (uint32_t) (1 << bit_loc);
             } else {
-                curMMIOvalue &= (uint32_t)(~(1<< bit_loc));
+                curMMIOvalue &= (uint32_t) (~(1 << bit_loc));
             }
             writeConcreteValue = curMMIOvalue;
         }
         onSymbolicRegisterWriteEvent.emit(g_s2e_state, SYMB_MMIO, phaddr, WriteSymFlag, writeConcreteValue);
     }
-
 }
 
 } // namespace hw

@@ -658,7 +658,8 @@ int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_r
     }
 
     if (rom_num > NUMS_ROM || ram_num > NUMS_RAM) {
-        std::cout << "Invalid memory region number, at most " << NUMS_RAM << " rams and " << NUMS_ROM << " roms can be used\n";
+        std::cout << "Invalid memory region number, at most " << NUMS_RAM << " rams and " << NUMS_ROM
+                  << " roms can be used\n";
         return -1;
     }
 
@@ -668,41 +669,53 @@ int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_r
     s2e::ConfigFile *cfg = g_s2e->getConfig();
 
     if (*is_rom) {
-        if ((*num + 1)> rom_num) {
-            std::cout << "Only " << rom_num << " rom has been configured" << "\n";
+        if ((*num + 1) > rom_num) {
+            std::cout << "Only " << rom_num << " rom has been configured"
+                      << "\n";
             return -1;
         }
         std::stringstream ss;
-        ss << "mem.rom" << "[" << (*num + 1) << "]";
+        ss << "mem.rom"
+           << "[" << (*num + 1) << "]";
         *baseaddr = cfg->getInt(ss.str() + "[1]", 0, &ok);
         if (!ok) {
-            std::cout << "Could not parse " << ss.str() + "baseaddr" << "\n";
+            std::cout << "Could not parse " << ss.str() + "baseaddr"
+                      << "\n";
             return -1;
         }
         *size = cfg->getInt(ss.str() + "[2]", 0, &ok);
         if (!ok) {
-            std::cout << "Could not parse " << ss.str() + "size" << "\n";
+            std::cout << "Could not parse " << ss.str() + "size"
+                      << "\n";
             return -1;
         }
-        g_s2e->getDebugStream() << "Adding rom " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
+        g_s2e->getInfoStream() << "MEM CONFIG: [INFO] - "
+                               << "configure rom = " << s2e::hexval(*num) << ", baseaddr = " << s2e::hexval(*baseaddr)
+                               << ", size = " << s2e::hexval(*size) << "\n";
     } else {
-        if ((*num + 1)> ram_num) {
-            std::cout << "Only " << ram_num << " ram has been configured" << "\n";
+        if ((*num + 1) > ram_num) {
+            std::cout << "Only " << ram_num << " ram has been configured"
+                      << "\n";
             return -1;
         }
         std::stringstream ss;
-        ss <<"mem.ram" << "[" << (*num + 1) << "]";
+        ss << "mem.ram"
+           << "[" << (*num + 1) << "]";
         *baseaddr = cfg->getInt(ss.str() + "[1]", 0, &ok);
         if (!ok) {
-            std::cout << "Could not parse " << ss.str() + "baseaddr" << "\n";
+            std::cout << "Could not parse " << ss.str() + "baseaddr"
+                      << "\n";
             return -1;
         }
         *size = cfg->getInt(ss.str() + "[2]", 0, &ok);
         if (!ok) {
-            std::cout << "Could not parse " << ss.str() + "size" << "\n";
+            std::cout << "Could not parse " << ss.str() + "size"
+                      << "\n";
             return -1;
         }
-        g_s2e->getDebugStream() << "Adding ram " << s2e::hexval(*num) << " baseaddr:" << s2e::hexval(*baseaddr) <<" size:" << s2e::hexval(*size) << "\n";
+        g_s2e->getInfoStream() << "MEM CONFIG: [INFO] - "
+                               << "configure ram = " << s2e::hexval(*num) << ", baseaddr = " << s2e::hexval(*baseaddr)
+                               << ", size = " << s2e::hexval(*size) << "\n";
     }
 
     return 0;

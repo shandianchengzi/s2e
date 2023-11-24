@@ -609,9 +609,10 @@ void S2EExecutor::registerRam(S2EExecutionState *initialState, MemoryDesc *regio
     assert((size & ~TARGET_PAGE_MASK) == 0);
     assert((hostAddress & ~TARGET_PAGE_MASK) == 0);
 
-    m_s2e->getDebugStream() << "Adding memory block (startAddr = " << hexval(startAddress)
-                            << ", size = " << hexval(size) << ", hostAddr = " << hexval(hostAddress)
-                            << ", isSharedConcrete=" << isSharedConcrete << ", name=" << name << ")\n";
+    m_s2e->getInfoStream() << "MEM CONFIG: [INFO] - "
+                           << "adding memory block, startAddr = " << hexval(startAddress) << ", size = " << hexval(size)
+                           << ", hostAddr = " << hexval(hostAddress) << ", isSharedConcrete=" << isSharedConcrete
+                           << ", name=" << name << "\n";
 
     for (uint64_t addr = hostAddress; addr < hostAddress + size; addr += SE_RAM_OBJECT_SIZE) {
 
