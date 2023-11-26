@@ -3396,9 +3396,9 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
             return;
         }
         bool inRange = false;
-        if (!inRange && !bsses.empty()) {
-            for (auto bss : bsses) {
-                if (concreteAddr >= bss.first && concreteAddr <= bss.second) {
+        if (!inRange && !pds.empty()) {
+            for (auto pd : pds) {
+                if (concreteAddr >= pd.first && concreteAddr <= pd.second) {
                     inRange = true;
                     break;
                 }
@@ -3406,7 +3406,7 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
         }
         if (!inRange) {
             getDebugStream(state) << "[DEBUG] - "
-                                  << "Write but: concrete address is not in the range of bss, peripheral address = "
+                                  << "Write but: concrete address is not in the range of persistent data sections, peripheral address = "
                                   << hexval(perifAddr) << ", access pc: " << hexval(accessPc)
                                   << ", concrete address: " << hexval(concreteAddr) << "\n"
                                   << "symbolic value: " << symbVal << "\n";
@@ -3629,7 +3629,7 @@ void PeripheralModelLearning::parseMemConfig() {
     ConfigFile *cfg = s2e()->getConfig();
     int rom_num = cfg->getListSize("mem.rom");
     int ram_num = cfg->getListSize("mem.ram");
-    int bss_num = cfg->getListSize("mem.bss");
+    int pd_num = cfg->getListSize("mem.persistent_data");
 
     for (int i = 1; i <= rom_num; i++) {
         std::stringstream ss;
@@ -3667,9 +3667,9 @@ void PeripheralModelLearning::parseMemConfig() {
         getDebugStream() << "parse config: ram " << i << " baseaddr:" << hexval(baseaddr) << " size:" << hexval(size)
                          << "\n";
     }
-    for (int i = 1; i <= bss_num; i++) {
+    for (int i = 1; i <= pd_num; i++) {
         std::stringstream ss;
-        ss << "mem.bss"
+        ss << "mem.persistent_data"
            << "[" << i << "]";
         uint64_t base = cfg->getInt(ss.str() + "[1]", 0, &ok);
         if (!ok) {
@@ -3681,8 +3681,8 @@ void PeripheralModelLearning::parseMemConfig() {
             getDebugStream() << "Could not parse " << ss.str() + "end"
                              << "\n";
         }
-        bsses[base] = end;
-        getDebugStream() << "parse config: bss " << i << " base:" << hexval(base) << " end:" << hexval(end) << "\n";
+        pds[base] = end;
+        getDebugStream() << "parse config: persistent data " << i << " base:" << hexval(base) << " end:" << hexval(end) << "\n";
     }
 }
 

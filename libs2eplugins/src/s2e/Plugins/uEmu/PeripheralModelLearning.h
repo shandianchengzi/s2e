@@ -139,7 +139,7 @@ private:
     uint64_t durationtime;
     std::map<uint64_t, uint64_t> roms;
     std::map<uint64_t, uint64_t> rams;
-    std::map<uint64_t, uint64_t> bsses;
+    std::map<uint64_t, uint64_t> pds;
 
     template <typename T> bool parseRangeList(ConfigFile *cfg, const std::string &key, T &result);
     bool parseConfigIoT();
