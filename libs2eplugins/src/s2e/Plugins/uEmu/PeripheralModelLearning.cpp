@@ -2088,7 +2088,8 @@ void PeripheralModelLearning::onLearningTerminationDetection(S2EExecutionState *
                                      << ", already trigger number of irq values = " << itairq.second.size()
                                      << ", total number of irq values = " << possible_irq_values[itairq.first].size()
                                      << "\n";
-            *actual_end = false;
+            // *actual_end = false;
+            *actual_end = true;
             return;
         }
     }
@@ -2121,8 +2122,8 @@ void PeripheralModelLearning::onInvalidStatesDetection(S2EExecutionState *state,
                           << "kill pc = " << hexval(state->regs()->getPc())
                           << " lr = " << hexval(state->regs()->getLr()) << " alive point count "
                           << alive_points_count[state->regs()->getPc()] << "\n";
-    if ((alive_points_count[state->regs()->getPc()] > t2_max_context ||
-         (alive_points_count[state->regs()->getPc()] > state->getID() / 3 && state->getID() > 10)) &&
+
+    if ((alive_points_count[state->regs()->getPc()] > state->getID() / 3 && state->getID() > 10) &&
         (type == DL1 || type == LL1) && !enable_fuzzing) {
         getWarningsStream(state) << "[WARN] - "
                                  << "====KB extraction phase failed! Please add the alive point: " << hexval(pc)
@@ -3324,14 +3325,14 @@ void PeripheralModelLearning::onExceptionExit(S2EExecutionState *state, uint32_t
 void PeripheralModelLearning::onStateSwitch(S2EExecutionState *currentState, S2EExecutionState *nextState) {
 
     getDebugStream(currentState) << "[DEBUG] - "
-                          << "next irq flag = " << nextState->regs()->getInterruptFlag()
-                          << " previous irq flag = " << currentState->regs()->getInterruptFlag() << "\n";
+                                 << "next irq flag = " << nextState->regs()->getInterruptFlag()
+                                 << " previous irq flag = " << currentState->regs()->getInterruptFlag() << "\n";
 
     // phs model learning
     getDebugStream(currentState) << "[DEBUG] - " << nextState->regs()->getInterruptFlag()
-                          << " flag irq_no_new_branch_flag = " << irq_no_new_branch_flag
-                          << nextState->regs()->getInterruptFlag()
-                          << " flag no_new_branch_flag = " << no_new_branch_flag << "\n";
+                                 << " flag irq_no_new_branch_flag = " << irq_no_new_branch_flag
+                                 << nextState->regs()->getInterruptFlag()
+                                 << " flag no_new_branch_flag = " << no_new_branch_flag << "\n";
 
     if (find(learning_mode_states.begin(), learning_mode_states.end(), nextState) == learning_mode_states.end()) {
         getWarningsStream(currentState) << "[WARN] - "
@@ -3405,11 +3406,12 @@ void PeripheralModelLearning::onAfterSymbolicDataConcreteAddressAccess(S2EExecut
             }
         }
         if (!inRange) {
-            getDebugStream(state) << "[DEBUG] - "
-                                  << "Write but: concrete address is not in the range of persistent data sections, peripheral address = "
-                                  << hexval(perifAddr) << ", access pc: " << hexval(accessPc)
-                                  << ", concrete address: " << hexval(concreteAddr) << "\n"
-                                  << "symbolic value: " << symbVal << "\n";
+            getDebugStream(state)
+                << "[DEBUG] - "
+                << "Write but: concrete address is not in the range of persistent data sections, peripheral address = "
+                << hexval(perifAddr) << ", access pc: " << hexval(accessPc)
+                << ", concrete address: " << hexval(concreteAddr) << "\n"
+                << "symbolic value: " << symbVal << "\n";
             return;
         }
 
@@ -3682,7 +3684,8 @@ void PeripheralModelLearning::parseMemConfig() {
                              << "\n";
         }
         pds[base] = end;
-        getDebugStream() << "parse config: persistent data " << i << " base:" << hexval(base) << " end:" << hexval(end) << "\n";
+        getDebugStream() << "parse config: persistent data " << i << " base:" << hexval(base) << " end:" << hexval(end)
+                         << "\n";
     }
 }
 
