@@ -2966,20 +2966,21 @@ static int disas_vfp_insn(CPUARMState *env, DisasContext *s, uint32_t insn) {
     rd = (insn >> 12) & 0xf;
     tmp = load_reg(s, rn);
 
-    /* align rn0 */
+    /* align left reg when VSTMDB */
     if(insn==0xecb18b10){
-        // add 0x40 to rn0
+        // add 0x40 to rn
         tmp2 = tcg_const_i32(0x40);
         tcg_gen_add_i32(tmp, tmp, tmp2);
         tcg_temp_free_i32(tmp2);
-        // store 0x40 to rn0
+        // store 0x40 to rn
         store_reg(s, rn, tmp);
+    /* align left reg when VLDM */
     }else if(insn==0xed208b10){
-        // decrease 0x40 to rn0
+        // decrease 0x40 to rn
         tmp2 = tcg_const_i32(0x40);
         tcg_gen_sub_i32(tmp, tmp, tmp2);
         tcg_temp_free_i32(tmp2);
-        // store 0x40 to rn0
+        // store 0x40 to rn
         store_reg(s, rn, tmp);
     }
 
