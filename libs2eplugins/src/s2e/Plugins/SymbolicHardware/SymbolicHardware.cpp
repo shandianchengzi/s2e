@@ -166,9 +166,18 @@ bool SymbolicHardware::ARMMMIORangeConfig(void) {
     m.first = 0x40000000;
     m.second = 0x5fffffff;
 
+    // Special case for ARMv7m
+    SymbolicMmioRange m1;
+    m1.first = 0xfe08000;
+    m1.second = 0xfe09000;
+
     getInfoStream() << "[INFO] - "
                     << "Adding symbolic mmio range: " << hexval(m.first) << " - " << hexval(m.second) << "\n";
     m_mmio.push_back(m);
+
+    getInfoStream() << "[INFO] - "
+                    << "Adding symbolic mmio range: " << hexval(m1.first) << " - " << hexval(m1.second) << "\n";
+    m_mmio.push_back(m1);
 
     return true;
 }
